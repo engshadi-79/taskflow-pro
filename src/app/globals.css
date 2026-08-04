@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f3f5fb;
+  --surface: #ffffff;
+  --sidebar: #eef1fa;
+  --foreground: #1d1f2b;
+  --muted: #767b90;
+  --faint: #a6abbd;
+  --border: #e6e9f3;
+
+  /* blue — primary brand accent */
+  --accent-50: #eef1ff;
+  --accent-100: #dce5ff;
+  --accent-300: #7fa8ff;
+  --accent-500: #3e7bfa;
+  --accent-600: #2e63d6;
+  --accent-700: #24509e;
+  --accent-900: #16305e;
+
+  /* orange */
+  --orange-50: #fff3e7;
+  --orange-500: #ff8a5c;
+  --orange-600: #ff6f61;
+
+  /* pink */
+  --pink-50: #fdeaf1;
+  --pink-500: #e8497b;
+  --pink-600: #c63c6b;
+
+  /* green */
+  --green-50: #e5f8f1;
+  --green-500: #1fbf8f;
+  --green-600: #0fa378;
+
+  /* purple */
+  --purple-50: #f1ecff;
+  --purple-500: #8b6cf0;
+  --purple-600: #6d4fdb;
+}
+
+:root.dark {
+  --background: #12141c;
+  --surface: #1b1e29;
+  --sidebar: #171923;
+  --foreground: #eceef5;
+  --muted: #9ba0b4;
+  --faint: #6b7086;
+  --border: #2b2f3d;
+
+  --accent-50: #1c2b57;
+  --accent-100: #223a6e;
+  --accent-300: #4c72d6;
+  --accent-500: #5c93ff;
+  --accent-600: #7fa8ff;
+  --accent-700: #b3c8ff;
+  --accent-900: #dce5ff;
+
+  --orange-50: #4a2f1e;
+  --orange-500: #ff8a5c;
+  --orange-600: #ffa77e;
+
+  --pink-50: #4a1f30;
+  --pink-500: #ea5c8a;
+  --pink-600: #f083ac;
+
+  --green-50: #16403a;
+  --green-500: #2ed6a4;
+  --green-600: #5ce3bc;
+
+  --purple-50: #2f2657;
+  --purple-500: #9d81f5;
+  --purple-600: #b39ff8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-sidebar: var(--sidebar);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+
+  --color-accent-50: var(--accent-50);
+  --color-accent-100: var(--accent-100);
+  --color-accent-300: var(--accent-300);
+  --color-accent-500: var(--accent-500);
+  --color-accent-600: var(--accent-600);
+  --color-accent-700: var(--accent-700);
+  --color-accent-900: var(--accent-900);
+
+  --color-orange-50: var(--orange-50);
+  --color-orange-500: var(--orange-500);
+  --color-orange-600: var(--orange-600);
+
+  --color-pink-50: var(--pink-50);
+  --color-pink-500: var(--pink-500);
+  --color-pink-600: var(--pink-600);
+
+  --color-green-50: var(--green-50);
+  --color-green-500: var(--green-500);
+  --color-green-600: var(--green-600);
+
+  --color-purple-50: var(--purple-50);
+  --color-purple-500: var(--purple-500);
+  --color-purple-600: var(--purple-600);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+}
+
+body {
+  font-family: var(--font-body), Arial, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display), Arial, sans-serif;
+}

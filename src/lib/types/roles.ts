@@ -1,0 +1,14 @@
+export type Role = "super_admin" | "department_manager" | "employee";
+
+export type Profile = {
+  id: string;
+  organization_id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  role: Role;
+  department_id: string | null;
+  job_title: string | null;
+  is_active: boolean;
+  created_at: string;
+};
