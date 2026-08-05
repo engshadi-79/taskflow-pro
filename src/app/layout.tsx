@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
-import { Cairo, Tajawal } from "next/font/google";
+import { Noto_Kufi_Arabic } from "next/font/google";
 import "./globals.css";
 
-const cairo = Cairo({
-  variable: "--font-display",
-  weight: ["600", "700", "800", "900"],
-  subsets: ["arabic", "latin"],
-});
-
-const tajawal = Tajawal({
+// The ACAS portal uses Noto Kufi Arabic throughout, for headings and body alike.
+const notoKufi = Noto_Kufi_Arabic({
   variable: "--font-body",
-  weight: ["300", "400", "500", "700", "800"],
+  weight: ["400", "500", "600", "700", "800", "900"],
   subsets: ["arabic", "latin"],
 });
 
@@ -24,7 +19,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="ar"
       dir="rtl"
-      className={`${cairo.variable} ${tajawal.variable} h-full antialiased`}
+      className={`${notoKufi.variable} h-full antialiased`}
     >
       <head>
         <script

@@ -518,7 +518,7 @@ export function LandingPage() {
                 {i < STEPS.length - 1 && (
                   <div className="absolute top-7 hidden h-px w-full bg-gradient-to-l from-accent-500/60 to-transparent sm:block" style={{ insetInlineStart: "50%" }} />
                 )}
-                <div className="relative mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-accent-500 font-display text-xl font-black text-white shadow-[0_0_24px_rgba(62,123,250,0.55)]">
+                <div className="relative mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-accent-500 font-display text-xl font-black text-white shadow-[0_0_24px_rgba(99,102,241,0.55)]">
                   {s.n}
                 </div>
                 <h3 className="mb-1.5 text-base font-extrabold text-white">{s.title}</h3>

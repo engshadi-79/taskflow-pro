@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 type Particle = { x: number; y: number; vx: number; vy: number; color: string };
 
-const COLORS = ["#3e7bfa", "#e8497b", "#ff8a5c", "#1fbf8f", "#8b6cf0"];
+const COLORS = ["#6366f1", "#a855f7", "#ec4899", "#11998e", "#f59e0b"];
 
 export function AnimatedBackground({
   intensity = "hero",
@@ -74,7 +74,7 @@ export function AnimatedBackground({
           const b = particles[j];
           const dist = Math.hypot(a.x - b.x, a.y - b.y);
           if (dist < linkDist) {
-            ctx!.strokeStyle = `rgba(62,123,250,${(1 - dist / linkDist) * (isHero ? 0.28 : 0.15)})`;
+            ctx!.strokeStyle = `rgba(99,102,241,${(1 - dist / linkDist) * (isHero ? 0.28 : 0.15)})`;
             ctx!.lineWidth = 1;
             ctx!.beginPath();
             ctx!.moveTo(a.x, a.y);

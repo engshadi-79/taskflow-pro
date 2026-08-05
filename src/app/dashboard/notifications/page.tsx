@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
 import { NotificationsList } from "@/components/dashboard/notifications-list";
+import { PageHeader } from "@/components/shared/page-header";
+import { BellIcon } from "@/components/shared/icons";
 import type { Notification } from "@/lib/types/notification";
 
 export default async function NotificationsPage() {
@@ -19,8 +21,15 @@ export default async function NotificationsPage() {
     .returns<Notification[]>();
 
   return (
-    <div className="space-y-6">
-      <h1 className="font-display text-[22px] text-foreground">الإشعارات</h1>
+    <div>
+      <PageHeader
+        title="الإشعارات"
+        subtitle="كل التنبيهات والتحديثات الخاصة بك"
+        variant="violet"
+        icon={<BellIcon className="h-6 w-6" />}
+        count={`${notifications?.length ?? 0} إشعار`}
+      />
+
       <NotificationsList notifications={notifications ?? []} />
     </div>
   );

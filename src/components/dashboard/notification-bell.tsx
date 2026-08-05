@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { BellIcon } from "@/components/shared/icons";
 
 export function NotificationBell({
   userId,
@@ -38,24 +39,11 @@ export function NotificationBell({
     <Link
       href="/dashboard/notifications"
       aria-label="الإشعارات"
-      className="relative rounded-md p-2 text-surface/85 hover:bg-white/10"
+      className="relative flex h-10 w-10 items-center justify-center rounded-full bg-accent-50 text-accent-600 transition-colors hover:brightness-95"
     >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        className="h-5 w-5"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M6 8a6 6 0 1 1 12 0c0 3.5 1.5 5.5 1.5 6.5H4.5C4.5 13.5 6 11.5 6 8Z"
-        />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 17.5a2.5 2.5 0 0 0 5 0" />
-      </svg>
+      <BellIcon className="h-[19px] w-[19px]" />
       {count > 0 && (
-        <span className="absolute -end-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-pink-500 px-1 text-[10px] font-bold text-white">
+        <span className="absolute -end-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-pink-500 px-1 text-[10px] font-bold text-white ring-2 ring-surface">
           {count > 9 ? "9+" : count}
         </span>
       )}

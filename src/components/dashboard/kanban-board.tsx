@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { moveTaskStatus } from "@/lib/actions/tasks";
+import { CalendarIcon, InboxIcon } from "@/components/shared/icons";
 import {
   PRIORITY_LABEL,
   STATUS_LABEL,
@@ -10,19 +11,20 @@ import {
   type TaskWithAssignee,
 } from "@/lib/types/task";
 
-const COLUMNS: { status: TaskStatus; dot: string }[] = [
-  { status: "new", dot: "bg-orange-500" },
-  { status: "in_progress", dot: "bg-accent-500" },
-  { status: "pending_review", dot: "bg-purple-500" },
-  { status: "completed", dot: "bg-green-500" },
-  { status: "overdue", dot: "bg-pink-500" },
+/** `dot` tints the status chip, `edge` the leading rule on each task card. */
+const COLUMNS: { status: TaskStatus; dot: string; edge: string }[] = [
+  { status: "new", dot: "bg-brand-blue-50 text-brand-blue-600", edge: "border-s-brand-blue-500" },
+  { status: "in_progress", dot: "bg-teal-50 text-teal-500", edge: "border-s-teal-500" },
+  { status: "pending_review", dot: "bg-orange-50 text-orange-600", edge: "border-s-orange-500" },
+  { status: "completed", dot: "bg-green-50 text-green-500", edge: "border-s-green-500" },
+  { status: "overdue", dot: "bg-brand-red-50 text-brand-red-500", edge: "border-s-brand-red-500" },
 ];
 
 const PRIORITY_TAG: Record<string, string> = {
-  low: "bg-accent-50 text-accent-500",
-  medium: "bg-orange-50 text-orange-600",
-  high: "bg-pink-50 text-pink-600",
-  urgent: "bg-pink-50 text-pink-600",
+  low: "bg-background text-muted",
+  medium: "bg-brand-blue-50 text-brand-blue-600",
+  high: "bg-orange-50 text-orange-600",
+  urgent: "bg-brand-red-50 text-brand-red-500",
 };
 
 function initials(name: string) {
@@ -86,16 +88,22 @@ export function KanbanBoard({
                 const taskId = e.dataTransfer.getData("text/plain");
                 handleDrop(col.status, taskId);
               }}
-              className={`rounded-2xl bg-sidebar p-4 transition-colors ${
-                dragOverStatus === col.status ? "ring-2 ring-accent-500" : ""
+              className={`rounded-2xl border border-border bg-background p-3 transition-colors ${
+                dragOverStatus === col.status
+                  ? "border-accent-500 ring-2 ring-accent-500/30"
+                  : ""
               }`}
             >
-              <div className="mb-3.5 flex items-center justify-between px-1">
+              <div className="mb-3 flex items-center justify-between rounded-[13px] border border-border bg-surface px-3 py-2.5">
                 <h4 className="flex items-center gap-2 text-[13.5px] font-extrabold text-foreground">
-                  <span className={`h-2 w-2 rounded-full ${col.dot}`} />
+                  <span
+                    className={`flex h-6 w-6 items-center justify-center rounded-lg ${col.dot}`}
+                  >
+                    <span className="h-2 w-2 rounded-full bg-current" />
+                  </span>
                   {STATUS_LABEL[col.status]}
                 </h4>
-                <span className="rounded-full bg-surface px-2.5 py-0.5 text-[11.5px] font-extrabold text-faint">
+                <span className="rounded-full bg-background px-2.5 py-0.5 text-[11.5px] font-extrabold text-muted">
                   {colTasks.length}
                 </span>
               </div>
@@ -109,7 +117,7 @@ export function KanbanBoard({
                     onDragStart={(e) => {
                       e.dataTransfer.setData("text/plain", task.id);
                     }}
-                    className={`mb-3 rounded-[14px] border border-border bg-surface p-4 shadow-[0_8px_18px_-14px_rgba(29,31,43,0.25)] ${
+                    className={`mb-2.5 rounded-[13px] border border-border border-s-[3px] bg-surface p-3.5 shadow-sm transition-shadow hover:shadow-md ${col.edge} ${
                       canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-90"
                     }`}
                   >
@@ -126,11 +134,14 @@ export function KanbanBoard({
                     </Link>
                     <div className="mt-3 flex items-center justify-between">
                       <span
-                        className={`text-[11.5px] ${
-                          col.status === "overdue" ? "font-bold text-pink-600" : "text-faint"
+                        className={`inline-flex items-center gap-1.5 text-[11.5px] ${
+                          col.status === "overdue"
+                            ? "font-bold text-brand-red-500"
+                            : "text-faint"
                         }`}
                       >
-                        📅 {task.due_date ?? "—"}
+                        <CalendarIcon className="h-3.5 w-3.5" />
+                        {task.due_date ?? "—"}
                       </span>
                       {task.assignee && (
                         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-500 text-[10px] font-extrabold text-white">
@@ -143,7 +154,12 @@ export function KanbanBoard({
               })}
 
               {colTasks.length === 0 && (
-                <p className="px-1 py-3 text-center text-xs text-faint">لا توجد مهام</p>
+                <div className="flex flex-col items-center gap-2 py-7 text-center">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface text-faint">
+                    <InboxIcon className="h-5 w-5" />
+                  </span>
+                  <p className="text-xs text-faint">لا توجد مهام</p>
+                </div>
               )}
             </div>
           );

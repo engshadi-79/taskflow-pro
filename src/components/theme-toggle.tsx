@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { MoonIcon, SunIcon } from "@/components/shared/icons";
 
 function subscribe(callback: () => void) {
   const observer = new MutationObserver(callback);
@@ -32,11 +33,15 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      className="rounded-md p-2 text-surface/85 hover:bg-white/10"
+      className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-50 text-orange-600 transition-colors hover:brightness-95"
       aria-pressed={isDark}
       aria-label={isDark ? "الوضع الفاتح" : "الوضع الليلي"}
     >
-      {isDark ? "☀️" : "🌙"}
+      {isDark ? (
+        <SunIcon className="h-[19px] w-[19px]" />
+      ) : (
+        <MoonIcon className="h-[19px] w-[19px]" />
+      )}
     </button>
   );
 }

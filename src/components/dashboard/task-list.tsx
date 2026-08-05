@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { deleteTask } from "@/lib/actions/tasks";
+import { CheckIcon, SearchIcon } from "@/components/shared/icons";
 import {
   PRIORITY_LABEL,
   STATUS_LABEL,
@@ -74,12 +75,17 @@ export function TaskList({
           </button>
         ))}
         <div className="flex-1" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="🔍 ابحث عن مهمة..."
-          className="w-55 rounded-full border border-border bg-surface px-4.5 py-2 text-[13px] text-foreground placeholder:text-faint focus:border-accent-500 focus:outline-none"
-        />
+        <label className="relative">
+          <span className="sr-only">ابحث عن مهمة</span>
+          <SearchIcon className="pointer-events-none absolute end-4 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="ابحث عن مهمة..."
+            className="w-55 rounded-full border border-border bg-surface py-2 pe-10 ps-4.5 text-[13px] text-foreground placeholder:text-faint focus:border-accent-500 focus:outline-none"
+          />
+        </label>
       </div>
 
       <div className="overflow-x-auto rounded-[18px] border border-border bg-surface px-5.5 py-2">
@@ -106,7 +112,9 @@ export function TaskList({
                         : "border-border"
                     }`}
                   >
-                    {task.status === "completed" && "✓"}
+                    {task.status === "completed" && (
+                      <CheckIcon className="h-3 w-3 stroke-[3]" />
+                    )}
                   </span>
                 </td>
                 <td className="px-1.5 py-4">

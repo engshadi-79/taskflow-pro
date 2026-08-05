@@ -10,6 +10,16 @@ import {
   TopPerformerRow,
   ActivityRow,
 } from "@/components/dashboard/dashboard-widgets";
+import { WelcomeBanner } from "@/components/dashboard/welcome-banner";
+import { QuickShortcuts } from "@/components/dashboard/quick-shortcuts";
+import { StatCard } from "@/components/shared/stat-card";
+import {
+  BellIcon,
+  CheckSquareIcon,
+  ChartIcon,
+  InboxIcon,
+  UsersIcon,
+} from "@/components/shared/icons";
 import { PRIORITY_LABEL, type Priority, type Task } from "@/lib/types/task";
 import { timeAgo } from "@/lib/format-time-ago";
 
@@ -41,22 +51,71 @@ export default async function DashboardPage() {
   const supabase = await createClient();
 
   if (profile.role === "employee") {
-    const { data: tasks } = await supabase
-      .from("tasks")
-      .select("*")
-      .eq("assigned_to", profile.id)
-      .order("due_date", { ascending: true, nullsFirst: false })
-      .returns<Task[]>();
+    const [{ data: tasks }, { data: ownDept }] = await Promise.all([
+      supabase
+        .from("tasks")
+        .select("*")
+        .eq("assigned_to", profile.id)
+        .order("due_date", { ascending: true, nullsFirst: false })
+        .returns<Task[]>(),
+      profile.department_id
+        ? supabase
+            .from("departments")
+            .select("name")
+            .eq("id", profile.department_id)
+            .single()
+        : Promise.resolve({ data: null }),
+    ]);
+
+    const myTasks = tasks ?? [];
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const done = myTasks.filter((t) => t.status === "completed").length;
+    const active = myTasks.filter((t) =>
+      ["new", "in_progress", "pending_review"].includes(t.status)
+    ).length;
+    const overdue = myTasks.filter(
+      (t) =>
+        t.status !== "completed" && t.due_date && t.due_date.slice(0, 10) < todayIso
+    ).length;
 
     return (
-      <div className="space-y-6">
-        <div className="font-display text-[22px] font-extrabold text-foreground">
-          أهلاً، {profile.full_name.split(" ")[0]}
-          <span className="ms-2 font-body text-[15px] font-medium text-muted">
-            — هذه مهامك اليوم
-          </span>
+      <div className="space-y-5">
+        <WelcomeBanner
+          fullName={profile.full_name}
+          role={profile.role}
+          departmentName={(ownDept as { name: string } | null)?.name}
+        />
+
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard
+            value={myTasks.length}
+            label="إجمالي مهامي"
+            tone="indigo"
+            icon={<CheckSquareIcon className="h-[22px] w-[22px]" />}
+            href="/dashboard/kanban"
+          />
+          <StatCard
+            value={active}
+            label="مهام قائمة"
+            tone="blue"
+            icon={<InboxIcon className="h-[22px] w-[22px]" />}
+          />
+          <StatCard
+            value={overdue}
+            label="مهام متأخرة"
+            tone="red"
+            icon={<BellIcon className="h-[22px] w-[22px]" />}
+          />
+          <StatCard
+            value={done}
+            label="مهام منجزة"
+            tone="green"
+            icon={<ChartIcon className="h-[22px] w-[22px]" />}
+          />
         </div>
-        <EmployeeTaskList tasks={tasks ?? []} />
+
+        <QuickShortcuts role={profile.role} />
+        <EmployeeTaskList tasks={myTasks} />
       </div>
     );
   }
@@ -148,12 +207,51 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-4.5">
-      <div className="font-display text-[22px] font-extrabold text-foreground">
-        أهلاً، {profile.full_name.split(" ")[0]}
-        <span className="ms-2 font-body text-[15px] font-medium text-muted">
-          — هذا وضع فريقك اليوم
-        </span>
+      <WelcomeBanner
+        fullName={profile.full_name}
+        role={profile.role}
+        departmentName={(ownDepartment as { name: string } | null)?.name}
+      />
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <StatCard
+          value={totalCount ?? 0}
+          label="إجمالي المهام"
+          tone="indigo"
+          icon={<CheckSquareIcon className="h-[22px] w-[22px]" />}
+          href="/dashboard/tasks"
+        />
+        <StatCard
+          value={pendingCount ?? 0}
+          label="مهام قائمة"
+          tone="blue"
+          icon={<InboxIcon className="h-[22px] w-[22px]" />}
+          href="/dashboard/kanban"
+        />
+        <StatCard
+          value={completedCount ?? 0}
+          label="مهام منجزة"
+          tone="green"
+          icon={<ChartIcon className="h-[22px] w-[22px]" />}
+          href="/dashboard/reports"
+        />
+        <StatCard
+          value={unreadCount ?? 0}
+          label="إشعارات غير مقروءة"
+          tone="red"
+          icon={<BellIcon className="h-[22px] w-[22px]" />}
+          href="/dashboard/notifications"
+        />
+        <StatCard
+          value={totalMembers ?? 0}
+          label={profile.role === "super_admin" ? "أعضاء الفريق" : "أعضاء القسم"}
+          tone="amber"
+          icon={<UsersIcon className="h-[22px] w-[22px]" />}
+          href="/dashboard/employees"
+        />
       </div>
+
+      <QuickShortcuts role={profile.role} />
 
       <div className="my-5 grid grid-cols-1 gap-4.5 lg:grid-cols-[1.65fr_1fr_1fr]">
         <HeroCard
@@ -213,8 +311,8 @@ export default async function DashboardPage() {
                     : "بدون قسم"}
               </div>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-50 text-lg text-accent-500">
-              👥
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-50 text-accent-500">
+              <UsersIcon className="h-5 w-5" />
             </div>
           </div>
         </div>

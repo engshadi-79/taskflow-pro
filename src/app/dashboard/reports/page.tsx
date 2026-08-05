@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
-import { StatCard } from "@/components/dashboard/stat-card";
+import { StatCard } from "@/components/shared/stat-card";
+import { PageHeader } from "@/components/shared/page-header";
+import { ChartIcon, DownloadIcon } from "@/components/shared/icons";
 
 type TopEmployeeRow = { user_id: string; full_name: string; completed_count: number };
 type TopDepartmentRow = { department_id: string; department_name: string; completed_count: number };
@@ -36,25 +38,34 @@ export default async function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-[22px] text-foreground">التقارير</h1>
-          <p className="mt-0.5 text-[13.5px] text-muted">نظرة شاملة على أداء الفريق</p>
-        </div>
+      <PageHeader
+        title="التقارير"
+        subtitle="نظرة شاملة على أداء الفريق"
+        variant="navy"
+        icon={<ChartIcon className="h-6 w-6" />}
+      >
         <a
           href="/api/reports/export"
-          className="rounded-[10px] bg-accent-500 px-5 py-2.5 text-[13.5px] font-extrabold text-white hover:bg-accent-600"
+          className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-extrabold text-accent-700 transition-transform hover:scale-[1.03]"
         >
+          <DownloadIcon className="h-4 w-4" />
           تصدير Excel
         </a>
-      </div>
+      </PageHeader>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <StatCard
           label="متوسط وقت الإنجاز"
           value={avgHours ? `${avgHours} ساعة` : "—"}
+          tone="teal"
+          icon={<ChartIcon className="h-[22px] w-[22px]" />}
         />
-        <StatCard label="نسبة التأخير" value={`${delayRate ?? 0}%`} />
+        <StatCard
+          label="نسبة التأخير"
+          value={`${delayRate ?? 0}%`}
+          tone="amber"
+          icon={<ChartIcon className="h-[22px] w-[22px]" />}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

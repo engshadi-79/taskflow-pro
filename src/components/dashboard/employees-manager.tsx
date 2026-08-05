@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   createEmployee,
@@ -8,6 +8,8 @@ import {
   deleteEmployee,
   type UserFormState,
 } from "@/lib/actions/users";
+import { PageHeader } from "@/components/shared/page-header";
+import { PlusIcon, SearchIcon, UsersIcon } from "@/components/shared/icons";
 import type { EmployeeStats } from "@/lib/employee-stats";
 import type { Profile, Role } from "@/lib/types/roles";
 
@@ -50,29 +52,55 @@ export function EmployeesManager({
   canManage: boolean;
 }) {
   const [showCreate, setShowCreate] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return employees;
+    return employees.filter(
+      (e) =>
+        e.full_name.toLowerCase().includes(q) ||
+        (e.email ?? "").toLowerCase().includes(q)
+    );
+  }, [employees, query]);
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-[22px] text-foreground">الفريق</h1>
-          <p className="mt-0.5 text-[13.5px] text-muted">{employees.length} عضوًا في الفريق</p>
-        </div>
+      <PageHeader
+        title="الفريق"
+        subtitle="ابحث بالاسم أو البريد الإلكتروني"
+        variant="violet"
+        icon={<UsersIcon className="h-6 w-6" />}
+        count={`${employees.length} عضو`}
+      >
         {canManage && (
           <button
             type="button"
             onClick={() => setShowCreate((v) => !v)}
-            className="rounded-[10px] bg-accent-500 px-5 py-2.5 text-[13.5px] font-extrabold text-white hover:bg-accent-600"
+            className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-extrabold text-accent-700 transition-transform hover:scale-[1.03]"
           >
-            {showCreate ? "إلغاء" : "+ إضافة عضو"}
+            {!showCreate && <PlusIcon className="h-4 w-4" />}
+            {showCreate ? "إلغاء" : "إضافة عضو"}
           </button>
         )}
-      </div>
+      </PageHeader>
+
+      <label className="relative block rounded-[16px] border border-border bg-surface p-2 shadow-sm">
+        <span className="sr-only">بحث عن عضو</span>
+        <SearchIcon className="pointer-events-none absolute end-5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-faint" />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="ابحث عن عضو..."
+          className="w-full rounded-[11px] bg-transparent py-2.5 pe-11 ps-4 text-sm text-foreground outline-none placeholder:text-faint"
+        />
+      </label>
 
       {canManage && showCreate && <CreateEmployeeForm departments={departments} />}
 
       <div className="grid grid-cols-1 gap-4.5 sm:grid-cols-2 lg:grid-cols-3">
-        {employees.map((employee, i) => (
+        {filtered.map((employee, i) => (
           <EmployeeCard
             key={employee.id}
             employee={employee}
@@ -83,7 +111,11 @@ export function EmployeesManager({
             disableDelete={employee.id === currentUserId}
           />
         ))}
-        {employees.length === 0 && <p className="text-sm text-muted">لا يوجد أعضاء بعد</p>}
+        {filtered.length === 0 && (
+          <p className="text-sm text-muted">
+            {employees.length === 0 ? "لا يوجد أعضاء بعد" : "لا توجد نتائج مطابقة"}
+          </p>
+        )}
       </div>
     </div>
   );

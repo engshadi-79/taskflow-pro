@@ -7,6 +7,8 @@ import {
   deleteDepartment,
   type DepartmentFormState,
 } from "@/lib/actions/departments";
+import { PageHeader } from "@/components/shared/page-header";
+import { FolderIcon } from "@/components/shared/icons";
 import type { DepartmentWithManager } from "@/lib/types/department";
 
 type EmployeeOption = { id: string; full_name: string };
@@ -30,10 +32,13 @@ export function DepartmentsManager({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-[22px] text-foreground">الأقسام</h1>
-        <p className="mt-0.5 text-[13.5px] text-muted">{departments.length} قسمًا في المنظمة</p>
-      </div>
+      <PageHeader
+        title="الأقسام"
+        subtitle="إدارة أقسام المنظمة ومديريها"
+        variant="teal"
+        icon={<FolderIcon className="h-6 w-6" />}
+        count={`${departments.length} قسم`}
+      />
 
       <form
         action={createAction}

@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
 import { KanbanBoard } from "@/components/dashboard/kanban-board";
+import { PageHeader } from "@/components/shared/page-header";
+import { BoardIcon } from "@/components/shared/icons";
 import type { TaskWithAssignee } from "@/lib/types/task";
 
 export default async function KanbanPage() {
@@ -22,13 +24,15 @@ export default async function KanbanPage() {
   const canManage = profile.role === "super_admin" || profile.role === "department_manager";
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-[22px] text-foreground">لوحة كانبان</h1>
-        <p className="mt-0.5 text-[13.5px] text-muted">
-          اسحب المهام بين الأعمدة لتحديث حالتها — {tasks?.length ?? 0} مهمة
-        </p>
-      </div>
+    <div>
+      <PageHeader
+        title="لوحة كانبان"
+        subtitle="اسحب وأفلت المهام بين الحالات لتحديثها فوراً"
+        variant="teal"
+        icon={<BoardIcon className="h-6 w-6" />}
+        count={`${tasks?.length ?? 0} مهمة`}
+      />
+
       <KanbanBoard tasks={tasks ?? []} canManage={canManage} currentUserId={profile.id} />
     </div>
   );

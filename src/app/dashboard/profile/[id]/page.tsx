@@ -4,6 +4,7 @@ import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileEditForm } from "@/components/dashboard/profile-edit-form";
 import { computeEmployeeStats } from "@/lib/employee-stats";
+import { CalendarIcon, MailIcon, PhoneIcon } from "@/components/shared/icons";
 import { PRIORITY_LABEL, STATUS_LABEL, type Task } from "@/lib/types/task";
 import type { Profile, Role } from "@/lib/types/roles";
 
@@ -15,6 +16,32 @@ const ROLE_LABEL: Record<Role, string> = {
 
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("");
+}
+
+function ContactRow({
+  label,
+  tint,
+  icon,
+  children,
+}: {
+  label: string;
+  tint: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-[10px] bg-background px-3 py-2">
+      <span className="truncate text-[12.5px] font-medium text-foreground" dir="auto">
+        {children}
+      </span>
+      <span className="flex shrink-0 items-center gap-1.5 text-[11.5px] font-bold text-muted">
+        {label}
+        <span className={`flex h-6 w-6 items-center justify-center rounded-md ${tint}`}>
+          {icon}
+        </span>
+      </span>
+    </div>
+  );
 }
 
 export default async function ProfileDetailPage({
@@ -95,12 +122,31 @@ export default async function ProfileDetailPage({
             </span>
           </div>
 
-          <div className="flex flex-col gap-2.5 border-t border-border pt-4 text-start">
-            <div className="flex gap-2 text-[12.5px] text-muted">✉️ {employee.email}</div>
+          {/* labelled contact rows, as on the ACAS staff directory cards */}
+          <div className="flex flex-col gap-2 border-t border-border pt-4 text-start">
+            <ContactRow
+              label="إيميل"
+              tint="bg-brand-red-50 text-brand-red-500"
+              icon={<MailIcon className="h-3.5 w-3.5" />}
+            >
+              {employee.email}
+            </ContactRow>
             {employee.phone && (
-              <div className="flex gap-2 text-[12.5px] text-muted">📱 {employee.phone}</div>
+              <ContactRow
+                label="جوال"
+                tint="bg-brand-blue-50 text-brand-blue-600"
+                icon={<PhoneIcon className="h-3.5 w-3.5" />}
+              >
+                {employee.phone}
+              </ContactRow>
             )}
-            <div className="flex gap-2 text-[12.5px] text-muted">📅 انضم في {joinedLabel}</div>
+            <ContactRow
+              label="انضم في"
+              tint="bg-teal-50 text-teal-500"
+              icon={<CalendarIcon className="h-3.5 w-3.5" />}
+            >
+              {joinedLabel}
+            </ContactRow>
           </div>
         </div>
 

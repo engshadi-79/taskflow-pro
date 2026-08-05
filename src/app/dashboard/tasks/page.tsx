@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
 import { TaskList } from "@/components/dashboard/task-list";
+import { PageHeader } from "@/components/shared/page-header";
+import { CheckSquareIcon, PlusIcon } from "@/components/shared/icons";
 import type { TaskWithAssignee } from "@/lib/types/task";
 
 export default async function TasksPage() {
@@ -24,21 +26,23 @@ export default async function TasksPage() {
     .returns<TaskWithAssignee[]>();
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-[22px] text-foreground">المهام</h1>
-          <p className="mt-0.5 text-[13.5px] text-muted">
-            كل المهام في مكان واحد — {tasks?.length ?? 0} مهمة
-          </p>
-        </div>
+    <div>
+      <PageHeader
+        title="المهام"
+        subtitle="كل المهام في مكان واحد"
+        variant="navy"
+        icon={<CheckSquareIcon className="h-6 w-6" />}
+        count={`${tasks?.length ?? 0} مهمة`}
+      >
         <Link
           href="/dashboard/tasks/new"
-          className="rounded-[10px] bg-accent-500 px-5 py-2.5 text-[13.5px] font-extrabold text-white hover:bg-accent-600"
+          className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-extrabold text-accent-700 transition-transform hover:scale-[1.03]"
         >
-          + مهمة جديدة
+          <PlusIcon className="h-4 w-4" />
+          مهمة جديدة
         </Link>
-      </div>
+      </PageHeader>
+
       <TaskList tasks={tasks ?? []} canDelete={profile.role === "super_admin"} />
     </div>
   );
