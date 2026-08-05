@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { signIn, type SignInState } from "@/lib/actions/auth";
+import { AnimatedBackground } from "@/components/shared/animated-background";
 
 const initialState: SignInState = {};
 
@@ -9,8 +10,18 @@ export default function LoginPage() {
   const [state, formAction, pending] = useActionState(signIn, initialState);
 
   return (
-    <main className="flex flex-1 items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm rounded-[20px] border border-border bg-surface p-8 shadow-sm">
+    <main className="relative flex flex-1 items-center justify-center overflow-hidden bg-background px-4">
+      <AnimatedBackground intensity="hero" />
+      <div
+        aria-hidden
+        className="animate-blob-1 absolute -top-24 -start-24 h-96 w-96 rounded-full bg-accent-500/25 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="animate-blob-2 absolute -bottom-24 -end-24 h-96 w-96 rounded-full bg-pink-500/20 blur-3xl"
+      />
+
+      <div className="relative w-full max-w-sm rounded-[20px] border border-border bg-surface/90 p-8 shadow-2xl backdrop-blur-md">
         <div className="mb-6 flex items-center gap-2.5">
           <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-foreground text-base text-surface">
             م
@@ -63,7 +74,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={pending}
-            className="w-full rounded-[10px] bg-accent-500 px-3 py-2.5 text-sm font-extrabold text-white transition-colors hover:bg-accent-600 disabled:opacity-60"
+            className="w-full rounded-[10px] bg-accent-500 px-3 py-2.5 text-sm font-extrabold text-white transition-all hover:scale-[1.02] hover:bg-accent-600 disabled:opacity-60 disabled:hover:scale-100"
           >
             {pending ? "جارٍ الدخول..." : "تسجيل الدخول"}
           </button>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AnimatedBackground } from "@/components/shared/animated-background";
 import type { Role } from "@/lib/types/roles";
 
 type NavItem = { href: string; label: string; icon: string };
@@ -77,8 +78,9 @@ export function Sidebar({ role }: { role: Role }) {
   const activePath = usePathname();
 
   return (
-    <aside className="sticky top-0 flex h-dvh w-[236px] shrink-0 flex-col gap-0.5 bg-sidebar px-4 py-[22px]">
-      <div className="mx-2 mb-6 mt-1 flex items-center gap-2.5 font-display text-xl font-black text-foreground">
+    <aside className="sticky top-0 flex h-dvh w-[236px] shrink-0 flex-col gap-0.5 overflow-hidden bg-sidebar px-4 py-[22px]">
+      <AnimatedBackground intensity="subtle" />
+      <div className="relative mx-2 mb-6 mt-1 flex items-center gap-2.5 font-display text-xl font-black text-foreground">
         <span className="flex h-[30px] w-[30px] items-center justify-center rounded-[9px] bg-foreground text-sm text-surface">
           م
         </span>
@@ -86,7 +88,7 @@ export function Sidebar({ role }: { role: Role }) {
       </div>
 
       {sections.map((section) => (
-        <div key={section.label}>
+        <div key={section.label} className="relative">
           <div className="mx-3 mb-2 mt-4 text-[11px] font-extrabold tracking-wide text-faint">
             {section.label}
           </div>

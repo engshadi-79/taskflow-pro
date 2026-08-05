@@ -13,6 +13,7 @@ import {
   DownloadIcon,
   MoonIcon,
 } from "@/components/landing/icons";
+import { AnimatedBackground } from "@/components/shared/animated-background";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -217,6 +218,7 @@ export function LandingPage() {
 
       {/* HERO */}
       <section className="relative overflow-hidden px-6 pb-24 pt-16 sm:pt-24">
+        <AnimatedBackground intensity="hero" />
         <div
           aria-hidden
           className="animate-blob-1 absolute -top-24 -start-24 h-96 w-96 rounded-full bg-accent-500/25 blur-3xl"
@@ -231,6 +233,10 @@ export function LandingPage() {
         />
 
         <div className="relative mx-auto max-w-4xl text-center">
+          <div className="hero-fade mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-accent-300/40 bg-accent-50 px-4 py-1.5 text-xs font-extrabold text-accent-600">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent-500" />
+            منصة إدارة مهام عربية بالكامل
+          </div>
           <h1 className="font-display text-4xl font-black leading-tight text-foreground sm:text-6xl">
             {"منجز — حيث تتحوّل".split(" ").map((w, i) => (
               <span key={i} className="hero-word me-3 inline-block">
@@ -312,8 +318,9 @@ export function LandingPage() {
       </section>
 
       {/* STATS */}
-      <section className="reveal-section border-y border-border bg-surface px-6 py-14">
-        <div className="mx-auto grid max-w-5xl grid-cols-2 gap-8 text-center sm:grid-cols-4">
+      <section className="reveal-section relative overflow-hidden border-y border-border bg-surface px-6 py-14">
+        <AnimatedBackground intensity="subtle" />
+        <div className="relative mx-auto grid max-w-5xl grid-cols-2 gap-8 text-center sm:grid-cols-4">
           {STATS.map((s) => (
             <div key={s.label} className="reveal-item">
               <div
@@ -330,53 +337,192 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* FEATURES */}
+      {/* FEATURES — alternating showcase */}
       <section id="features" className="reveal-section px-6 py-24">
         <div className="mx-auto max-w-6xl">
-          <div className="reveal-item mx-auto mb-14 max-w-2xl text-center">
+          <div className="reveal-item mx-auto mb-16 max-w-2xl text-center">
             <h2 className="font-display text-3xl font-black text-foreground sm:text-4xl">
               كل ما يحتاجه فريقك، في مكان واحد
             </h2>
             <p className="mt-3 text-muted">مبني على صلاحيات حقيقية، لا واجهة تجميلية فقط.</p>
           </div>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((f) => {
-              const Icon = f.icon;
-              return (
-                <div
-                  key={f.title}
-                  className="reveal-item group rounded-2xl border border-border bg-surface p-6 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl"
-                >
-                  <div
-                    className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${colorClasses[f.color]}`}
-                  >
-                    <Icon />
-                  </div>
-                  <h3 className="mb-1.5 text-base font-extrabold text-foreground">{f.title}</h3>
-                  <p className="text-sm leading-relaxed text-muted">{f.desc}</p>
+
+          <div className="space-y-20">
+            {/* showcase 1: kanban */}
+            <div className="grid items-center gap-10 lg:grid-cols-2">
+              <div className="reveal-item order-2 lg:order-1">
+                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-accent-50 text-accent-500">
+                  <KanbanIcon />
                 </div>
-              );
-            })}
+                <h3 className="mb-3 font-display text-2xl font-black text-foreground">
+                  لوحة كانبان تفاعلية
+                </h3>
+                <p className="text-[15px] leading-relaxed text-muted">
+                  اسحب مهامك بين الحالات الخمس بسحب وإفلات حقيقي — كل حركة تحدّث قاعدة البيانات
+                  فورًا، وليست مجرد واجهة تجميلية. كل عضو يرى فقط ما يخصه حسب صلاحياته.
+                </p>
+              </div>
+              <div className="reveal-item order-1 lg:order-2">
+                <div className="rounded-2xl border border-border bg-surface p-4 shadow-xl">
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: "جديدة", color: "bg-faint", items: 1 },
+                      { label: "قيد التنفيذ", color: "bg-accent-500", items: 2 },
+                      { label: "مكتملة", color: "bg-green-500", items: 3 },
+                    ].map((col) => (
+                      <div key={col.label} className="rounded-xl bg-background p-2.5">
+                        <div className="mb-2 flex items-center gap-1.5 px-1">
+                          <span className={`h-1.5 w-1.5 rounded-full ${col.color}`} />
+                          <span className="text-[10px] font-extrabold text-muted">{col.label}</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {Array.from({ length: col.items }).map((_, i) => (
+                            <div key={i} className="h-10 rounded-lg border border-border bg-surface p-1.5">
+                              <div className="mb-1 h-1.5 w-3/4 rounded-full bg-border" />
+                              <div className="h-1.5 w-1/2 rounded-full bg-border" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* showcase 2: reports */}
+            <div className="grid items-center gap-10 lg:grid-cols-2">
+              <div className="reveal-item">
+                <div className="rounded-2xl border border-border bg-surface p-6 shadow-xl">
+                  <div className="mb-4 flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-muted">أداء الفريق</span>
+                    <span className="rounded-full bg-green-50 px-2.5 py-1 text-[10px] font-extrabold text-green-600">
+                      ▲ 32٪
+                    </span>
+                  </div>
+                  <svg viewBox="0 0 280 100" className="h-24 w-full" preserveAspectRatio="none">
+                    <polyline
+                      points="0,80 40,70 80,75 120,45 160,55 200,25 240,35 280,10"
+                      fill="none"
+                      stroke="#ff8a5c"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-lg bg-background p-2">
+                      <div className="font-display text-lg font-black text-foreground">24</div>
+                      <div className="text-[10px] text-faint">منجزة</div>
+                    </div>
+                    <div className="rounded-lg bg-background p-2">
+                      <div className="font-display text-lg font-black text-foreground">78٪</div>
+                      <div className="text-[10px] text-faint">إنجاز</div>
+                    </div>
+                    <div className="rounded-lg bg-background p-2">
+                      <div className="font-display text-lg font-black text-foreground">2.3</div>
+                      <div className="text-[10px] text-faint">يوم متوسط</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="reveal-item">
+                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
+                  <ChartIcon />
+                </div>
+                <h3 className="mb-3 font-display text-2xl font-black text-foreground">
+                  تقارير ولوحات بيانات حقيقية
+                </h3>
+                <p className="text-[15px] leading-relaxed text-muted">
+                  تتبع الأداء، أكثر الموظفين إنجازًا، ونسبة التأخير — كل الأرقام محسوبة مباشرة
+                  من قاعدة البيانات لحظة بلحظة، مع تصدير Excel كامل بضغطة واحدة.
+                </p>
+              </div>
+            </div>
+
+            {/* showcase 3: notifications */}
+            <div className="grid items-center gap-10 lg:grid-cols-2">
+              <div className="reveal-item order-2 lg:order-1">
+                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-pink-50 text-pink-500">
+                  <BellIcon />
+                </div>
+                <h3 className="mb-3 font-display text-2xl font-black text-foreground">
+                  إشعارات فورية عبر Realtime
+                </h3>
+                <p className="text-[15px] leading-relaxed text-muted">
+                  تنبيه لحظي عند إسناد مهمة، تغيير حالتها، أو اعتمادها — يصل فورًا دون تحديث
+                  الصفحة، ومهام مجدولة تذكّرك قبل الموعد النهائي تلقائيًا.
+                </p>
+              </div>
+              <div className="reveal-item order-1 lg:order-2">
+                <div className="space-y-2.5 rounded-2xl border border-border bg-surface p-4 shadow-xl">
+                  {[
+                    { c: "bg-pink-500", t: "تم إسناد مهمة جديدة إليك", time: "الآن" },
+                    { c: "bg-accent-500", t: "مهمة بانتظار مراجعتك", time: "قبل 5 د" },
+                    { c: "bg-green-500", t: "تم اعتماد مهمتك", time: "قبل ساعة" },
+                  ].map((n, i) => (
+                    <div key={i} className="flex items-center gap-3 rounded-xl bg-background p-3">
+                      <span className={`h-8 w-8 shrink-0 rounded-full ${n.c}`} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[13px] font-bold text-foreground">{n.t}</div>
+                        <div className="text-[11px] text-faint">{n.time}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* supporting grid */}
+          <div className="mt-20 grid grid-cols-1 gap-5 sm:grid-cols-3">
+            {FEATURES.filter((f) => ["صلاحيات دقيقة", "تصدير Excel بضغطة", "عربي بالكامل، وضع ليلي"].includes(f.title)).map(
+              (f) => {
+                const Icon = f.icon;
+                return (
+                  <div
+                    key={f.title}
+                    className="reveal-item group rounded-2xl border border-border bg-surface p-6 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl"
+                  >
+                    <div
+                      className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${colorClasses[f.color]}`}
+                    >
+                      <Icon />
+                    </div>
+                    <h3 className="mb-1.5 text-base font-extrabold text-foreground">{f.title}</h3>
+                    <p className="text-sm leading-relaxed text-muted">{f.desc}</p>
+                  </div>
+                );
+              }
+            )}
           </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <section id="how" className="reveal-section bg-surface px-6 py-24">
-        <div className="mx-auto max-w-5xl">
-          <div className="reveal-item mx-auto mb-14 max-w-2xl text-center">
-            <h2 className="font-display text-3xl font-black text-foreground sm:text-4xl">
+      {/* HOW IT WORKS — dark contrast band */}
+      <section id="how" className="reveal-section relative overflow-hidden bg-foreground px-6 py-24">
+        <AnimatedBackground intensity="subtle" />
+        <div
+          aria-hidden
+          className="animate-blob-2 absolute -top-20 end-0 h-80 w-80 rounded-full bg-accent-500/25 blur-3xl"
+        />
+        <div className="relative mx-auto max-w-5xl">
+          <div className="reveal-item mx-auto mb-16 max-w-2xl text-center">
+            <h2 className="font-display text-3xl font-black text-white sm:text-4xl">
               كيف يعمل منجز؟
             </h2>
           </div>
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
-            {STEPS.map((s) => (
-              <div key={s.n} className="reveal-item text-center">
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-accent-500 font-display text-xl font-black text-white">
+          <div className="grid grid-cols-1 gap-10 sm:grid-cols-3">
+            {STEPS.map((s, i) => (
+              <div key={s.n} className="reveal-item relative text-center">
+                {i < STEPS.length - 1 && (
+                  <div className="absolute top-7 hidden h-px w-full bg-gradient-to-l from-accent-500/60 to-transparent sm:block" style={{ insetInlineStart: "50%" }} />
+                )}
+                <div className="relative mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-accent-500 font-display text-xl font-black text-white shadow-[0_0_24px_rgba(62,123,250,0.55)]">
                   {s.n}
                 </div>
-                <h3 className="mb-1.5 text-base font-extrabold text-foreground">{s.title}</h3>
-                <p className="text-sm leading-relaxed text-muted">{s.desc}</p>
+                <h3 className="mb-1.5 text-base font-extrabold text-white">{s.title}</h3>
+                <p className="text-sm leading-relaxed text-white/60">{s.desc}</p>
               </div>
             ))}
           </div>
@@ -389,6 +535,7 @@ export function LandingPage() {
           aria-hidden
           className="absolute inset-0 bg-gradient-to-br from-accent-500 via-purple-500 to-pink-500 opacity-95"
         />
+        <AnimatedBackground intensity="subtle" />
         <div className="relative mx-auto max-w-2xl text-center text-white">
           <h2 className="reveal-item font-display text-3xl font-black sm:text-4xl">
             جاهز تنظّم فريقك؟

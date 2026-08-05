@@ -1,6 +1,7 @@
 import { signOut } from "@/lib/actions/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/dashboard/notification-bell";
+import { AnimatedBackground } from "@/components/shared/animated-background";
 import type { Role } from "@/lib/types/roles";
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -26,15 +27,16 @@ export function Topbar({
   unreadCount: number;
 }) {
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center justify-between bg-foreground px-7">
-      <div className="flex items-center gap-4.5 text-surface">
+    <header className="sticky top-0 z-10 flex h-16 items-center justify-between overflow-hidden bg-foreground px-7">
+      <AnimatedBackground intensity="subtle" />
+      <div className="relative flex items-center gap-4.5 text-surface">
         <span className="font-display text-base font-bold">منجز</span>
         <div className="hidden w-70 items-center gap-2.5 rounded-[9px] bg-white/10 px-4 py-2.5 text-[13px] text-white/60 sm:flex">
           🔍 ابحث في القائمة...
         </div>
       </div>
 
-      <div className="flex items-center gap-4.5">
+      <div className="relative flex items-center gap-4.5">
         <NotificationBell userId={userId} initialUnreadCount={unreadCount} />
         <ThemeToggle />
         <div className="flex items-center gap-2.5 text-[13px] font-bold text-surface">
