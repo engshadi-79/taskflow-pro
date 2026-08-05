@@ -29,9 +29,10 @@ export default async function ProfileDetailPage({
     redirect("/login");
   }
 
-  const canManage = viewer.role === "super_admin" || viewer.role === "department_manager";
+  const canView = viewer.role === "super_admin" || viewer.role === "department_manager";
+  const canManage = viewer.role === "super_admin";
 
-  if (id !== viewer.id && !canManage) {
+  if (id !== viewer.id && !canView) {
     redirect("/dashboard/profile");
   }
 
