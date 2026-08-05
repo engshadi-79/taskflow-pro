@@ -143,11 +143,15 @@ function isItemActive(href: string, pathname: string) {
     : pathname.startsWith(href);
 }
 
+const RAIL = 76;
+const PANEL = 248;
+
 export function Sidebar({ role }: { role: Role }) {
   const sections = NAV_BY_ROLE[role];
   const pathname = usePathname();
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [open, setOpen] = useState(false);
 
   const visible = useMemo(() => {
     const q = query.trim();
@@ -160,103 +164,159 @@ export function Sidebar({ role }: { role: Role }) {
       .filter((s) => s.items.length > 0);
   }, [query, sections]);
 
+  function close() {
+    setOpen(false);
+    // a filter left applied while collapsed would silently hide nav items
+    setQuery("");
+  }
+
   return (
-    <aside className="sticky top-0 flex h-dvh w-[248px] shrink-0 flex-col overflow-hidden bg-sidebar">
-      <AnimatedBackground intensity="subtle" />
+    <>
+      {/* Fixed-width spacer: the expanded panel floats over the content instead
+          of widening this column, so the page never reflows on hover. */}
+      <div className="shrink-0" style={{ width: RAIL }} aria-hidden />
 
-      {/* same height as the topbar, so the two form one unbroken top strip */}
-      <div className="relative flex h-[70px] shrink-0 items-center gap-2.5 border-b border-white/10 px-5 text-lg font-black text-white">
-        <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-gradient-to-br from-accent-500 to-purple-500 text-sm text-white shadow-lg shadow-accent-500/30">
-          م
-        </span>
-        نظام منجز
-      </div>
+      <aside
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={close}
+        // keyboard users get the same expansion when focus enters the rail
+        onFocusCapture={() => setOpen(true)}
+        onBlurCapture={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) close();
+        }}
+        style={{ width: open ? PANEL : RAIL }}
+        // start-0 is the right edge under dir="rtl", which is where the rail sits
+        className={`fixed inset-y-0 start-0 z-30 flex flex-col overflow-hidden bg-sidebar transition-[width] duration-300 ease-out motion-reduce:transition-none ${
+          open ? "shadow-2xl shadow-black/40" : ""
+        }`}
+      >
+        <AnimatedBackground intensity="subtle" />
 
-      <div className="relative px-4 pb-2 pt-4">
-        <label className="relative block">
-          <span className="sr-only">بحث في القائمة</span>
-          <SearchIcon className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-sidebar-muted" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="بحث في القائمة..."
-            className="w-full rounded-[10px] border border-white/10 bg-white/5 py-2 pe-9 ps-3 text-[13px] text-sidebar-fg outline-none placeholder:text-sidebar-muted focus:border-accent-500/60 focus:bg-white/10"
-          />
-        </label>
-      </div>
+        {/* same height as the topbar, so the two form one unbroken top strip.
+            px-[22px] centres the 32px mark inside the 76px rail. */}
+        <div className="relative flex h-[70px] shrink-0 items-center gap-2.5 border-b border-white/10 px-[22px] text-lg font-black text-white">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-accent-500 to-purple-500 text-sm text-white shadow-lg shadow-accent-500/30">
+            م
+          </span>
+          {open && <span className="whitespace-nowrap">نظام منجز</span>}
+        </div>
 
-      <nav className="relative flex-1 overflow-y-auto px-3 pb-5">
-        {visible.length === 0 && (
-          <p className="px-3 py-6 text-center text-[13px] text-sidebar-muted">
-            لا توجد نتائج مطابقة
-          </p>
-        )}
+        {/* Collapsed and expanded states occupy identical heights throughout,
+            so nothing drifts vertically while the width animates. */}
+        <div className="relative px-3 pb-2 pt-4">
+          {open ? (
+            <label className="relative block">
+              <span className="sr-only">بحث في القائمة</span>
+              <SearchIcon className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-sidebar-muted" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="بحث في القائمة..."
+                className="w-full rounded-[10px] border border-white/10 bg-white/5 py-2 pe-9 ps-3 text-[13px] text-sidebar-fg outline-none placeholder:text-sidebar-muted focus:border-accent-500/60 focus:bg-white/10"
+              />
+            </label>
+          ) : (
+            <div
+              aria-hidden
+              className="flex h-[38px] items-center justify-center rounded-[10px] border border-white/10 bg-white/5"
+            >
+              <SearchIcon className="h-4 w-4 text-sidebar-muted" />
+            </div>
+          )}
+        </div>
 
-        {visible.map((section) => {
-          const isCollapsed = collapsed[section.label] && !query;
-          return (
-            <div key={section.label} className="mb-1">
-              <button
-                type="button"
-                onClick={() =>
-                  setCollapsed((c) => ({
-                    ...c,
-                    [section.label]: !c[section.label],
-                  }))
-                }
-                aria-expanded={!isCollapsed}
-                className="mb-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-[11px] font-extrabold tracking-wide text-sidebar-muted hover:text-sidebar-fg"
-              >
-                {section.label}
-                <ChevronDownIcon
-                  className={`h-3.5 w-3.5 transition-transform ${
-                    isCollapsed ? "-rotate-90" : ""
-                  }`}
-                />
-              </button>
+        <nav className="relative flex-1 overflow-y-auto px-3 pb-5">
+          {open && visible.length === 0 && (
+            <p className="px-3 py-6 text-center text-[13px] text-sidebar-muted">
+              لا توجد نتائج مطابقة
+            </p>
+          )}
 
-              {!isCollapsed &&
-                section.items.map((item) => {
-                  const Icon = ICONS[item.icon];
-                  const active = isItemActive(item.href, pathname);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`mb-0.5 flex items-center gap-3 rounded-[11px] px-2.5 py-2.5 text-[13.5px] font-bold transition-colors ${
-                        active
-                          ? "bg-gradient-to-l from-accent-600 to-purple-500 text-white shadow-lg shadow-accent-600/25"
-                          : "text-sidebar-fg/80 hover:bg-white/[0.07] hover:text-white"
+          {visible.map((section) => {
+            const isCollapsed = collapsed[section.label] && !query;
+            return (
+              <div key={section.label} className="mb-1">
+                {open ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCollapsed((c) => ({
+                        ...c,
+                        [section.label]: !c[section.label],
+                      }))
+                    }
+                    aria-expanded={!isCollapsed}
+                    className="mb-1 flex h-[30px] w-full items-center justify-between rounded-lg px-3 text-[11px] font-extrabold tracking-wide text-sidebar-muted hover:text-sidebar-fg"
+                  >
+                    <span className="whitespace-nowrap">{section.label}</span>
+                    <ChevronDownIcon
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform ${
+                        isCollapsed ? "-rotate-90" : ""
                       }`}
-                    >
-                      <span
-                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] ${
+                    />
+                  </button>
+                ) : (
+                  <div
+                    aria-hidden
+                    className="mb-1 flex h-[30px] items-center justify-center"
+                  >
+                    <span className="h-px w-6 rounded bg-white/10" />
+                  </div>
+                )}
+
+                {(open ? !isCollapsed : true) &&
+                  section.items.map((item) => {
+                    const Icon = ICONS[item.icon];
+                    const active = isItemActive(item.href, pathname);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={active ? "page" : undefined}
+                        // the label is not rendered while collapsed, so the
+                        // accessible name has to come from the attribute
+                        aria-label={open ? undefined : item.label}
+                        title={open ? undefined : item.label}
+                        className={`mb-0.5 flex items-center gap-3 rounded-[11px] px-[6px] py-1.5 text-[13.5px] font-bold transition-colors ${
                           active
-                            ? "bg-white/20 text-white"
-                            : `bg-white/[0.06] ${TONE_FG[item.tone]}`
+                            ? "bg-gradient-to-l from-accent-600 to-purple-500 text-white shadow-lg shadow-accent-600/25"
+                            : "text-sidebar-fg/80 hover:bg-white/[0.07] hover:text-white"
                         }`}
                       >
-                        <Icon className="h-[17px] w-[17px]" />
-                      </span>
-                      <span className="flex-1 truncate">{item.label}</span>
-                      {item.badge && (
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
-                            BADGE_CLASS[item.badge.tone]
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] ${
+                            active
+                              ? "bg-white/20 text-white"
+                              : `bg-white/[0.06] ${TONE_FG[item.tone]}`
                           }`}
                         >
-                          {item.badge.text}
+                          <Icon className="h-[19px] w-[19px]" />
                         </span>
-                      )}
-                    </Link>
-                  );
-                })}
-            </div>
-          );
-        })}
-      </nav>
-    </aside>
+                        {open && (
+                          <>
+                            <span className="flex-1 truncate whitespace-nowrap">
+                              {item.label}
+                            </span>
+                            {item.badge && (
+                              <span
+                                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                                  BADGE_CLASS[item.badge.tone]
+                                }`}
+                              >
+                                {item.badge.text}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </Link>
+                    );
+                  })}
+              </div>
+            );
+          })}
+        </nav>
+      </aside>
+    </>
   );
 }
