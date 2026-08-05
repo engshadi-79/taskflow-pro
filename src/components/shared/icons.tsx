@@ -138,6 +138,48 @@ export const PlusIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const ClockIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3 2" />
+  </Svg>
+);
+
+export const AlertIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 8v4.5M12 16h.01" />
+  </Svg>
+);
+
+export const CheckCircleIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="m8.5 12.5 2.5 2.5 4.5-5" />
+  </Svg>
+);
+
+export const XCircleIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="m9 9 6 6m0-6-6 6" />
+  </Svg>
+);
+
+export const EyeIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12Z" />
+    <circle cx="12" cy="12" r="2.75" />
+  </Svg>
+);
+
+export const ExternalLinkIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M14 4h6v6M20 4l-8.5 8.5" />
+    <path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" />
+  </Svg>
+);
+
 export const CheckIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="m5 12.5 4.5 4.5L19 7" />
