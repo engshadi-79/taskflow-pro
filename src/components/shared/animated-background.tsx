@@ -17,8 +17,7 @@ export function AnimatedBackground({
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const parent = canvas?.parentElement;
-    if (!canvas || !parent) return;
+    if (!canvas) return;
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
@@ -36,15 +35,16 @@ export function AnimatedBackground({
     let particles: Particle[] = [];
     let raf = 0;
 
-    function resize() {
-      const rect = parent!.getBoundingClientRect();
-      width = rect.width;
-      height = rect.height;
-      canvas!.width = width * dpr;
-      canvas!.height = height * dpr;
-      canvas!.style.width = `${width}px`;
-      canvas!.style.height = `${height}px`;
+    function syncSize() {
+      const w = canvas!.clientWidth;
+      const h = canvas!.clientHeight;
+      if (w === 0 || h === 0 || (w === width && h === height)) return;
+      width = w;
+      height = h;
+      canvas!.width = Math.round(w * dpr);
+      canvas!.height = Math.round(h * dpr);
       ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (particles.length === 0) init();
     }
 
     function init() {
@@ -58,6 +58,7 @@ export function AnimatedBackground({
     }
 
     function step() {
+      syncSize();
       ctx!.clearRect(0, 0, width, height);
 
       for (const p of particles) {
@@ -95,18 +96,10 @@ export function AnimatedBackground({
       raf = requestAnimationFrame(step);
     }
 
-    resize();
-    init();
     step();
-
-    const ro = new ResizeObserver(() => {
-      resize();
-    });
-    ro.observe(parent);
 
     return () => {
       cancelAnimationFrame(raf);
-      ro.disconnect();
     };
   }, [intensity]);
 
@@ -114,7 +107,7 @@ export function AnimatedBackground({
     <canvas
       ref={canvasRef}
       aria-hidden
-      className={`pointer-events-none absolute inset-0 ${className}`}
+      className={`pointer-events-none absolute inset-0 h-full w-full ${className}`}
     />
   );
 }
