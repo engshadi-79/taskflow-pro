@@ -29,16 +29,14 @@ export function Topbar({
 }) {
   return (
     <header className="sticky top-0 z-10 flex h-[70px] shrink-0 items-center justify-between border-b border-border bg-surface px-6">
-      {/* brand block, mirroring the institutional lockup on the ACAS portal */}
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent-600 text-base font-black text-white">
-          م
-        </span>
-        <div className="hidden leading-tight sm:block">
-          <div className="text-[15px] font-black text-foreground">منجز</div>
-          <div className="text-[11px] font-medium text-muted">
-            نظام إدارة المهام والموظفين
-          </div>
+      {/* Institutional line, mirroring the ACAS lockup. The mark itself lives
+          in the sidebar header, so it is deliberately not repeated here. */}
+      <div className="hidden leading-tight sm:block">
+        <div className="text-[15px] font-black text-foreground">
+          نظام إدارة المهام والموظفين
+        </div>
+        <div className="text-[11px] font-medium text-muted">
+          لوحة التحكم الإدارية
         </div>
       </div>
 

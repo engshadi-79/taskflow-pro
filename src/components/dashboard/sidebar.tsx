@@ -164,14 +164,15 @@ export function Sidebar({ role }: { role: Role }) {
     <aside className="sticky top-0 flex h-dvh w-[248px] shrink-0 flex-col overflow-hidden bg-sidebar">
       <AnimatedBackground intensity="subtle" />
 
-      <div className="relative flex items-center gap-2.5 px-5 pb-3 pt-5 text-lg font-black text-white">
+      {/* same height as the topbar, so the two form one unbroken top strip */}
+      <div className="relative flex h-[70px] shrink-0 items-center gap-2.5 border-b border-white/10 px-5 text-lg font-black text-white">
         <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-gradient-to-br from-accent-500 to-purple-500 text-sm text-white shadow-lg shadow-accent-500/30">
           م
         </span>
         نظام منجز
       </div>
 
-      <div className="relative px-4 pb-2">
+      <div className="relative px-4 pb-2 pt-4">
         <label className="relative block">
           <span className="sr-only">بحث في القائمة</span>
           <SearchIcon className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-sidebar-muted" />
