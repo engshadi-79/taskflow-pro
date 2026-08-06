@@ -20,14 +20,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="ar"
       dir="rtl"
       className={`${notoKufi.variable} h-full antialiased`}
+      // the boot script below adds `dark` before hydration, which React would
+      // otherwise report as a server/client attribute mismatch
+      suppressHydrationWarning
     >
       <head>
         <script
           dangerouslySetInnerHTML={{
+            // 'system' follows the OS preference; anything else (including no
+            // stored value) keeps the existing light default.
             __html: `try {
-              if (localStorage.getItem('theme') === 'dark') {
-                document.documentElement.classList.add('dark');
-              }
+              var t = localStorage.getItem('theme');
+              var dark = t === 'dark' || (t === 'system' &&
+                window.matchMedia('(prefers-color-scheme: dark)').matches);
+              if (dark) document.documentElement.classList.add('dark');
             } catch (e) {}`,
           }}
         />
