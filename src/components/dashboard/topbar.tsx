@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/dashboard/notification-bell";
 import { UserMenu } from "@/components/dashboard/user-menu";
-import { SearchIcon } from "@/components/shared/icons";
+import { CommandPalette } from "@/components/dashboard/command-palette";
 import type { Role } from "@/lib/types/roles";
 
 export function Topbar({
@@ -34,14 +33,7 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-2.5">
-        <Link
-          href="/dashboard/tasks"
-          aria-label="بحث في المهام"
-          className="hidden h-10 w-10 items-center justify-center rounded-full bg-teal-50 text-teal-600 transition-colors hover:brightness-95 sm:flex"
-        >
-          <SearchIcon className="h-[19px] w-[19px]" />
-        </Link>
-
+        <CommandPalette role={role} />
         <NotificationBell userId={userId} initialUnreadCount={unreadCount} />
         <ThemeToggle />
 
