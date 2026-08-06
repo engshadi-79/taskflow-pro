@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileEditForm } from "@/components/dashboard/profile-edit-form";
+import { AvatarUpload } from "@/components/dashboard/avatar-upload";
+import { Avatar } from "@/components/shared/avatar";
 import { computeEmployeeStats } from "@/lib/employee-stats";
 import { CalendarIcon, MailIcon, PhoneIcon } from "@/components/shared/icons";
 import { PRIORITY_LABEL, STATUS_LABEL, type Task } from "@/lib/types/task";
@@ -13,10 +15,6 @@ const ROLE_LABEL: Record<Role, string> = {
   department_manager: "مدير قسم",
   employee: "موظف",
 };
-
-function initials(name: string) {
-  return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("");
-}
 
 function ContactRow({
   label,
@@ -68,7 +66,7 @@ export default async function ProfileDetailPage({
   const [{ data: employee }, { data: departments }, { data: tasks }] = await Promise.all([
     supabase
       .from("users")
-      .select("id, organization_id, full_name, email, phone, role, department_id, job_title, is_active, created_at")
+      .select("id, organization_id, full_name, email, phone, role, department_id, job_title, avatar_url, is_active, created_at")
       .eq("id", id)
       .single<Profile>(),
     supabase.from("departments").select("id, name"),
@@ -96,9 +94,16 @@ export default async function ProfileDetailPage({
     <div className="space-y-4.5">
       <div className="grid grid-cols-1 items-start gap-4.5 lg:grid-cols-[320px_1fr]">
         <div className="rounded-[18px] border border-border bg-surface p-6.5 text-center">
-          <div className="mx-auto mb-3.5 flex h-21 w-21 items-center justify-center rounded-full bg-accent-500 text-[28px] font-extrabold text-white">
-            {initials(employee.full_name)}
-          </div>
+          {id === viewer.id ? (
+            <AvatarUpload avatarUrl={employee.avatar_url} fullName={employee.full_name} />
+          ) : (
+            <Avatar
+              src={employee.avatar_url}
+              name={employee.full_name}
+              size={84}
+              className="mx-auto mb-3.5 text-[28px]"
+            />
+          )}
           <h2 className="font-display text-[18px] text-foreground">{employee.full_name}</h2>
           <p className="mb-4.5 text-[13px] text-faint">
             {employee.job_title || ROLE_LABEL[employee.role]}

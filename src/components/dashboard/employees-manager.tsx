@@ -9,6 +9,7 @@ import {
   type UserFormState,
 } from "@/lib/actions/users";
 import { PageHeader } from "@/components/shared/page-header";
+import { Avatar } from "@/components/shared/avatar";
 import { PlusIcon, SearchIcon, UsersIcon } from "@/components/shared/icons";
 import type { EmployeeStats } from "@/lib/employee-stats";
 import type { Profile, Role } from "@/lib/types/roles";
@@ -33,10 +34,6 @@ const BANDS = [
 
 const inputClass =
   "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500";
-
-function initials(name: string) {
-  return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("");
-}
 
 export function EmployeesManager({
   employees,
@@ -140,11 +137,14 @@ function EmployeeCard({
     <div className="overflow-hidden rounded-[18px] border border-border bg-surface text-center">
       <div className="h-14" style={{ background: band }} />
       <div className="px-6 pb-6">
-        <div
-          className="relative z-2 -mt-8 mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full border-4 border-surface text-[22px] font-extrabold text-white"
-          style={{ background: band }}
-        >
-          {initials(employee.full_name)}
+        <div className="relative z-2 -mt-8 mx-auto mb-3 w-fit rounded-full border-4 border-surface">
+          <Avatar
+            src={employee.avatar_url}
+            name={employee.full_name}
+            size={64}
+            background={band}
+            className="text-[22px]"
+          />
         </div>
         <h3 className="text-[15px] font-extrabold text-foreground">{employee.full_name}</h3>
         <p className="mb-4 text-[12.5px] text-faint">

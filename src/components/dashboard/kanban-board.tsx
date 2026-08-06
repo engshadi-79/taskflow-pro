@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { moveTaskStatus } from "@/lib/actions/tasks";
 import { CalendarIcon, InboxIcon } from "@/components/shared/icons";
+import { Avatar } from "@/components/shared/avatar";
 import {
   PRIORITY_LABEL,
   STATUS_LABEL,
@@ -26,10 +27,6 @@ const PRIORITY_TAG: Record<string, string> = {
   high: "bg-orange-50 text-orange-600",
   urgent: "bg-brand-red-50 text-brand-red-500",
 };
-
-function initials(name: string) {
-  return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("");
-}
 
 export function KanbanBoard({
   tasks,
@@ -144,9 +141,13 @@ export function KanbanBoard({
                         {task.due_date ?? "—"}
                       </span>
                       {task.assignee && (
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-500 text-[10px] font-extrabold text-white">
-                          {initials(task.assignee.full_name)}
-                        </span>
+                        <Avatar
+                          src={task.assignee.avatar_url}
+                          name={task.assignee.full_name}
+                          size={24}
+                          className="text-[10px]"
+                          decorative={false}
+                        />
                       )}
                     </div>
                   </div>

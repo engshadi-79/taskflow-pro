@@ -22,7 +22,7 @@ export default async function EmployeesPage() {
     supabase
       .from("users")
       .select(
-        "id, organization_id, full_name, email, phone, role, department_id, job_title, is_active, created_at"
+        "id, organization_id, full_name, email, phone, role, department_id, job_title, avatar_url, is_active, created_at"
       )
       .order("created_at", { ascending: true })
       .returns<Profile[]>(),

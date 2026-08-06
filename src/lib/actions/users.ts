@@ -4,8 +4,103 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireRole } from "@/lib/actions/guards";
+import { getCurrentProfile } from "@/lib/data/profile";
 
 export type UserFormState = { error?: string };
+
+export type AvatarUploadState = { error?: string; url?: string };
+
+const AVATAR_BUCKET = "avatars";
+const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
+const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+/**
+ * Users manage their own photo only — there is no admin path to set someone
+ * else's avatar, so this intentionally does not take a `requireRole` guard.
+ */
+export async function uploadAvatar(
+  _prevState: AvatarUploadState,
+  formData: FormData
+): Promise<AvatarUploadState> {
+  const profile = await getCurrentProfile();
+  if (!profile) {
+    return { error: "الجلسة غير صالحة، أعد تسجيل الدخول" };
+  }
+
+  const file = formData.get("avatar") as File | null;
+  if (!file || file.size === 0) {
+    return { error: "اختر صورة أولاً" };
+  }
+  if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+    return { error: "الصورة يجب أن تكون JPG أو PNG أو WEBP" };
+  }
+  if (file.size > MAX_AVATAR_BYTES) {
+    return { error: "حجم الصورة يجب ألا يتجاوز 3 ميجابايت" };
+  }
+
+  const supabase = await createClient();
+  const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  // a fresh name per upload, so a cached copy of the old photo can't linger
+  // anywhere the URL was already rendered
+  const path = `${profile.id}/${Date.now()}.${ext}`;
+  const previousPath = profile.avatar_url ? pathFromAvatarUrl(profile.avatar_url) : null;
+
+  const { error: uploadError } = await supabase.storage
+    .from(AVATAR_BUCKET)
+    .upload(path, file, { contentType: file.type });
+
+  if (uploadError) {
+    return { error: "تعذر رفع الصورة، حاول مرة أخرى" };
+  }
+
+  const { data: publicUrl } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
+
+  const { error: updateError } = await supabase
+    .from("users")
+    .update({ avatar_url: publicUrl.publicUrl })
+    .eq("id", profile.id);
+
+  if (updateError) {
+    await supabase.storage.from(AVATAR_BUCKET).remove([path]);
+    return { error: "تعذر حفظ الصورة" };
+  }
+
+  if (previousPath) {
+    await supabase.storage.from(AVATAR_BUCKET).remove([previousPath]);
+  }
+
+  revalidatePath("/dashboard", "layout");
+  return { url: publicUrl.publicUrl };
+}
+
+export async function removeAvatar(): Promise<UserFormState> {
+  const profile = await getCurrentProfile();
+  if (!profile) {
+    return { error: "الجلسة غير صالحة، أعد تسجيل الدخول" };
+  }
+  if (!profile.avatar_url) return {};
+
+  const supabase = await createClient();
+  const path = pathFromAvatarUrl(profile.avatar_url);
+
+  const { error } = await supabase.from("users").update({ avatar_url: null }).eq("id", profile.id);
+  if (error) {
+    return { error: "تعذر حذف الصورة" };
+  }
+
+  if (path) {
+    await supabase.storage.from(AVATAR_BUCKET).remove([path]);
+  }
+
+  revalidatePath("/dashboard", "layout");
+  return {};
+}
+
+function pathFromAvatarUrl(url: string): string | null {
+  const marker = `/${AVATAR_BUCKET}/`;
+  const i = url.indexOf(marker);
+  return i === -1 ? null : url.slice(i + marker.length);
+}
 
 const VALID_ROLES = ["super_admin", "department_manager", "employee"];
 

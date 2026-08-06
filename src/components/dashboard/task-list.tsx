@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { deleteTask } from "@/lib/actions/tasks";
 import { CheckIcon, SearchIcon } from "@/components/shared/icons";
+import { Avatar } from "@/components/shared/avatar";
 import {
   PRIORITY_LABEL,
   STATUS_LABEL,
@@ -29,9 +30,6 @@ const FILTERS: { key: "all" | TaskStatus; label: string }[] = [
   { key: "overdue", label: "متأخرة" },
 ];
 
-function initials(name: string) {
-  return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("");
-}
 
 export function TaskList({
   tasks,
@@ -130,9 +128,13 @@ export function TaskList({
                 <td className="px-1.5 py-4">
                   {task.assignee && (
                     <div className="flex items-center gap-2 text-[12.5px] font-bold text-foreground">
-                      <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-accent-500 text-[10.5px] text-white">
-                        {initials(task.assignee.full_name)}
-                      </span>
+                      <Avatar
+                        src={task.assignee.avatar_url}
+                        name={task.assignee.full_name}
+                        size={26}
+                        className="text-[10.5px]"
+                        decorative
+                      />
                       {task.assignee.full_name.split(" ")[0]}
                     </div>
                   )}

@@ -28,7 +28,7 @@ export type Task = {
 };
 
 export type TaskWithAssignee = Task & {
-  assignee: { id: string; full_name: string } | null;
+  assignee: { id: string; full_name: string; avatar_url: string | null } | null;
 };
 
 export type TaskAttachment = {

@@ -21,7 +21,7 @@ export default async function TasksPage() {
   const supabase = await createClient();
   const { data: tasks } = await supabase
     .from("tasks")
-    .select("*, assignee:users!tasks_assigned_to_fkey(id, full_name)")
+    .select("*, assignee:users!tasks_assigned_to_fkey(id, full_name, avatar_url)")
     .order("created_at", { ascending: false })
     .returns<TaskWithAssignee[]>();
 

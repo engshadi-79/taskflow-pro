@@ -8,6 +8,7 @@ import {
   type ChangePasswordState,
 } from "@/lib/actions/auth";
 import { Modal } from "@/components/shared/modal";
+import { Avatar } from "@/components/shared/avatar";
 import { useSystemNotifications } from "@/lib/hooks/use-system-notifications";
 import {
   ChevronDownIcon,
@@ -39,10 +40,6 @@ const THEMES: { value: Theme; label: string }[] = [
   { value: "system", label: "حسب النظام" },
 ];
 
-function initials(fullName: string) {
-  return fullName.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("");
-}
-
 function applyTheme(theme: Theme) {
   const dark =
     theme === "dark" ||
@@ -59,10 +56,12 @@ export function UserMenu({
   fullName,
   role,
   jobTitle,
+  avatarUrl,
 }: {
   fullName: string;
   role: Role;
   jobTitle?: string | null;
+  avatarUrl?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [dialog, setDialog] = useState<"password" | "settings" | "about" | null>(
@@ -130,9 +129,7 @@ export function UserMenu({
               {jobTitle || ROLE_LABEL[role]}
             </span>
           </span>
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-accent-500 to-purple-500 text-xs font-extrabold text-white">
-            {initials(fullName)}
-          </span>
+          <Avatar src={avatarUrl} name={fullName} size={36} className="text-xs" decorative />
         </button>
 
         {open && (
@@ -142,9 +139,13 @@ export function UserMenu({
             className="absolute end-0 top-[calc(100%+10px)] z-40 w-[min(88vw,264px)] overflow-hidden rounded-[18px] border border-border bg-surface shadow-2xl shadow-black/20"
           >
             <div className="flex flex-col items-center gap-2 px-5 pb-4 pt-5 text-center">
-              <span className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-accent-500 to-purple-500 text-2xl font-black text-white ring-4 ring-accent-100">
-                {initials(fullName)}
-              </span>
+              <Avatar
+                src={avatarUrl}
+                name={fullName}
+                size={80}
+                className="text-2xl ring-4 ring-accent-100"
+                decorative
+              />
               <span className="mt-1 text-[15px] font-black text-foreground">
                 {fullName}
               </span>

@@ -32,6 +32,7 @@ export default async function DashboardLayout({
           fullName={profile.full_name}
           role={profile.role}
           jobTitle={profile.job_title}
+          avatarUrl={profile.avatar_url}
           unreadCount={unreadCount ?? 0}
         />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
