@@ -172,9 +172,8 @@ export function Sidebar({ role }: { role: Role }) {
 
   return (
     <>
-      {/* Fixed-width spacer: the expanded panel floats over the content instead
-          of widening this column, so the page never reflows on hover. */}
-      <div className="shrink-0" style={{ width: RAIL }} aria-hidden />
+      {/* Holds the rail's place only while it is overlaid (below lg). */}
+      <div className="shrink-0 lg:hidden" style={{ width: RAIL }} aria-hidden />
 
       <aside
         onMouseEnter={() => setOpen(true)}
@@ -185,9 +184,11 @@ export function Sidebar({ role }: { role: Role }) {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) close();
         }}
         style={{ width: open ? PANEL : RAIL }}
-        // start-0 is the right edge under dir="rtl", which is where the rail sits
-        className={`fixed inset-y-0 start-0 z-30 flex flex-col overflow-hidden bg-sidebar transition-[width] duration-300 ease-out motion-reduce:transition-none ${
-          open ? "shadow-2xl shadow-black/40" : ""
+        /* From lg up the rail sits in flow, so expanding narrows the content
+           column. Below lg there is not enough room to give away - pushing
+           would squeeze the page to ~79px at 375px - so it overlays instead. */
+        className={`fixed inset-y-0 start-0 z-30 flex h-dvh flex-col overflow-hidden bg-sidebar transition-[width] duration-300 ease-out lg:sticky lg:inset-auto lg:top-0 lg:z-auto lg:shrink-0 motion-reduce:transition-none ${
+          open ? "shadow-2xl shadow-black/40 lg:shadow-none" : ""
         }`}
       >
         <AnimatedBackground intensity="subtle" />

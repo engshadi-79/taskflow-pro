@@ -24,7 +24,9 @@ export default async function DashboardLayout({
   return (
     <div className="flex h-dvh">
       <Sidebar role={profile.role} />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      {/* min-w-0 lets this column actually narrow when the rail expands;
+          without it the flex default floor pushes content off-screen */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar
           userId={profile.id}
           fullName={profile.full_name}
