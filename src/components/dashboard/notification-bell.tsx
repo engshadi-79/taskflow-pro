@@ -19,6 +19,7 @@ import {
   XCircleIcon,
 } from "@/components/shared/icons";
 import { timeAgo } from "@/lib/format-time-ago";
+import { useSystemNotifications } from "@/lib/hooks/use-system-notifications";
 import type { Notification } from "@/lib/types/notification";
 
 const PANEL_LIMIT = 12;
@@ -80,6 +81,18 @@ export function NotificationBell({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
 
+  const { showNotification } = useSystemNotifications({
+    // client-side navigation, so clicking a toast does not reload the app
+    onOpen: (url) => router.push(url),
+  });
+
+  // Held in a ref so changing a notification preference does not tear down and
+  // re-subscribe the realtime channel.
+  const notifyRef = useRef(showNotification);
+  useEffect(() => {
+    notifyRef.current = showNotification;
+  }, [showNotification]);
+
   const load = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
@@ -113,6 +126,17 @@ export function NotificationBell({
           setItems((prev) =>
             prev ? [row, ...prev].slice(0, PANEL_LIMIT) : prev
           );
+
+          // raise an OS toast alongside the in-app badge. The hook decides
+          // whether it actually fires, based on permission, the user's
+          // preference and whether this tab is focused.
+          notifyRef.current(metaFor(row.type).label, {
+            body: row.message,
+            tag: row.id,
+            url: row.task_id
+              ? `/dashboard/tasks/${row.task_id}`
+              : "/dashboard/notifications",
+          });
         }
       )
       .subscribe();

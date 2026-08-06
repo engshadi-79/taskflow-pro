@@ -205,6 +205,32 @@ supabase/seed.sql          # بيانات تجريبية للأدوار الثل
   إعدادات الحساب (مظهر الواجهة: فاتح/داكن/حسب النظام)، حول النظام، وتسجيل
   الخروج. الحوارات تستخدم `shared/modal.tsx`.
 
+### إشعارات النظام (Web Notifications)
+
+`src/lib/hooks/use-system-notifications.ts` — إشعارات على مستوى نظام التشغيل
+بالتوازي مع إشعارات التطبيق. مربوط بمصدر الإشعارات الحالي: اشتراك Supabase
+Realtime في `notification-bell.tsx`، فكل صف جديد يرفع إشعار نظام أيضًا.
+
+| الحالة | السلوك |
+|---|---|
+| المتصفح لا يدعم API | رسالة داخل الإعدادات، وإشعارات التطبيق تعمل كما هي |
+| الإذن `default` | لا يُطلب إلا عند تفعيل المستخدم للمفتاح (إيماءة مستخدم) |
+| الإذن `denied` | المفتاح مُعطَّل + شرح خطوات التفعيل اليدوي من إعدادات المتصفح |
+| التبويب في الخلفية | يُظهر إشعار النظام دائمًا |
+| التبويب نشط | يُكتَم افتراضيًا (`onlyWhenHidden`) تجنّبًا للتكرار — قابل للتغيير |
+
+التفضيلات في `localStorage` تحت `monjez:system-notifications`
+(`enabled` · `onlyWhenHidden` · `sound`)، ومشتركة بين المكوّنات عبر
+`useSyncExternalStore` (نفس نمط `theme-toggle.tsx`) مع مزامنة بين التبويبات.
+
+`showNotification` يُرجع **سبب** النتيجة لا `boolean`: `shown` ·
+`unsupported` · `disabled` · `denied` · `permission-not-granted` ·
+`suppressed-tab-focused` · `failed`.
+
+ملاحظتان: خيار `sound` في مواصفة Web Notifications مُهمَل ولا ينفّذه أي
+متصفح، فالنبرة مُولَّدة عبر WebAudio. وطلب الإذن **لا** يُنفَّذ عند التحميل —
+المتصفحات تتجاهله أو تحجبه نهائيًا بلا إيماءة مستخدم.
+
 ### تفضيل المظهر
 
 `localStorage.theme` يقبل `light` · `dark` · `system`. سكربت الإقلاع في

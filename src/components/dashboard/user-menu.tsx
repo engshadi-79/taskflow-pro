@@ -8,6 +8,7 @@ import {
   type ChangePasswordState,
 } from "@/lib/actions/auth";
 import { Modal } from "@/components/shared/modal";
+import { useSystemNotifications } from "@/lib/hooks/use-system-notifications";
 import {
   ChevronDownIcon,
   GearIcon,
@@ -421,8 +422,10 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
         ))}
       </fieldset>
 
+      <SystemNotificationSettings />
+
       <p className="mt-3 text-[11.5px] leading-5 text-muted">
-        يُحفظ هذا التفضيل في هذا المتصفح فقط، ولا يتغيّر لبقية المستخدمين.
+        تُحفظ هذه التفضيلات في هذا المتصفح فقط، ولا تتغيّر لبقية المستخدمين.
       </p>
 
       <button
@@ -433,6 +436,127 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
         تم
       </button>
     </Modal>
+  );
+}
+
+function SystemNotificationSettings() {
+  const {
+    supported,
+    permission,
+    prefs,
+    active,
+    setEnabled,
+    setOnlyWhenHidden,
+    setSound,
+    showNotification,
+  } = useSystemNotifications();
+  const [busy, setBusy] = useState(false);
+  const [tested, setTested] = useState<string | null>(null);
+
+  return (
+    <section className="mt-6 border-t border-border pt-5">
+      <h3 className="mb-1 text-sm font-bold text-foreground">إشعارات النظام</h3>
+      <p className="mb-3 text-[11.5px] leading-5 text-muted">
+        تظهر كإشعارات ويندوز خارج المتصفح، بالتوازي مع إشعارات التطبيق.
+      </p>
+
+      {!supported && (
+        <p className="rounded-[10px] bg-background px-3.5 py-3 text-[12px] leading-5 text-muted">
+          هذا المتصفح لا يدعم إشعارات النظام. إشعارات التطبيق تعمل كما هي.
+        </p>
+      )}
+
+      {supported && (
+        <>
+          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-[10px] border border-border px-3.5 py-2.5 text-sm font-bold text-foreground hover:bg-background">
+            تفعيل إشعارات النظام
+            <input
+              type="checkbox"
+              checked={prefs.enabled && permission === "granted"}
+              disabled={busy || permission === "denied"}
+              onChange={async (e) => {
+                setBusy(true);
+                setTested(null);
+                await setEnabled(e.target.checked);
+                setBusy(false);
+              }}
+              className="h-4 w-4 accent-accent-600"
+            />
+          </label>
+
+          {permission === "denied" && (
+            // The browser will not re-prompt once blocked, so the only way out
+            // is the site settings panel. Spell out where it is.
+            <div className="mt-2 rounded-[10px] bg-brand-red-50 px-3.5 py-3 text-[12px] leading-5 text-foreground">
+              <p className="font-bold text-brand-red-500">
+                الإشعارات محجوبة من إعدادات المتصفح
+              </p>
+              <p className="mt-1 text-muted">
+                لن يسألك المتصفح مرة أخرى بعد الحجب. لتفعيلها: اضغط أيقونة القفل
+                🔒 بجانب عنوان الموقع ← الإشعارات ← اختر «السماح»، ثم أعد تحميل
+                الصفحة.
+              </p>
+            </div>
+          )}
+
+          <fieldset
+            disabled={!active}
+            className="mt-2 space-y-2 disabled:opacity-50"
+          >
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-[10px] border border-border px-3.5 py-2.5 text-[13px] font-bold text-foreground hover:bg-background">
+              <span>
+                فقط عندما يكون التطبيق في الخلفية
+                <span className="mt-0.5 block text-[11px] font-medium text-muted">
+                  يمنع تكرار الإشعار وأنت تنظر إلى الصفحة
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={prefs.onlyWhenHidden}
+                onChange={(e) => setOnlyWhenHidden(e.target.checked)}
+                className="h-4 w-4 shrink-0 accent-accent-600"
+              />
+            </label>
+
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-[10px] border border-border px-3.5 py-2.5 text-[13px] font-bold text-foreground hover:bg-background">
+              نبرة صوتية مع الإشعار
+              <input
+                type="checkbox"
+                checked={prefs.sound}
+                onChange={(e) => setSound(e.target.checked)}
+                className="h-4 w-4 shrink-0 accent-accent-600"
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={() => {
+                const result = showNotification("منجز", {
+                  body: "هذا إشعار تجريبي للتأكد من عمل إشعارات النظام.",
+                  tag: "monjez-test",
+                  url: "/dashboard/notifications",
+                  force: true, // a test is useless if the focused tab swallows it
+                });
+                setTested(
+                  result === "shown"
+                    ? "تم إرسال إشعار تجريبي."
+                    : "تعذّر إظهار الإشعار التجريبي."
+                );
+              }}
+              className="w-full rounded-[10px] border border-accent-300 py-2 text-[13px] font-extrabold text-accent-700 hover:bg-accent-50"
+            >
+              إرسال إشعار تجريبي
+            </button>
+          </fieldset>
+
+          {tested && (
+            <p className="mt-2 text-[11.5px] text-muted" role="status">
+              {tested}
+            </p>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 
