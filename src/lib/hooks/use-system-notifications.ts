@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 
 /** `unsupported` is folded in so callers branch on one value, not two. */
 export type SystemNotificationPermission =
@@ -41,15 +41,18 @@ export type ShowNotificationResult =
   | "failed";
 
 export const DEFAULT_PREFS: SystemNotificationPrefs = {
-  // Opt-in on purpose: OS-level toasts should never start without consent.
-  enabled: false,
+  // On by default for every user. The browser's own permission prompt is
+  // the real gate here - flipping this to true does not, and cannot, skip
+  // it. See requestPermissionOnFirstInteraction below.
+  enabled: true,
   onlyWhenHidden: true,
-  sound: false,
+  sound: true,
 };
 
 const PREFS_KEY = "monjez:system-notifications";
 const PREFS_EVENT = "monjez:system-notifications-changed";
 const PERMISSION_EVENT = "monjez:notification-permission-changed";
+const AUTO_PROMPT_KEY = "monjez:notification-auto-prompted";
 const DEFAULT_ICON = "/icon-notification.svg";
 
 /* ---------------------------------------------------------------- prefs store */
@@ -118,6 +121,60 @@ function getServerPermission(): SystemNotificationPermission {
   return "default";
 }
 
+/**
+ * Browsers refuse to grant Notification permission without a user gesture -
+ * some auto-deny a request fired on page load outright, and a denial cannot
+ * be undone from code afterward. So "enabled by default for every user"
+ * cannot mean "silently start showing toasts": it means asking at the
+ * earliest gesture the browser will honour, which is the user's first
+ * click/keypress after landing in the dashboard, rather than making them
+ * dig into Settings to flip a switch first.
+ *
+ * Fires at most once per browser (localStorage-gated), and the listener
+ * itself is a module-level singleton so mounting this hook in several
+ * components at once - the bell and the settings dialog both use it - never
+ * attaches it twice.
+ */
+let autoPromptArmed = false;
+
+function armAutoPromptOnFirstInteraction() {
+  if (autoPromptArmed) return;
+  if (!("Notification" in window)) return;
+  if (window.Notification.permission !== "default") return;
+  if (!readPrefs().enabled) return; // user already turned it off explicitly
+
+  try {
+    if (localStorage.getItem(AUTO_PROMPT_KEY)) return;
+  } catch {
+    // storage unavailable: fall through and arm anyway, best-effort
+  }
+
+  autoPromptArmed = true;
+
+  async function onFirstInteraction() {
+    document.removeEventListener("pointerdown", onFirstInteraction, true);
+    document.removeEventListener("keydown", onFirstInteraction, true);
+    try {
+      localStorage.setItem(AUTO_PROMPT_KEY, "1");
+    } catch {
+      // best-effort: worst case this fires again next visit
+    }
+    if (window.Notification.permission === "default") {
+      await window.Notification.requestPermission();
+      window.dispatchEvent(new Event(PERMISSION_EVENT));
+    }
+  }
+
+  document.addEventListener("pointerdown", onFirstInteraction, {
+    once: true,
+    capture: true,
+  });
+  document.addEventListener("keydown", onFirstInteraction, {
+    once: true,
+    capture: true,
+  });
+}
+
 /* ------------------------------------------------------------------- chime */
 
 function playChime() {
@@ -168,6 +225,15 @@ export function useSystemNotifications({
   );
 
   const supported = permission !== "unsupported";
+
+  // Both call sites (the topbar bell and the settings dialog) only ever
+  // mount inside the authenticated dashboard, so arming here is exactly
+  // "the first interaction after opening the site" for a signed-in user -
+  // it never runs on the public landing or login pages, which don't use
+  // this hook at all.
+  useEffect(() => {
+    armAutoPromptOnFirstInteraction();
+  }, []);
 
   /**
    * Must be called from a user gesture. Chrome ignores (and some browsers
