@@ -80,6 +80,40 @@ npm run dev
 > من مشغّلات `SECURITY DEFINER` في قاعدة البيانات، فلا يستطيع أي عميل تلفيق
 > إشعار.
 
+### تسجيل الدخول عبر Google
+
+النظام كان بالدعوة فقط (كل حساب يُنشئه المدير العام بمؤسسة ودور محدَّدين).
+زر "المتابعة عبر Google" في `/login` يفتح استثناءً مقصودًا: **تسجيل عام** —
+أي حساب Google جديد لم يُدعَ من قبل يُنشئ **مؤسسة جديدة تلقائيًا ويصبح
+مديرها العام (`super_admin`)**، لأن نموذج البيانات متعدد المؤسسات يتطلب
+`organization_id` لكل صف، ولا معنى لإسناد قادم جديد إلى مؤسسة أحد آخر.
+
+الآلية في `handle_new_user()` (المعدَّلة في `supabase/google_signup.sql`،
+تستبدل نسخة `schema.sql`):
+- إن وُجد `organization_id` في بيانات المستخدم الوصفية (المسار القديم:
+  حساب أنشأه مدير عبر `createEmployee`) → يُستخدم كما هو، بلا تغيير.
+- إن غاب (مسار Google الجديد) → تُنشأ صفوف `organizations` جديدة باسم
+  مبنيّ على `full_name`/`name` القادم من Google أو من اسم البريد، ويصبح
+  هذا المستخدم `super_admin` لها. صورة الحساب من Google
+  (`avatar_url`/`picture`) تُنسخ مباشرة إلى `users.avatar_url`.
+
+**حساب مدعوّ مسبقًا بنفس بريد Google** يستمر يعمل عاديًا دون إنشاء مؤسسة
+مكرَّرة — Supabase Auth يربط الهويات تلقائيًا بنفس صف `auth.users` عندما
+تتطابق البريد الإلكتروني، فالمشغّل لا يُطلَق مجددًا (يُطلَق على INSERT
+فقط، لا على ربط هوية إضافية بحساب موجود).
+
+الملفات: [`route.ts`](../src/app/auth/callback/route.ts) (تبادل كود OAuth
+بجلسة، Route Handler لأنه المكان الوحيد القادر على ضبط الكوكيز هنا) ·
+[`login/page.tsx`](../src/app/login/page.tsx) (الزر يستدعي
+`supabase.auth.signInWithOAuth` من المتصفح مباشرة).
+
+**يتطلب تفعيل مزوّد Google يدويًا** في Supabase Dashboard ← Authentication
+← Providers ← Google، بمفاتيح من Google Cloud Console، ورابط الإعادة
+`https://<project-ref>.supabase.co/auth/v1/callback` مُضافًا في
+Authorized redirect URIs. بدونه الزر يفشل بخطأ واضح
+("Unsupported provider") لا عطل صامت — تحقّقت من هذا مباشرة عبر
+`/auth/v1/authorize`.
+
 ---
 
 ## 5. قاعدة البيانات
@@ -125,11 +159,12 @@ supabase/notifications_and_reports.sql
 supabase/dashboard_extras.sql
 supabase/avatars.sql                      # عمود avatar_url + حاوية تخزين
 supabase/kanban_status_notifications.sql  # يستبدل notify_task_event بنسخة أشمل
+supabase/google_signup.sql                # تسجيل عام عبر Google، يحتاج avatars.sql قبله
 supabase/seed.sql          # بيانات تجريبية للأدوار الثلاثة
 ```
 
-آخر ملفين مُضافان بعد الإطلاق الأول — إن كانت قاعدتك الحيّة مُنشأة قبل هذا
-التوثيق، شغّلهما يدويًا في SQL Editor بهذا الترتيب.
+آخر ثلاث ملفات مُضافة بعد الإطلاق الأول — إن كانت قاعدتك الحيّة مُنشأة قبل
+هذا التوثيق، شغّلها يدويًا في SQL Editor بهذا الترتيب.
 
 ---
 
