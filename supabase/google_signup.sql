@@ -12,13 +12,11 @@
 -- organization_id would violate its NOT NULL constraint and abort the
 -- whole sign-up with a generic "Database error saving new user".
 --
--- So this adds a second path: when organization_id is absent from the
--- metadata, treat this as a fresh tenant signing up - create a new
--- organization on the spot and make this user its super_admin, since
--- nothing else in this multi-tenant schema can own their rows otherwise.
--- Existing invited accounts are completely unaffected: an admin-created
--- user always has organization_id in its metadata, so it keeps taking the
--- original path with its assigned role untouched.
+-- Decision: a self-service Google sign-up joins the existing organization
+-- (the oldest one on record - in practice the only one, since this app has
+-- always been single-tenant in use) as a plain employee. It does NOT spin
+-- up a new organization for itself; an admin-created account keeps taking
+-- the original path unchanged, with whatever role/org was assigned to it.
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -41,9 +39,15 @@ begin
   if meta_org_id is not null then
     org_id := meta_org_id;
   else
-    insert into public.organizations (name)
-    values (display_name || ' - مؤسسة جديدة')
-    returning id into org_id;
+    select id into org_id from public.organizations order by created_at asc limit 1;
+
+    if org_id is null then
+      -- fresh install with no organization at all yet: bootstrap one rather
+      -- than fail, since organization_id has nowhere valid to point.
+      insert into public.organizations (name)
+      values (display_name || ' - مؤسسة جديدة')
+      returning id into org_id;
+    end if;
   end if;
 
   insert into public.users (
@@ -56,10 +60,7 @@ begin
     display_name,
     new.email,
     new.raw_user_meta_data->>'phone',
-    case
-      when meta_org_id is null then 'super_admin'
-      else coalesce(new.raw_user_meta_data->>'role', 'employee')
-    end,
+    coalesce(new.raw_user_meta_data->>'role', 'employee'),
     (new.raw_user_meta_data->>'department_id')::uuid,
     new.raw_user_meta_data->>'job_title',
     coalesce(new.raw_user_meta_data->>'avatar_url', new.raw_user_meta_data->>'picture')
