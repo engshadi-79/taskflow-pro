@@ -1,0 +1,74 @@
+"use client";
+
+import { useActionState } from "react";
+import { updateOwnProfile, type UpdateOwnProfileState } from "@/lib/actions/users";
+import { CheckCircleIcon, UserIcon } from "@/components/shared/icons";
+import type { Profile } from "@/lib/types/roles";
+
+const inputClass =
+  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500";
+
+const initialState: UpdateOwnProfileState = {};
+
+/**
+ * Name/phone only, for editing your own row - role, department and active
+ * status are the admin's call (ProfileEditForm), never this form's.
+ */
+export function SelfProfileForm({ profile }: { profile: Profile }) {
+  const [state, formAction, pending] = useActionState(updateOwnProfile, initialState);
+
+  return (
+    <div className="rounded-[18px] border border-border bg-surface p-6">
+      <div className="mb-4 flex items-center gap-2.5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-accent-50 text-accent-600">
+          <UserIcon className="h-4 w-4" />
+        </span>
+        <h2 className="text-sm font-extrabold text-foreground">بياناتي الشخصية</h2>
+      </div>
+
+      <form action={formAction} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium text-foreground">الاسم الكامل</span>
+          <input
+            name="full_name"
+            defaultValue={profile.full_name}
+            required
+            className={inputClass}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium text-foreground">رقم الهاتف</span>
+          <input
+            name="phone"
+            type="tel"
+            defaultValue={profile.phone ?? ""}
+            placeholder="اختياري"
+            className={inputClass}
+          />
+        </label>
+
+        <div className="flex items-center gap-3 sm:col-span-2">
+          <button
+            type="submit"
+            disabled={pending}
+            className="rounded-[10px] bg-accent-500 px-4 py-2 text-sm font-extrabold text-white hover:bg-accent-600 disabled:opacity-60"
+          >
+            {pending ? "جارٍ الحفظ..." : "حفظ التعديلات"}
+          </button>
+
+          {state.success && (
+            <span className="flex items-center gap-1.5 text-sm font-bold text-green-600">
+              <CheckCircleIcon className="h-4 w-4" />
+              تم الحفظ
+            </span>
+          )}
+          {state.error && (
+            <p className="text-sm text-red-600" role="alert">
+              {state.error}
+            </p>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+}

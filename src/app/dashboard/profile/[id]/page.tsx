@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileEditForm } from "@/components/dashboard/profile-edit-form";
+import { SelfProfileForm } from "@/components/dashboard/self-profile-form";
 import { AvatarUpload } from "@/components/dashboard/avatar-upload";
 import { Avatar } from "@/components/shared/avatar";
 import { computeEmployeeStats } from "@/lib/employee-stats";
@@ -214,6 +215,8 @@ export default async function ProfileDetailPage({
           </div>
         </div>
       </div>
+
+      {id === viewer.id && <SelfProfileForm profile={employee} />}
 
       {canManage && employee.id !== viewer.id && (
         <ProfileEditForm employee={employee} departments={departments ?? []} />

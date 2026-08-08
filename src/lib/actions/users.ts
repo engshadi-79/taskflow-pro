@@ -102,6 +102,48 @@ function pathFromAvatarUrl(url: string): string | null {
   return i === -1 ? null : url.slice(i + marker.length);
 }
 
+export type UpdateOwnProfileState = { error?: string; success?: boolean };
+
+/**
+ * Every field a user can touch on their own record — full_name and phone
+ * only. role/organization_id/department_id/is_active never appear in this
+ * update call, by construction, regardless of what a form happens to submit:
+ * that's the actual enforcement, the same way uploadAvatar above only ever
+ * writes avatar_url. RLS (see supabase/self_profile_update.sql) is what lets
+ * the row be touched at all; it isn't relied on to filter which columns a
+ * client could smuggle in, since a USING/WITH CHECK clause on this table
+ * can't see column-level intent, only whether the row may be written.
+ */
+export async function updateOwnProfile(
+  _prevState: UpdateOwnProfileState,
+  formData: FormData
+): Promise<UpdateOwnProfileState> {
+  const profile = await getCurrentProfile();
+  if (!profile) {
+    return { error: "الجلسة غير صالحة، أعد تسجيل الدخول" };
+  }
+
+  const fullName = (formData.get("full_name") as string)?.trim();
+  const phone = (formData.get("phone") as string)?.trim() || null;
+
+  if (!fullName) {
+    return { error: "الاسم مطلوب" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("users")
+    .update({ full_name: fullName, phone })
+    .eq("id", profile.id);
+
+  if (error) {
+    return { error: "تعذر حفظ التعديلات، حاول مرة أخرى" };
+  }
+
+  revalidatePath("/dashboard", "layout");
+  return { success: true };
+}
+
 const VALID_ROLES = ["super_admin", "department_manager", "employee"];
 
 export async function createEmployee(

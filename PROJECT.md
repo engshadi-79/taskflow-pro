@@ -189,10 +189,11 @@ supabase/avatars.sql                      # عمود avatar_url + حاوية ت�
 supabase/kanban_status_notifications.sql  # يستبدل notify_task_event بنسخة أشمل
 supabase/google_signup.sql                # تسجيل عام عبر Google، يحتاج avatars.sql قبله
 supabase/reports_extended.sql             # دوال إضافية لصفحة التقارير الجديدة
+supabase/self_profile_update.sql          # يسمح لأي مستخدم بتعديل صفّه الخاص
 supabase/seed.sql          # بيانات تجريبية للأدوار الثلاثة
 ```
 
-آخر أربع ملفات مُضافة بعد الإطلاق الأول — إن كانت قاعدتك الحيّة مُنشأة قبل
+آخر خمس ملفات مُضافة بعد الإطلاق الأول — إن كانت قاعدتك الحيّة مُنشأة قبل
 هذا التوثيق، شغّلها يدويًا في SQL Editor بهذا الترتيب.
 
 ---
@@ -337,6 +338,29 @@ Realtime في `notification-bell.tsx`، فكل صف جديد يرفع إشعار
 **يتطلب تشغيل `supabase/avatars.sql` يدويًا** في SQL Editor قبل أن تعمل
 الميزة — يضيف عمود `avatar_url` وحاوية Storage عامة القراءة (`avatars`)
 بسياسات RLS تسمح لكل مستخدم بالكتابة في مجلده فقط.
+
+### تعديل البيانات الشخصية (الاسم والهاتف)
+
+`SelfProfileForm` — نموذج صغير منفصل عن `ProfileEditForm` الإداري (الذي
+يحمل الدور والقسم وزر الحذف، ولا يجب أن يراه مستخدم يعدّل ملفه هو). يظهر
+فقط عند `id === viewer.id`، ويحرّر `full_name`/`phone` فقط عبر
+`updateOwnProfile()` في `lib/actions/users.ts`.
+
+**اكتشاف جانبي أثناء بناء هذه الميزة**: `users_update` في `rls.sql` كانت
+تسمح فقط لـ `super_admin` بتعديل أي صف — أي مستخدم آخر غير مدير عام لم
+يكن يملك أي سياسة UPDATE على صفّه الخاص، لا لتعديل الاسم/الهاتف، **ولا
+حتى لحفظ صورته الشخصية** (`uploadAvatar`/`removeAvatar` كانتا تفشلان
+بصمت لأي مستخدم ليس `super_admin` — الرفع للتخزين ينجح، لكن كتابة الرابط
+في صف `users` تُرفض بواسطة RLS بلا خطأ ظاهر). `supabase/self_profile_update.sql`
+يضيف سياسة UPDATE ثانية (`id = auth.uid()`) — تُضاف لا تستبدل سياسة
+`super_admin`، لأن Postgres يجمع بـ OR كل السياسات المتساهلة (permissive)
+على نفس الأمر.
+
+**حدود هذه السياسة عمدًا**: RLS هنا تُقرِّر *أي الصفوف* يمكن تعديلها، لا
+*أي الأعمدة* — لا يوجد مفهوم "قيّد هذه الجلسة بأعمدة معيّنة" في RLS. المنع
+الفعلي لتعديل `role`/`organization_id`/`department_id`/`is_active` من قِبل
+المستخدم نفسه يقع بالكامل على كود التطبيق: `updateOwnProfile` لا يكتب إلا
+`full_name`/`phone`، تمامًا كما `uploadAvatar` لا يكتب إلا `avatar_url`.
 
 ### صفحة التقارير
 
