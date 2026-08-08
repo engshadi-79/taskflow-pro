@@ -47,7 +47,13 @@ export function MonthlyTrendChart({ rows }: { rows: MonthlyTrendRow[] }) {
       {rows.length === 0 ? (
         <p className="text-sm text-muted">لا توجد بيانات كافية بعد</p>
       ) : (
-        <>
+        // The line itself is plain SVG geometry - x always increases
+        // left-to-right regardless of page direction - but the month labels
+        // below it are a plain flex row, which the page's RTL direction
+        // would otherwise reverse, putting the oldest month on the right
+        // under a line that still reads oldest-to-newest left-to-right.
+        // Pinning this whole block to ltr keeps both in sync.
+        <div dir="ltr">
           <svg
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             preserveAspectRatio="none"
@@ -76,8 +82,9 @@ export function MonthlyTrendChart({ rows }: { rows: MonthlyTrendRow[] }) {
               <span key={r.label}>{r.label}</span>
             ))}
           </div>
-        </>
+        </div>
       )}
+
     </div>
   );
 }
