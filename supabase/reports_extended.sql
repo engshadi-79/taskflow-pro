@@ -10,7 +10,7 @@
 -- stat cards' sparklines (any period, by slicing the range client-side) and
 -- the monthly trend chart (by fetching ~8 months and bucketing by month
 -- client-side instead of needing a second, near-duplicate RPC).
-create function public.report_daily_series(p_since date, p_until date default current_date)
+create or replace function public.report_daily_series(p_since date, p_until date default current_date)
 returns table (day date, created_count bigint, completed_count bigint)
 language sql
 security invoker
@@ -27,14 +27,14 @@ as $$
 $$;
 
 -- average completion time per department, in hours (completed tasks only)
-create function public.report_avg_hours_by_department()
+create or replace function public.report_avg_hours_by_department()
 returns table (department_name text, avg_hours numeric)
 language sql
 security invoker
 stable
 as $$
-  select coalesce(d.name, 'بدون قسم'),
-         round(avg(extract(epoch from (t.updated_at - t.created_at)) / 3600.0), 1)
+  select coalesce(d.name, 'بدون قسم') as department_name,
+         round(avg(extract(epoch from (t.updated_at - t.created_at)) / 3600.0), 1) as avg_hours
   from public.tasks t
   join public.users u on u.id = t.assigned_to
   left join public.departments d on d.id = u.department_id
@@ -44,7 +44,7 @@ as $$
 $$;
 
 -- current snapshot of how many (non-cancelled) tasks sit in each status
-create function public.report_status_breakdown()
+create or replace function public.report_status_breakdown()
 returns table (status text, task_count bigint)
 language sql
 security invoker

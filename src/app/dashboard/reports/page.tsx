@@ -66,11 +66,11 @@ export default async function ReportsPage({
     { count: overdueNow },
     { count: activeNow },
     { count: activePrev },
-    { data: topDepartmentsRaw },
-    { data: dailySeriesRaw },
-    { data: deptHoursRaw },
-    { data: statusBreakdownRaw },
-    { data: recentTasksRaw },
+    { data: topDepartmentsRaw, error: topDepartmentsError },
+    { data: dailySeriesRaw, error: dailySeriesError },
+    { data: deptHoursRaw, error: deptHoursError },
+    { data: statusBreakdownRaw, error: statusBreakdownError },
+    { data: recentTasksRaw, error: recentTasksError },
   ] = await Promise.all([
     supabase
       .from("tasks")
@@ -111,6 +111,23 @@ export default async function ReportsPage({
       .limit(8)
       .returns<TaskWithAssignee[]>(),
   ]);
+
+  // These RPCs return an empty result set on failure too (data: null), which
+  // is indistinguishable from "genuinely no rows yet" on screen - the exact
+  // gap that made the missing report_daily_series function look like empty
+  // data instead of a missing-function error. Logging server-side (visible
+  // in the terminal running `next dev`/the deploy logs, not to the client)
+  // means the next silent failure shows up immediately instead of needing
+  // another round of manual SQL probing.
+  for (const [name, error] of [
+    ["report_top_departments", topDepartmentsError],
+    ["report_daily_series", dailySeriesError],
+    ["report_avg_hours_by_department", deptHoursError],
+    ["report_status_breakdown", statusBreakdownError],
+    ["recent tasks query", recentTasksError],
+  ] as const) {
+    if (error) console.error(`[reports] ${name} failed:`, error.message);
+  }
 
   const topDepartments = (topDepartmentsRaw ?? []) as TopDepartmentRow[];
   const dailySeries = (dailySeriesRaw ?? []) as DailyRow[];
