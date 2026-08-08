@@ -166,6 +166,14 @@ export const InfoIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const TrophyIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M7 4h10v4a5 5 0 0 1-10 0V4Z" />
+    <path d="M7 5H4.5A1.5 1.5 0 0 0 3 6.5 3.5 3.5 0 0 0 6.5 10H7M17 5h2.5A1.5 1.5 0 0 1 21 6.5 3.5 3.5 0 0 1 17.5 10H17" />
+    <path d="M12 13v3.5M9 20.5h6M9.8 20.5c0-2 .7-3 2.2-3s2.2 1 2.2 3" />
+  </Svg>
+);
+
 export const RefreshIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M4 12a8 8 0 0 1 13.66-5.66M20 12a8 8 0 0 1-13.66 5.66" />

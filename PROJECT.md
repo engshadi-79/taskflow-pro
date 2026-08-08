@@ -173,7 +173,7 @@ Google جديد ينتظر موافقة `super_admin`، يوجّه النقر إ
 | مساعدات RLS | `current_user_role` · `current_org_id` · `current_department_id` |
 | مشغّلات | `handle_new_user` · `notify_task_event` · `log_task_activity` · `set_updated_at` |
 | مجدولة (pg_cron) | `mark_overdue_tasks` · `send_due_date_reminders` |
-| تقارير | `report_top_employees` · `report_top_departments` · `report_avg_completion_hours` · `report_delay_rate` · `report_weekly_top_employees` · `report_weekly_trend` · `report_task_distribution_by_department` · `report_task_distribution_by_priority` |
+| تقارير | `report_top_employees` · `report_top_departments` · `report_avg_completion_hours` · `report_delay_rate` · `report_weekly_top_employees` · `report_weekly_trend` · `report_task_distribution_by_department` · `report_task_distribution_by_priority` · `report_daily_series` · `report_avg_hours_by_department` · `report_status_breakdown` |
 
 ### ترتيب تنفيذ ملفات SQL
 
@@ -188,10 +188,11 @@ supabase/dashboard_extras.sql
 supabase/avatars.sql                      # عمود avatar_url + حاوية تخزين
 supabase/kanban_status_notifications.sql  # يستبدل notify_task_event بنسخة أشمل
 supabase/google_signup.sql                # تسجيل عام عبر Google، يحتاج avatars.sql قبله
+supabase/reports_extended.sql             # دوال إضافية لصفحة التقارير الجديدة
 supabase/seed.sql          # بيانات تجريبية للأدوار الثلاثة
 ```
 
-آخر ثلاث ملفات مُضافة بعد الإطلاق الأول — إن كانت قاعدتك الحيّة مُنشأة قبل
+آخر أربع ملفات مُضافة بعد الإطلاق الأول — إن كانت قاعدتك الحيّة مُنشأة قبل
 هذا التوثيق، شغّلها يدويًا في SQL Editor بهذا الترتيب.
 
 ---
@@ -336,6 +337,37 @@ Realtime في `notification-bell.tsx`، فكل صف جديد يرفع إشعار
 **يتطلب تشغيل `supabase/avatars.sql` يدويًا** في SQL Editor قبل أن تعمل
 الميزة — يضيف عمود `avatar_url` وحاوية Storage عامة القراءة (`avatars`)
 بسياسات RLS تسمح لكل مستخدم بالكتابة في مجلده فقط.
+
+### صفحة التقارير
+
+أُعيد تصميمها بالكامل على نموذج مرجعي زوّدنا به المستخدم — بشريط فلترة
+حقيقي (هذا الأسبوع/الشهر الحالي/الربع الحالي عبر `?period=` في الرابط،
+لا حالة عميل)، 4 بطاقات إحصاء أعلى الصفحة، مخطط أعمدة لأداء الأقسام،
+مخطط خطي شهري (منجزة/مضافة)، جدول "سجل المهام الحديثة" قابل للبحث،
+ومخطط دائري لحالة المهام.
+
+**عنصران في النموذج المرجعي استُبدلا بمقاييس حقيقية** (بقرار من المستخدم،
+راجع المحادثة): لا يوجد نظام "أهداف" للأقسام في المخطط، ولا حقل "وقت
+مقدَّر" لكل مهمة —
+- بطاقة "أفضل قسم ← أنجز 95% من أهدافه" ← صارت "أفضل قسم إجمالًا" بنسبة
+  حصّته من إجمالي الإنجاز الفعلي (`report_top_departments`، بيانات حقيقية).
+- مخطط "الوقت الفعلي مقابل المقدَّر لكل قسم" ← صار "متوسط وقت الإنجاز
+  الفعلي لكل قسم" (`report_avg_hours_by_department`، دالة جديدة).
+
+**زران تجميليان في النموذج حُذفا عمدًا**: "تصفية" و"تخصيص" — لم يكن
+خلفهما أي سلوك حقيقي في النموذج، وإضافتهما بلا وظيفة تخالف مبدأ عدم بناء
+عناصر تحكّم وهمية. زر "تصدير Excel" الموجود فعليًا أُبقي كما هو.
+
+**تعريف "معدل الإنجاز"**: نسبة المهام المكتملة **في الفترة المختارة** إلى
+إجمالي المهام غير الملغاة **الموجودة فعليًا بنهاية تلك الفترة** (مقياس
+تراكمي)، لا نسبة إنجاز المهام التي أُنشئت في نفس الفترة تحديدًا.
+
+الدوال الجديدة الثلاث في `supabase/reports_extended.sql`:
+`report_daily_series(p_since, p_until)` (تغذّي كلًا من الخطوط الصغيرة في
+بطاقات الإحصاء والمخطط الشهري من استعلام واحد) · `report_avg_hours_by_department`
+· `report_status_breakdown`. كلها `SECURITY INVOKER` — لا معامل org/role
+في أيٍّ منها، RLS وحدها تحصر النتائج بمؤسسة/قسم المستخدم المستدعي، بنفس
+نمط كل دوال `report_*` الأخرى.
 
 ### تفضيل المظهر
 
