@@ -10,7 +10,7 @@ import {
 } from "@/lib/actions/users";
 import { PageHeader } from "@/components/shared/page-header";
 import { Avatar } from "@/components/shared/avatar";
-import { PlusIcon, SearchIcon, UsersIcon } from "@/components/shared/icons";
+import { ClockIcon, PlusIcon, SearchIcon, UsersIcon } from "@/components/shared/icons";
 import type { EmployeeStats } from "@/lib/employee-stats";
 import type { Profile, Role } from "@/lib/types/roles";
 
@@ -53,13 +53,21 @@ export function EmployeesManager({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return employees;
-    return employees.filter(
-      (e) =>
-        e.full_name.toLowerCase().includes(q) ||
-        (e.email ?? "").toLowerCase().includes(q)
+    const matched = q
+      ? employees.filter(
+          (e) =>
+            e.full_name.toLowerCase().includes(q) ||
+            (e.email ?? "").toLowerCase().includes(q)
+        )
+      : employees;
+    // pending sign-ups surface first so an admin can't miss them among
+    // everyone already active
+    return [...matched].sort(
+      (a, b) => Number(a.is_active) - Number(b.is_active)
     );
   }, [employees, query]);
+
+  const pendingCount = employees.filter((e) => !e.is_active).length;
 
   return (
     <div className="space-y-5">
@@ -95,6 +103,15 @@ export function EmployeesManager({
       </label>
 
       {canManage && showCreate && <CreateEmployeeForm departments={departments} />}
+
+      {canManage && pendingCount > 0 && (
+        <div className="flex items-center gap-2.5 rounded-[14px] border border-orange-200 bg-orange-50 px-4 py-3 text-[13px] font-bold text-orange-700">
+          <ClockIcon className="h-[18px] w-[18px] shrink-0" />
+          {pendingCount === 1
+            ? "عضو واحد ينتظر موافقتك"
+            : `${pendingCount} أعضاء ينتظرون موافقتك`}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4.5 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((employee, i) => (
@@ -133,8 +150,14 @@ function EmployeeCard({
   canManage: boolean;
   disableDelete: boolean;
 }) {
+  const pending = !employee.is_active;
+
   return (
-    <div className="overflow-hidden rounded-[18px] border border-border bg-surface text-center">
+    <div
+      className={`overflow-hidden rounded-[18px] border bg-surface text-center ${
+        pending ? "border-orange-300" : "border-border"
+      }`}
+    >
       <div className="h-14" style={{ background: band }} />
       <div className="px-6 pb-6">
         <div className="relative z-2 -mt-8 mx-auto mb-3 w-fit rounded-full border-4 border-surface">
@@ -146,6 +169,14 @@ function EmployeeCard({
             className="text-[22px]"
           />
         </div>
+
+        {pending && (
+          <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-orange-700">
+            <ClockIcon className="h-3 w-3" />
+            بانتظار الموافقة
+          </span>
+        )}
+
         <h3 className="text-[15px] font-extrabold text-foreground">{employee.full_name}</h3>
         <p className="mb-4 text-[12.5px] text-faint">
           {employee.job_title || ROLE_LABEL[employee.role]}
@@ -171,7 +202,10 @@ function EmployeeCard({
           <Link href={`/dashboard/profile/${employee.id}`} className="font-bold text-accent-600 hover:underline">
             عرض الملف
           </Link>
-          {canManage && (
+          {canManage && pending && (
+            <ApproveRejectButtons id={employee.id} name={employee.full_name} />
+          )}
+          {canManage && !pending && (
             <>
               <ActiveToggle id={employee.id} isActive={employee.is_active} />
               <DeleteButton id={employee.id} disabled={disableDelete} />
@@ -294,5 +328,40 @@ function DeleteButton({ id, disabled }: { id: string; disabled: boolean }) {
     >
       حذف
     </button>
+  );
+}
+
+function ApproveRejectButtons({ id, name }: { id: string; name: string }) {
+  const [pending, setPending] = useState(false);
+
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={async () => {
+          setPending(true);
+          await toggleEmployeeActive(id, true);
+          setPending(false);
+        }}
+        className="font-bold text-green-600 hover:underline disabled:opacity-60"
+      >
+        قبول
+      </button>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={async () => {
+          if (!confirm(`رفض طلب "${name}"؟ سيُحذف الحساب ولا يمكن التراجع عن هذا الإجراء.`)) return;
+          setPending(true);
+          const result = await deleteEmployee(id);
+          setPending(false);
+          if (result?.error) alert(result.error);
+        }}
+        className="font-bold text-red-600 hover:underline disabled:opacity-60"
+      >
+        رفض
+      </button>
+    </div>
   );
 }

@@ -17,6 +17,7 @@ import {
   ExternalLinkIcon,
   EyeIcon,
   RefreshIcon,
+  UserIcon,
   XCircleIcon,
 } from "@/components/shared/icons";
 import { timeAgo } from "@/lib/format-time-ago";
@@ -59,6 +60,11 @@ const TYPE_META: Record<string, Meta> = {
     tint: "bg-accent-600",
     icon: <RefreshIcon className="h-[17px] w-[17px]" />,
   },
+  user_pending_approval: {
+    label: "بانتظار موافقتك",
+    tint: "bg-orange-500",
+    icon: <UserIcon className="h-[17px] w-[17px]" />,
+  },
 };
 
 const FALLBACK: Meta = {
@@ -70,6 +76,11 @@ const FALLBACK: Meta = {
 function metaFor(type: string): Meta {
   // the five reminder_* types all share one presentation
   return TYPE_META[type] ?? FALLBACK;
+}
+
+function urlFor(n: Pick<Notification, "type" | "task_id">): string {
+  if (n.type === "user_pending_approval") return "/dashboard/employees";
+  return n.task_id ? `/dashboard/tasks/${n.task_id}` : "/dashboard/notifications";
 }
 
 export function NotificationBell({
@@ -139,9 +150,7 @@ export function NotificationBell({
           notifyRef.current(metaFor(row.type).label, {
             body: row.message,
             tag: row.id,
-            url: row.task_id
-              ? `/dashboard/tasks/${row.task_id}`
-              : "/dashboard/notifications",
+            url: urlFor(row),
           });
         }
       )
@@ -195,9 +204,7 @@ export function NotificationBell({
       );
       await markNotificationRead(n.id);
     }
-    router.push(
-      n.task_id ? `/dashboard/tasks/${n.task_id}` : "/dashboard/notifications"
-    );
+    router.push(urlFor(n));
   }
 
   return (
