@@ -16,6 +16,7 @@ import {
   ClockIcon,
   ExternalLinkIcon,
   EyeIcon,
+  RefreshIcon,
   XCircleIcon,
 } from "@/components/shared/icons";
 import { timeAgo } from "@/lib/format-time-ago";
@@ -52,6 +53,11 @@ const TYPE_META: Record<string, Meta> = {
     label: "مهمة متأخرة",
     tint: "bg-brand-red-500",
     icon: <AlertIcon className="h-[17px] w-[17px]" />,
+  },
+  task_status_changed: {
+    label: "تغيير الحالة",
+    tint: "bg-accent-600",
+    icon: <RefreshIcon className="h-[17px] w-[17px]" />,
   },
 };
 

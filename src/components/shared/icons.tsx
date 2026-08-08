@@ -166,6 +166,13 @@ export const InfoIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const RefreshIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 12a8 8 0 0 1 13.66-5.66M20 12a8 8 0 0 1-13.66 5.66" />
+    <path d="M17 3v4.5h-4.5M7 21v-4.5h4.5" />
+  </Svg>
+);
+
 export const ClockIcon = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="12" cy="12" r="8.5" />

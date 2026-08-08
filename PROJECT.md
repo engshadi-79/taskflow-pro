@@ -99,8 +99,10 @@ npm run dev
 مولّدة من المشغّلات، وكلها معروضة في القائمة المنسدلة للجرس:
 
 `task_assigned` · `task_pending_review` · `task_completed` · `task_rejected` ·
-`task_overdue` · و خمسة تذكيرات: `reminder_1week` · `reminder_3days` ·
-`reminder_1day` · `reminder_2hours` · `reminder_30min`
+`task_overdue` · `task_status_changed` (أي انتقال حالة آخر لا تغطّيه رسالة
+مخصّصة أعلاه — مثل السحب إلى `new` أو مباشرة إلى `in_progress`؛ لا يُرسَل إن
+كان صاحب المهمة هو من حرّك حالته بنفسه) · و خمسة تذكيرات: `reminder_1week` ·
+`reminder_3days` · `reminder_1day` · `reminder_2hours` · `reminder_30min`
 
 ### الدوال
 
@@ -121,8 +123,13 @@ supabase/rls.sql
 supabase/storage.sql
 supabase/notifications_and_reports.sql
 supabase/dashboard_extras.sql
+supabase/avatars.sql                      # عمود avatar_url + حاوية تخزين
+supabase/kanban_status_notifications.sql  # يستبدل notify_task_event بنسخة أشمل
 supabase/seed.sql          # بيانات تجريبية للأدوار الثلاثة
 ```
+
+آخر ملفين مُضافان بعد الإطلاق الأول — إن كانت قاعدتك الحيّة مُنشأة قبل هذا
+التوثيق، شغّلهما يدويًا في SQL Editor بهذا الترتيب.
 
 ---
 
