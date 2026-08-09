@@ -22,6 +22,7 @@
 -- organization_id/department_id/is_active on their own row under this
 -- policy alone - exactly as true today for avatar_url via the exact same
 -- policy gap this migration also happens to close.
+drop policy if exists users_self_update on public.users;
 create policy users_self_update on public.users
   for update
   using (id = auth.uid())
