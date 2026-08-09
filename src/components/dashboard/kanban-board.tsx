@@ -129,7 +129,7 @@ export function KanbanBoard({
                     >
                       {task.title}
                     </Link>
-                    <div className="mt-3 flex items-center justify-between">
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-y-1.5">
                       <span
                         className={`inline-flex items-center gap-1.5 text-[11.5px] ${
                           col.status === "overdue"
@@ -141,13 +141,18 @@ export function KanbanBoard({
                         {task.due_date ?? "—"}
                       </span>
                       {task.assignee && (
-                        <Avatar
-                          src={task.assignee.avatar_url}
-                          name={task.assignee.full_name}
-                          size={24}
-                          className="text-[10px]"
-                          decorative={false}
-                        />
+                        <span className="flex items-center gap-1.5">
+                          <span className="text-[11.5px] font-bold text-muted">
+                            {task.assignee.full_name}
+                          </span>
+                          <Avatar
+                            src={task.assignee.avatar_url}
+                            name={task.assignee.full_name}
+                            size={24}
+                            className="text-[10px]"
+                            decorative
+                          />
+                        </span>
                       )}
                     </div>
                   </div>

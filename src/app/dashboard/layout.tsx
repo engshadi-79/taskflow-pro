@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
-import { Sidebar } from "@/components/dashboard/sidebar";
+import { SidebarShell } from "@/components/dashboard/sidebar-shell";
 import { Topbar } from "@/components/dashboard/topbar";
 
 export default async function DashboardLayout({
@@ -30,21 +30,16 @@ export default async function DashboardLayout({
     .eq("is_read", false);
 
   return (
-    <div className="flex h-dvh">
-      <Sidebar role={profile.role} />
-      {/* min-w-0 lets this column actually narrow when the rail expands;
-          without it the flex default floor pushes content off-screen */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <Topbar
-          userId={profile.id}
-          fullName={profile.full_name}
-          role={profile.role}
-          jobTitle={profile.job_title}
-          avatarUrl={profile.avatar_url}
-          unreadCount={unreadCount ?? 0}
-        />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
-      </div>
-    </div>
+    <SidebarShell role={profile.role}>
+      <Topbar
+        userId={profile.id}
+        fullName={profile.full_name}
+        role={profile.role}
+        jobTitle={profile.job_title}
+        avatarUrl={profile.avatar_url}
+        unreadCount={unreadCount ?? 0}
+      />
+      <main className="flex-1 overflow-y-auto p-6">{children}</main>
+    </SidebarShell>
   );
 }

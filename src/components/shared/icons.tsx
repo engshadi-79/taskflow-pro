@@ -263,3 +263,15 @@ export const InboxIcon = (p: IconProps) => (
     <path d="M5.4 5h13.2a2 2 0 0 1 1.9 1.4L21 13v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4l2.5-6.6A2 2 0 0 1 5.4 5Z" />
   </Svg>
 );
+
+export const MenuIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 6h16M4 12h16M4 18h16" />
+  </Svg>
+);
+
+export const CloseIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6 6l12 12M18 6 6 18" />
+  </Svg>
+);

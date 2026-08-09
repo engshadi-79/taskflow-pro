@@ -7,7 +7,8 @@ import { SelfProfileForm } from "@/components/dashboard/self-profile-form";
 import { AvatarUpload } from "@/components/dashboard/avatar-upload";
 import { Avatar } from "@/components/shared/avatar";
 import { computeEmployeeStats } from "@/lib/employee-stats";
-import { CalendarIcon, MailIcon, PhoneIcon } from "@/components/shared/icons";
+import { StatCard } from "@/components/shared/stat-card";
+import { CalendarIcon, MailIcon, PhoneIcon, CheckSquareIcon, CheckCircleIcon, ClockIcon } from "@/components/shared/icons";
 import { PRIORITY_LABEL, STATUS_LABEL, type Task } from "@/lib/types/task";
 import type { Profile, Role } from "@/lib/types/roles";
 
@@ -56,7 +57,6 @@ export default async function ProfileDetailPage({
   }
 
   const canView = viewer.role === "super_admin" || viewer.role === "department_manager";
-  const canManage = viewer.role === "super_admin";
 
   if (id !== viewer.id && !canView) {
     redirect("/dashboard/profile");
@@ -64,25 +64,49 @@ export default async function ProfileDetailPage({
 
   const supabase = await createClient();
 
-  const [{ data: employee }, { data: departments }, { data: tasks }] = await Promise.all([
-    supabase
-      .from("users")
-      .select("id, organization_id, full_name, email, phone, secondary_email, bio, role, department_id, job_title, avatar_url, is_active, created_at")
-      .eq("id", id)
-      .single<Profile>(),
-    supabase.from("departments").select("id, name"),
-    supabase
-      .from("tasks")
-      .select("id, title, priority, status, due_date, created_at, updated_at, assigned_to")
-      .eq("assigned_to", id)
-      .neq("status", "cancelled")
-      .order("due_date", { ascending: true, nullsFirst: false })
-      .returns<Task[]>(),
-  ]);
+  const [{ data: employee }, { data: departments }, { data: tasks }, { data: employeeStats, error: employeeStatsError }] =
+    await Promise.all([
+      supabase
+        .from("users")
+        .select("id, organization_id, full_name, email, phone, secondary_email, bio, role, department_id, job_title, manager_id, avatar_url, is_active, created_at")
+        .eq("id", id)
+        .single<Profile>(),
+      supabase.from("departments").select("id, name"),
+      supabase
+        .from("tasks")
+        .select("id, title, priority, status, due_date, created_at, updated_at, assigned_to")
+        .eq("assigned_to", id)
+        .neq("status", "cancelled")
+        .order("due_date", { ascending: true, nullsFirst: false })
+        .returns<Task[]>(),
+      supabase
+        .rpc("report_employee_stats", { p_user_id: id })
+        .single<{ completed_count: number; on_time_rate: number; avg_completion_hours: number }>(),
+    ]);
+
+  if (employeeStatsError) {
+    console.error("report_employee_stats failed:", employeeStatsError);
+  }
 
   if (!employee) {
     notFound();
   }
+
+  // super_admin manages anyone; department_manager only their own department's
+  // employees (matches update_department_employee's own server-side check -
+  // this just decides whether to render the form at all).
+  const canManage =
+    viewer.role === "super_admin" ||
+    (viewer.role === "department_manager" && employee.department_id === viewer.department_id);
+
+  const { data: colleagues } =
+    canManage && employee.id !== viewer.id && employee.department_id
+      ? await supabase
+          .from("users")
+          .select("id, full_name")
+          .eq("department_id", employee.department_id)
+          .neq("id", employee.id)
+      : { data: null };
 
   const departmentName = departments?.find((d) => d.id === employee.department_id)?.name;
   const stats = computeEmployeeStats(tasks ?? [], employee.id);
@@ -106,9 +130,10 @@ export default async function ProfileDetailPage({
             />
           )}
           <h2 className="font-display text-[18px] text-foreground">{employee.full_name}</h2>
-          <p className="mb-4.5 text-[13px] text-faint">
+          <p className="text-[13px] text-faint">
             {employee.job_title || ROLE_LABEL[employee.role]}
           </p>
+          <p className="mb-4.5 text-[12px] text-muted">عضو منذ {joinedLabel}</p>
 
           <div className="mb-5 flex flex-wrap justify-center gap-2">
             <span className="rounded-full bg-accent-50 px-3 py-1.5 text-[11.5px] font-extrabold text-accent-500">
@@ -172,6 +197,27 @@ export default async function ProfileDetailPage({
             </div>
           </div>
 
+          <div className="grid grid-cols-3 gap-3.5">
+            <StatCard
+              value={employeeStats?.completed_count ?? 0}
+              label="المهام المكتملة"
+              icon={<CheckSquareIcon className="h-5 w-5" />}
+              tone="blue"
+            />
+            <StatCard
+              value={`${employeeStats?.on_time_rate ?? 0}٪`}
+              label="معدل الالتزام بالموعد"
+              icon={<CheckCircleIcon className="h-5 w-5" />}
+              tone="green"
+            />
+            <StatCard
+              value={employeeStats?.avg_completion_hours ?? 0}
+              label="متوسط ساعات الإنجاز"
+              icon={<ClockIcon className="h-5 w-5" />}
+              tone="amber"
+            />
+          </div>
+
           <div className="rounded-[18px] border border-border bg-surface p-[22px]">
             <div className="mb-4 flex items-center justify-between">
               <h4 className="text-[14.5px] font-extrabold text-foreground">مهام {employee.full_name.split(" ")[0]} الحالية</h4>
@@ -219,7 +265,12 @@ export default async function ProfileDetailPage({
       {id === viewer.id && <SelfProfileForm profile={employee} />}
 
       {canManage && employee.id !== viewer.id && (
-        <ProfileEditForm employee={employee} departments={departments ?? []} />
+        <ProfileEditForm
+          employee={employee}
+          departments={departments ?? []}
+          colleagues={colleagues ?? []}
+          viewerRole={viewer.role}
+        />
       )}
     </div>
   );

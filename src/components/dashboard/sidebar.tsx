@@ -10,6 +10,7 @@ import {
   ChartIcon,
   CheckSquareIcon,
   ChevronDownIcon,
+  CloseIcon,
   FolderIcon,
   GridIcon,
   SearchIcon,
@@ -146,12 +147,24 @@ function isItemActive(href: string, pathname: string) {
 const RAIL = 76;
 const PANEL = 248;
 
-export function Sidebar({ role }: { role: Role }) {
+export function Sidebar({
+  role,
+  mobileOpen = false,
+  onMobileClose,
+}: {
+  role: Role;
+  /** Controls the <md drawer only - the lg hover-expand rail below is
+   * unaffected and keeps managing its own `open` state independently. */
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}) {
   const sections = NAV_BY_ROLE[role];
   const pathname = usePathname();
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState(false);
+  // the mobile drawer always shows full labels/search, regardless of hover
+  const effectiveOpen = open || mobileOpen;
 
   const visible = useMemo(() => {
     const q = query.trim();
@@ -172,8 +185,19 @@ export function Sidebar({ role }: { role: Role }) {
 
   return (
     <>
-      {/* Holds the rail's place only while it is overlaid (below lg). */}
-      <div className="shrink-0 lg:hidden" style={{ width: RAIL }} aria-hidden />
+      {/* Holds the rail's place only while it is overlaid (md-lg only - below
+          md the rail is a hidden-by-default drawer, so no space is reserved). */}
+      <div className="hidden shrink-0 md:block lg:hidden" style={{ width: RAIL }} aria-hidden />
+
+      {/* Backdrop for the <md drawer - tapping it closes the sidebar, same
+          as the close button inside. Never rendered at md+. */}
+      {mobileOpen && (
+        <div
+          onClick={onMobileClose}
+          aria-hidden
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+        />
+      )}
 
       <aside
         onMouseEnter={() => setOpen(true)}
@@ -183,13 +207,17 @@ export function Sidebar({ role }: { role: Role }) {
         onBlurCapture={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) close();
         }}
-        style={{ width: open ? PANEL : RAIL }}
+        style={{ width: effectiveOpen ? PANEL : RAIL }}
         /* From lg up the rail sits in flow, so expanding narrows the content
            column. Below lg there is not enough room to give away - pushing
-           would squeeze the page to ~79px at 375px - so it overlays instead. */
-        className={`fixed inset-y-0 start-0 z-30 flex h-dvh flex-col overflow-hidden bg-sidebar transition-[width] duration-300 ease-out lg:sticky lg:inset-auto lg:top-0 lg:z-auto lg:shrink-0 motion-reduce:transition-none ${
-          open ? "shadow-2xl shadow-black/40 lg:shadow-none" : ""
-        }`}
+           would squeeze the page to ~79px at 375px - so it overlays instead.
+           Below md it is fully hidden (translate-x-full) until mobileOpen -
+           dir="rtl" on <html> puts this aside on the visual right edge
+           (inset-start-0), so sliding it further along +x moves it off the
+           right side, i.e. the slide-in direction is from the right. */
+        className={`fixed inset-y-0 start-0 z-40 flex h-dvh flex-col overflow-hidden bg-sidebar transition-[width,transform] duration-300 ease-out motion-reduce:transition-none lg:sticky lg:inset-auto lg:top-0 lg:z-auto lg:shrink-0 lg:translate-x-0 ${
+          mobileOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"
+        } ${effectiveOpen ? "shadow-2xl shadow-black/40 lg:shadow-none" : ""}`}
       >
         <AnimatedBackground intensity="subtle" />
 
@@ -199,13 +227,22 @@ export function Sidebar({ role }: { role: Role }) {
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-accent-500 to-purple-500 text-sm text-white shadow-lg shadow-accent-500/30">
             م
           </span>
-          {open && <span className="whitespace-nowrap">نظام منجز</span>}
+          {effectiveOpen && <span className="whitespace-nowrap">نظام منجز</span>}
+          {/* only meaningful for the <md drawer - md+ never sets mobileOpen */}
+          <button
+            type="button"
+            onClick={onMobileClose}
+            aria-label="إغلاق القائمة"
+            className="ms-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white md:hidden"
+          >
+            <CloseIcon className="h-5 w-5" />
+          </button>
         </div>
 
         {/* Collapsed and expanded states occupy identical heights throughout,
             so nothing drifts vertically while the width animates. */}
         <div className="relative px-3 pb-2 pt-4">
-          {open ? (
+          {effectiveOpen ? (
             <label className="relative block">
               <span className="sr-only">بحث في القائمة</span>
               <SearchIcon className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-sidebar-muted" />
@@ -228,7 +265,7 @@ export function Sidebar({ role }: { role: Role }) {
         </div>
 
         <nav className="relative flex-1 overflow-y-auto px-3 pb-5">
-          {open && visible.length === 0 && (
+          {effectiveOpen && visible.length === 0 && (
             <p className="px-3 py-6 text-center text-[13px] text-sidebar-muted">
               لا توجد نتائج مطابقة
             </p>
@@ -238,7 +275,7 @@ export function Sidebar({ role }: { role: Role }) {
             const isCollapsed = collapsed[section.label] && !query;
             return (
               <div key={section.label} className="mb-1">
-                {open ? (
+                {effectiveOpen ? (
                   <button
                     type="button"
                     onClick={() =>
@@ -266,7 +303,7 @@ export function Sidebar({ role }: { role: Role }) {
                   </div>
                 )}
 
-                {(open ? !isCollapsed : true) &&
+                {(effectiveOpen ? !isCollapsed : true) &&
                   section.items.map((item) => {
                     const Icon = ICONS[item.icon];
                     const active = isItemActive(item.href, pathname);
@@ -274,11 +311,12 @@ export function Sidebar({ role }: { role: Role }) {
                       <Link
                         key={item.href}
                         href={item.href}
+                        onClick={onMobileClose}
                         aria-current={active ? "page" : undefined}
                         // the label is not rendered while collapsed, so the
                         // accessible name has to come from the attribute
-                        aria-label={open ? undefined : item.label}
-                        title={open ? undefined : item.label}
+                        aria-label={effectiveOpen ? undefined : item.label}
+                        title={effectiveOpen ? undefined : item.label}
                         className={`mb-0.5 flex items-center gap-3 rounded-[11px] px-[6px] py-1.5 text-[13.5px] font-bold transition-colors ${
                           active
                             ? "bg-gradient-to-l from-accent-600 to-purple-500 text-white shadow-lg shadow-accent-600/25"
@@ -294,7 +332,7 @@ export function Sidebar({ role }: { role: Role }) {
                         >
                           <Icon className="h-[19px] w-[19px]" />
                         </span>
-                        {open && (
+                        {effectiveOpen && (
                           <>
                             <span className="flex-1 truncate whitespace-nowrap">
                               {item.label}

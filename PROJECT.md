@@ -191,10 +191,12 @@ supabase/google_signup.sql                # تسجيل عام عبر Google، ي
 supabase/reports_extended.sql             # دوال إضافية لصفحة التقارير الجديدة
 supabase/self_profile_update.sql          # يسمح لأي مستخدم بتعديل صفّه الخاص
 supabase/profile_fields_v2.sql            # secondary_email · bio · manager_id
+supabase/department_manager_edit.sql      # RPC: مدير القسم يعدّل job_title/manager_id لفريقه
+supabase/report_employee_stats.sql        # RPC: بطاقات الإحصاء بصفحة الملف الشخصي لموظف واحد
 supabase/seed.sql          # بيانات تجريبية للأدوار الثلاثة
 ```
 
-آخر ستة ملفات مُضافة بعد الإطلاق الأول — إن كانت قاعدتك الحيّة مُنشأة قبل
+آخر ثمانية ملفات مُضافة بعد الإطلاق الأول — إن كانت قاعدتك الحيّة مُنشأة قبل
 هذا التوثيق، شغّلها يدويًا في SQL Editor بهذا الترتيب.
 
 `profile_fields_v2.sql` أضاف الأعمدة فقط، بلا واجهة أو Server Action تعرضها
@@ -202,6 +204,29 @@ supabase/seed.sql          # بيانات تجريبية للأدوار الثل
 سياسة RLS جديدة: مغطاة بـ `users_self_update`/`super_admin`، لكن هذا يعني
 أن أي كود مستقبلي يسمح للمستخدم بتعديل `manager_id` بنفسه يحتاج قرارًا
 صريحًا — RLS لا تمنعه، بنفس حدود العمود مقابل الصف المذكورة أعلاه.
+
+`department_manager_edit.sql` هو أول مكان يكتب فيه `manager_id`/`job_title`
+لصف **شخص آخر** (لا صفّ المستخدم نفسه) بواسطة `department_manager`. بسبب
+هذا الفرق تحديدًا لم أستخدم نمط `self_profile_update.sql` (سياسة UPDATE
+تسمح بالصف كاملًا وتعتمد على كود التطبيق ليقيّد الأعمدة) — سياسة كهذه هنا
+تعني أن مدير قسم قادر تقنيًا (بطلب مباشر للـ API خارج الواجهة) على تعديل
+`role`/`department_id` لزميل في قسمه، أي تصعيد صلاحيات حقيقي بين مستخدمين،
+لا مجرد تعديل ذاتي. البديل: دالة `update_department_employee()` بصلاحية
+`SECURITY DEFINER` هي كل التحقق نفسه — تتأكد من دور المتصل وأن الموظف
+الهدف بقسم المتصل (لمدير القسم فقط)، تتحقق أن `manager_id` زميل بنفس قسم
+الهدف، ولا تكتب أي عمود آخر مهما أُرسل. `super_admin` يمر بنفس الدالة لهذين
+الحقلين تحديدًا (بقية حقوله — `full_name`/`role`/`department_id`/`phone` —
+تبقى بمسار `updateEmployee` القديم عبر تحديث مباشر)، بدل تكرار شرط "نفس
+القسم" في مكانين قد ينحرفان عن بعضهما مستقبلًا.
+
+`ProfileEditForm` نفسها أصبحت تعرض حقولًا مختلفة حسب دور من يفتحها: `job_title`
+و"المدير المباشر" (`manager_id`) لكل من `super_admin` و`department_manager`،
+بينما `full_name`/`phone`/`role`/`القسم` وأزرار التعطيل/الحذف تبقى حصرًا
+لـ`super_admin`. هذا إخفاء واجهة فقط للتوضيح — المنع الحقيقي في `requireRole`
+وفي `update_department_employee()` نفسها، بنفس مبدأ الطبقات الثلاث أعلاه.
+صفحة `profile/[id]` توسّع `canManage` لتشمل `department_manager` حين يكون
+الموظف المعروض بنفس قسم المدير فقط، وتجلب زملاء القسم (`colleagues`) لتعبئة
+قائمة `manager_id` — الاستعلام نفسه محكوم بسياسة `users_select` الموجودة.
 
 ---
 

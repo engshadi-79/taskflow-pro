@@ -202,40 +202,60 @@ export async function createEmployee(
   return {};
 }
 
+/**
+ * super_admin can touch every field below; department_manager (added for
+ * job_title/manager_id) is scoped to employees in their own department, and
+ * only ever reaches job_title/manager_id - never role/department_id/phone/
+ * full_name. That scoping isn't re-implemented here: job_title and
+ * manager_id both go through update_department_employee (see
+ * supabase/department_manager_edit.sql), a SECURITY DEFINER function that is
+ * itself the entire permission check, so there is one validated path for
+ * both caller roles instead of duplicating the same-department rule here in
+ * a way a future edit could drift out of sync with the DB-side check.
+ */
 export async function updateEmployee(
   _prevState: UserFormState,
   formData: FormData
 ): Promise<UserFormState> {
-  await requireRole(["super_admin"]);
+  const profile = await requireRole(["super_admin", "department_manager"]);
 
   const id = formData.get("id") as string;
-  const fullName = (formData.get("full_name") as string)?.trim();
-  const role = formData.get("role") as string;
-  const departmentId = (formData.get("department_id") as string) || null;
   const jobTitle = (formData.get("job_title") as string)?.trim() || null;
-  const phone = (formData.get("phone") as string)?.trim() || null;
-
-  if (!fullName || !role) {
-    return { error: "الاسم والدور مطلوبان" };
-  }
-  if (!VALID_ROLES.includes(role)) {
-    return { error: "دور غير صالح" };
-  }
+  const managerId = (formData.get("manager_id") as string) || null;
 
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("users")
-    .update({
-      full_name: fullName,
-      role,
-      department_id: departmentId,
-      job_title: jobTitle,
-      phone,
-    })
-    .eq("id", id);
 
-  if (error) {
-    return { error: "تعذر تحديث بيانات الموظف" };
+  if (profile.role === "super_admin") {
+    const fullName = (formData.get("full_name") as string)?.trim();
+    const role = formData.get("role") as string;
+    const departmentId = (formData.get("department_id") as string) || null;
+    const phone = (formData.get("phone") as string)?.trim() || null;
+
+    if (!fullName || !role) {
+      return { error: "الاسم والدور مطلوبان" };
+    }
+    if (!VALID_ROLES.includes(role)) {
+      return { error: "دور غير صالح" };
+    }
+
+    const { error } = await supabase
+      .from("users")
+      .update({ full_name: fullName, role, department_id: departmentId, phone })
+      .eq("id", id);
+
+    if (error) {
+      return { error: "تعذر تحديث بيانات الموظف" };
+    }
+  }
+
+  const { error: rpcError } = await supabase.rpc("update_department_employee", {
+    p_employee_id: id,
+    p_job_title: jobTitle,
+    p_manager_id: managerId,
+  });
+
+  if (rpcError) {
+    return { error: rpcError.message || "تعذر تحديث بيانات الموظف" };
   }
 
   revalidatePath("/dashboard/employees");
