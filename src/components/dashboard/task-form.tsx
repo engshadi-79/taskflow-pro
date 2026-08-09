@@ -11,6 +11,11 @@ import {
 } from "@/lib/types/task";
 
 type EmployeeOption = { id: string; full_name: string };
+type ProjectOption = {
+  id: string;
+  name: string;
+  milestones: { id: string; title: string }[];
+};
 
 const initialState: TaskFormState = {};
 
@@ -20,14 +25,20 @@ const inputClass =
 export function TaskForm({
   task,
   employees,
+  projects = [],
   action,
 }: {
   task?: Task;
   employees: EmployeeOption[];
+  /** Projects the current user can link this task to - omit entirely on
+   * forms where linking doesn't apply. */
+  projects?: ProjectOption[];
   action: (prevState: TaskFormState, formData: FormData) => Promise<TaskFormState>;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const [isRecurring, setIsRecurring] = useState(task?.is_recurring ?? false);
+  const [projectId, setProjectId] = useState(task?.project_id ?? "");
+  const milestones = projects.find((p) => p.id === projectId)?.milestones ?? [];
 
   return (
     <form action={formAction} className="space-y-4 rounded-[18px] border border-border bg-surface p-6">
@@ -84,6 +95,45 @@ export function TaskForm({
             ))}
           </select>
         </label>
+
+        {projects.length > 0 && (
+          <>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-foreground">المشروع</span>
+              <select
+                name="project_id"
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">بدون مشروع</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {projectId && milestones.length > 0 && (
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-foreground">المرحلة</span>
+                <select
+                  name="milestone_id"
+                  defaultValue={task?.milestone_id ?? ""}
+                  className={inputClass}
+                >
+                  <option value="">بدون مرحلة</option>
+                  {milestones.map((milestone) => (
+                    <option key={milestone.id} value={milestone.id}>
+                      {milestone.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </>
+        )}
 
         <label className="flex items-end gap-2 pb-2">
           <input

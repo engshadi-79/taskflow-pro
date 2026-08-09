@@ -264,6 +264,14 @@ export const InboxIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const BriefcaseIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="7.5" width="18" height="12" rx="2.2" />
+    <path d="M8.5 7.5V6a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v1.5" />
+    <path d="M3 12.5h18" />
+  </Svg>
+);
+
 export const MenuIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M4 6h16M4 12h16M4 18h16" />

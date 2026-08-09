@@ -23,6 +23,9 @@ export type Task = {
   due_time: string | null;
   is_recurring: boolean;
   recurrence_pattern: RecurrencePattern | null;
+  project_id: string | null;
+  milestone_id: string | null;
+  parent_task_id: string | null;
   created_at: string;
   updated_at: string;
 };

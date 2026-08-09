@@ -24,6 +24,11 @@ function parseTaskFields(formData: FormData) {
   const recurrencePattern = isRecurring
     ? ((formData.get("recurrence_pattern") as RecurrencePattern) || null)
     : null;
+  const projectId = (formData.get("project_id") as string) || null;
+  // a milestone only makes sense alongside its own project - the
+  // tasks_enforce_milestone_project_match trigger (projects_foundation.sql)
+  // rejects the write server-side too if these ever disagree
+  const milestoneId = projectId ? (formData.get("milestone_id") as string) || null : null;
 
   return {
     title,
@@ -37,6 +42,8 @@ function parseTaskFields(formData: FormData) {
     dueTime,
     isRecurring,
     recurrencePattern,
+    projectId,
+    milestoneId,
   };
 }
 
@@ -74,6 +81,8 @@ export async function createTask(
       due_time: fields.dueTime,
       is_recurring: fields.isRecurring,
       recurrence_pattern: fields.recurrencePattern,
+      project_id: fields.projectId,
+      milestone_id: fields.milestoneId,
     })
     .select("id")
     .single();
@@ -119,11 +128,16 @@ export async function updateTask(
       due_time: fields.dueTime,
       is_recurring: fields.isRecurring,
       recurrence_pattern: fields.recurrencePattern,
+      project_id: fields.projectId,
+      milestone_id: fields.milestoneId,
     })
     .eq("id", id);
 
   if (error) {
-    return { error: "تعذر تحديث المهمة" };
+    // surfaces tasks_enforce_dependency_gate's own message (see
+    // task_dependencies_rules.sql) instead of a generic failure, when this
+    // update is what triggered it
+    return { error: error.message || "تعذر تحديث المهمة" };
   }
 
   revalidatePath("/dashboard/tasks");
@@ -131,7 +145,7 @@ export async function updateTask(
   return {};
 }
 
-export async function deleteTask(id: string): Promise<TaskFormState> {
+export async function deleteTask(id: string, parentTaskId?: string): Promise<TaskFormState> {
   const profile = await getCurrentProfile();
   if (!profile || profile.role !== "super_admin") {
     return { error: "غير مصرح لك بحذف المهام" };
@@ -145,6 +159,48 @@ export async function deleteTask(id: string): Promise<TaskFormState> {
   }
 
   revalidatePath("/dashboard/tasks");
+  // deleting a subtask needs its parent's own page refreshed too - the
+  // parent isn't touched by the row deleted above, so it wouldn't
+  // otherwise re-fetch
+  if (parentTaskId) revalidatePath(`/dashboard/tasks/${parentTaskId}`);
+  return {};
+}
+
+/**
+ * A subtask is a plain row in the same tasks table (see subtasks.sql) with
+ * parent_task_id set - deliberately not a full TaskForm submission, since a
+ * quick subtask only needs a title and an assignee; project_id/milestone_id
+ * are overwritten server-side by enforce_subtask_rules() regardless of what
+ * gets sent here, and priority/status just take the table's own defaults.
+ */
+export async function createSubtask(
+  _prevState: TaskFormState,
+  formData: FormData
+): Promise<TaskFormState> {
+  const profile = await getCurrentProfile();
+  if (!profile || !MANAGE_ROLES.includes(profile.role)) {
+    return { error: "غير مصرح لك بإضافة مهام فرعية" };
+  }
+
+  const parentTaskId = formData.get("parent_task_id") as string;
+  const title = (formData.get("title") as string)?.trim();
+  const assignedTo = formData.get("assigned_to") as string;
+
+  if (!title) return { error: "عنوان المهمة الفرعية مطلوب" };
+  if (!assignedTo) return { error: "اختر الموظف المسند إليه" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("tasks").insert({
+    organization_id: profile.organization_id,
+    title,
+    assigned_to: assignedTo,
+    created_by: profile.id,
+    parent_task_id: parentTaskId,
+  });
+
+  if (error) return { error: "تعذر إضافة المهمة الفرعية" };
+
+  revalidatePath(`/dashboard/tasks/${parentTaskId}`);
   return {};
 }
 
@@ -177,7 +233,7 @@ export async function moveTaskStatus(
   }
 
   const { error } = await supabase.from("tasks").update({ status: newStatus }).eq("id", taskId);
-  if (error) return { error: "تعذر تحديث حالة المهمة" };
+  if (error) return { error: error.message || "تعذر تحديث حالة المهمة" };
 
   revalidatePath("/dashboard/kanban");
   revalidatePath("/dashboard/tasks");
@@ -209,7 +265,7 @@ export async function submitForReview(taskId: string): Promise<TaskFormState> {
     .update({ status: "pending_review" })
     .eq("id", taskId);
 
-  if (error) return { error: "تعذر تحديث حالة المهمة" };
+  if (error) return { error: error.message || "تعذر تحديث حالة المهمة" };
 
   revalidatePath(`/dashboard/tasks/${taskId}`);
   revalidatePath("/dashboard");
@@ -245,7 +301,7 @@ export async function reviewTask(
     .update({ status: nextStatus })
     .eq("id", taskId);
 
-  if (error) return { error: "تعذر تحديث حالة المهمة" };
+  if (error) return { error: error.message || "تعذر تحديث حالة المهمة" };
 
   const trimmedNotes = notes.trim();
   if (trimmedNotes) {

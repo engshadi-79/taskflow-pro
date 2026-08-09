@@ -16,15 +16,18 @@ export default async function NewTaskPage() {
   }
 
   const supabase = await createClient();
-  const { data: employees } = await supabase
-    .from("users")
-    .select("id, full_name")
-    .order("full_name");
+  const [{ data: employees }, { data: projects }] = await Promise.all([
+    supabase.from("users").select("id, full_name").order("full_name"),
+    supabase
+      .from("projects")
+      .select("id, name, milestones:project_milestones(id, title)")
+      .order("name"),
+  ]);
 
   return (
     <div className="max-w-3xl space-y-6">
       <h1 className="font-display text-[22px] text-foreground">مهمة جديدة</h1>
-      <TaskForm employees={employees ?? []} action={createTask} />
+      <TaskForm employees={employees ?? []} projects={projects ?? []} action={createTask} />
     </div>
   );
 }

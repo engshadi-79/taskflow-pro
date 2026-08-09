@@ -7,6 +7,7 @@ import { AnimatedBackground } from "@/components/shared/animated-background";
 import {
   BellIcon,
   BoardIcon,
+  BriefcaseIcon,
   ChartIcon,
   CheckSquareIcon,
   ChevronDownIcon,
@@ -27,7 +28,8 @@ type IconKey =
   | "folder"
   | "chart"
   | "user"
-  | "bell";
+  | "bell"
+  | "briefcase";
 
 type NavItem = {
   href: string;
@@ -49,6 +51,7 @@ const ICONS: Record<IconKey, (p: { className?: string }) => React.ReactElement> 
   chart: ChartIcon,
   user: UserIcon,
   bell: BellIcon,
+  briefcase: BriefcaseIcon,
 };
 
 // Icon colours on the dark rail, mirroring the ACAS portal's multi-hue nav.
@@ -86,6 +89,12 @@ const KANBAN: NavItem = {
   icon: "board",
   tone: "violet",
 };
+const PROJECTS: NavItem = {
+  href: "/dashboard/projects",
+  label: "المشاريع",
+  icon: "briefcase",
+  tone: "pink",
+};
 const TEAM: NavItem = {
   href: "/dashboard/employees",
   label: "الفريق",
@@ -122,18 +131,18 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
     { label: "التنقل", items: [DASHBOARD] },
     {
       label: "إدارة العمل",
-      items: [TASKS, KANBAN, TEAM, DEPARTMENTS, REPORTS],
+      items: [TASKS, KANBAN, PROJECTS, TEAM, DEPARTMENTS, REPORTS],
     },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },
   ],
   department_manager: [
     { label: "التنقل", items: [DASHBOARD] },
-    { label: "إدارة العمل", items: [TASKS, KANBAN, TEAM, REPORTS] },
+    { label: "إدارة العمل", items: [TASKS, KANBAN, PROJECTS, TEAM, REPORTS] },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },
   ],
   employee: [
     { label: "التنقل", items: [{ ...DASHBOARD, label: "مهامي" }] },
-    { label: "إدارة العمل", items: [KANBAN] },
+    { label: "إدارة العمل", items: [KANBAN, PROJECTS] },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },
   ],
 };
