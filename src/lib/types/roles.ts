@@ -6,6 +6,8 @@ export type Profile = {
   full_name: string;
   email: string;
   phone: string | null;
+  secondary_email: string | null;
+  bio: string | null;
   role: Role;
   department_id: string | null;
   job_title: string | null;

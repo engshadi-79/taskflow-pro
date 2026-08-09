@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { updateOwnProfile, type UpdateOwnProfileState } from "@/lib/actions/users";
+import { BIO_MAX_LENGTH } from "@/lib/profile-constants";
 import { CheckCircleIcon, UserIcon } from "@/components/shared/icons";
 import type { Profile } from "@/lib/types/roles";
 
@@ -11,11 +12,16 @@ const inputClass =
 const initialState: UpdateOwnProfileState = {};
 
 /**
- * Name/phone only, for editing your own row - role, department and active
- * status are the admin's call (ProfileEditForm), never this form's.
+ * full_name/phone/secondary_email/bio only, for editing your own row -
+ * role, department and active status are the admin's call (ProfileEditForm),
+ * never this form's.
  */
 export function SelfProfileForm({ profile }: { profile: Profile }) {
   const [state, formAction, pending] = useActionState(updateOwnProfile, initialState);
+  // only the live character count needs client state; every field's value on
+  // submit still comes from the form itself, not this
+  const [bioLength, setBioLength] = useState(profile.bio?.length ?? 0);
+  const overLimit = bioLength > BIO_MAX_LENGTH;
 
   return (
     <div className="rounded-[18px] border border-border bg-surface p-6">
@@ -44,6 +50,35 @@ export function SelfProfileForm({ profile }: { profile: Profile }) {
             defaultValue={profile.phone ?? ""}
             placeholder="اختياري"
             className={inputClass}
+          />
+        </label>
+        <label className="block sm:col-span-2">
+          <span className="mb-1.5 block text-sm font-medium text-foreground">
+            بريد إلكتروني إضافي
+          </span>
+          <input
+            name="secondary_email"
+            type="email"
+            defaultValue={profile.secondary_email ?? ""}
+            placeholder="اختياري — لا يُستخدم لتسجيل الدخول"
+            className={inputClass}
+          />
+        </label>
+        <label className="block sm:col-span-2">
+          <span className="mb-1.5 flex items-center justify-between text-sm font-medium text-foreground">
+            نبذة عني
+            <span className={`text-xs font-bold ${overLimit ? "text-red-600" : "text-muted"}`}>
+              {bioLength}/{BIO_MAX_LENGTH}
+            </span>
+          </span>
+          <textarea
+            name="bio"
+            rows={3}
+            maxLength={BIO_MAX_LENGTH}
+            defaultValue={profile.bio ?? ""}
+            onChange={(e) => setBioLength(e.target.value.length)}
+            placeholder="اختياري — جملة أو جملتان عنك"
+            className={`${inputClass} resize-none`}
           />
         </label>
 

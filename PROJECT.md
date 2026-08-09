@@ -346,12 +346,22 @@ Realtime في `notification-bell.tsx`، فكل صف جديد يرفع إشعار
 الميزة — يضيف عمود `avatar_url` وحاوية Storage عامة القراءة (`avatars`)
 بسياسات RLS تسمح لكل مستخدم بالكتابة في مجلده فقط.
 
-### تعديل البيانات الشخصية (الاسم والهاتف)
+### تعديل البيانات الشخصية
 
 `SelfProfileForm` — نموذج صغير منفصل عن `ProfileEditForm` الإداري (الذي
 يحمل الدور والقسم وزر الحذف، ولا يجب أن يراه مستخدم يعدّل ملفه هو). يظهر
-فقط عند `id === viewer.id`، ويحرّر `full_name`/`phone` فقط عبر
-`updateOwnProfile()` في `lib/actions/users.ts`.
+فقط عند `id === viewer.id`، ويحرّر `full_name`/`phone`/`secondary_email`/`bio`
+فقط عبر `updateOwnProfile()` في `lib/actions/users.ts` (الأخيران يحتاجان
+`supabase/profile_fields_v2.sql` مُشغَّلًا). حقل `bio` بحد 200 حرف وعدّاد
+أحرف مباشر في الواجهة (`maxLength` على `<textarea>` + تحقّق مطابق في
+السيرفر يعكس قيد `check` في القاعدة، حتى لا يظهر خطأ Postgres خام لو
+تجاوَز طلبٌ الواجهة).
+
+`BIO_MAX_LENGTH` مُعرَّف في `lib/profile-constants.ts` لا داخل
+`lib/actions/users.ts` نفسه — ملفات `"use server"` في Next.js تسمح فقط
+بتصدير دوال async، فتصدير ثابت (`const`) عادي منها يُسقط بناء المشروع
+بالكامل (كل الاستيرادات من نفس الملف تتعطّل تسلسليًا). ثابتٌ يحتاجه العميل
+والخادم معًا يجب أن يعيش في ملف منفصل بلا `"use server"`.
 
 **اكتشاف جانبي أثناء بناء هذه الميزة**: `users_update` في `rls.sql` كانت
 تسمح فقط لـ `super_admin` بتعديل أي صف — أي مستخدم آخر غير مدير عام لم

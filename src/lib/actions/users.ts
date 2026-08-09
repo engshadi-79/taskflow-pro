@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireRole } from "@/lib/actions/guards";
 import { getCurrentProfile } from "@/lib/data/profile";
+import { BIO_MAX_LENGTH } from "@/lib/profile-constants";
 
 export type UserFormState = { error?: string };
 
@@ -105,14 +106,15 @@ function pathFromAvatarUrl(url: string): string | null {
 export type UpdateOwnProfileState = { error?: string; success?: boolean };
 
 /**
- * Every field a user can touch on their own record — full_name and phone
- * only. role/organization_id/department_id/is_active never appear in this
- * update call, by construction, regardless of what a form happens to submit:
- * that's the actual enforcement, the same way uploadAvatar above only ever
- * writes avatar_url. RLS (see supabase/self_profile_update.sql) is what lets
- * the row be touched at all; it isn't relied on to filter which columns a
- * client could smuggle in, since a USING/WITH CHECK clause on this table
- * can't see column-level intent, only whether the row may be written.
+ * Every field a user can touch on their own record — full_name, phone,
+ * secondary_email, bio. role/organization_id/department_id/is_active/
+ * manager_id never appear in this update call, by construction, regardless
+ * of what a form happens to submit: that's the actual enforcement, the same
+ * way uploadAvatar above only ever writes avatar_url. RLS (see
+ * supabase/self_profile_update.sql) is what lets the row be touched at all;
+ * it isn't relied on to filter which columns a client could smuggle in,
+ * since a USING/WITH CHECK clause on this table can't see column-level
+ * intent, only whether the row may be written.
  */
 export async function updateOwnProfile(
   _prevState: UpdateOwnProfileState,
@@ -125,15 +127,22 @@ export async function updateOwnProfile(
 
   const fullName = (formData.get("full_name") as string)?.trim();
   const phone = (formData.get("phone") as string)?.trim() || null;
+  const secondaryEmail = (formData.get("secondary_email") as string)?.trim() || null;
+  const bio = (formData.get("bio") as string)?.trim() || null;
 
   if (!fullName) {
     return { error: "الاسم مطلوب" };
+  }
+  // mirrors the DB check constraint (profile_fields_v2.sql) so a bypass of
+  // the textarea's maxLength gets a normal error, not a raw constraint one
+  if (bio && bio.length > BIO_MAX_LENGTH) {
+    return { error: `النبذة يجب ألا تتجاوز ${BIO_MAX_LENGTH} حرفًا` };
   }
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("users")
-    .update({ full_name: fullName, phone })
+    .update({ full_name: fullName, phone, secondary_email: secondaryEmail, bio })
     .eq("id", profile.id);
 
   if (error) {

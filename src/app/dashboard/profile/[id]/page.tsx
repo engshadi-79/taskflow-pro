@@ -67,7 +67,7 @@ export default async function ProfileDetailPage({
   const [{ data: employee }, { data: departments }, { data: tasks }] = await Promise.all([
     supabase
       .from("users")
-      .select("id, organization_id, full_name, email, phone, role, department_id, job_title, avatar_url, is_active, created_at")
+      .select("id, organization_id, full_name, email, phone, secondary_email, bio, role, department_id, job_title, avatar_url, is_active, created_at")
       .eq("id", id)
       .single<Profile>(),
     supabase.from("departments").select("id, name"),
