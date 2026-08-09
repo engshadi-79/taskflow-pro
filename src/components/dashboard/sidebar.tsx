@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatedBackground } from "@/components/shared/animated-background";
 import {
+  AlertIcon,
   BellIcon,
   BoardIcon,
   BriefcaseIcon,
@@ -14,6 +15,7 @@ import {
   ClockIcon,
   CloseIcon,
   FolderIcon,
+  GearIcon,
   GridIcon,
   SearchIcon,
   UserIcon,
@@ -31,7 +33,9 @@ type IconKey =
   | "user"
   | "bell"
   | "briefcase"
-  | "clock";
+  | "clock"
+  | "alert"
+  | "gear";
 
 type NavItem = {
   href: string;
@@ -55,6 +59,8 @@ const ICONS: Record<IconKey, (p: { className?: string }) => React.ReactElement> 
   bell: BellIcon,
   briefcase: BriefcaseIcon,
   clock: ClockIcon,
+  alert: AlertIcon,
+  gear: GearIcon,
 };
 
 // Icon colours on the dark rail, mirroring the ACAS portal's multi-hue nav.
@@ -128,6 +134,18 @@ const TIME_TRACKING: NavItem = {
   icon: "clock",
   tone: "amber",
 };
+const SLA_REPORT: NavItem = {
+  href: "/dashboard/sla-report",
+  label: "تقرير SLA",
+  icon: "alert",
+  tone: "blue",
+};
+const SLA_POLICIES: NavItem = {
+  href: "/dashboard/sla-policies",
+  label: "سياسات SLA",
+  icon: "gear",
+  tone: "violet",
+};
 const PROFILE: NavItem = {
   href: "/dashboard/profile",
   label: "الملف الشخصي",
@@ -146,7 +164,18 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
     { label: "التنقل", items: [DASHBOARD] },
     {
       label: "إدارة العمل",
-      items: [TASKS, KANBAN, PROJECTS, TEAM, DEPARTMENTS, REPORTS, WORKLOAD, TIME_TRACKING],
+      items: [
+        TASKS,
+        KANBAN,
+        PROJECTS,
+        TEAM,
+        DEPARTMENTS,
+        REPORTS,
+        WORKLOAD,
+        TIME_TRACKING,
+        SLA_REPORT,
+        SLA_POLICIES,
+      ],
     },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },
   ],
@@ -154,7 +183,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
     { label: "التنقل", items: [DASHBOARD] },
     {
       label: "إدارة العمل",
-      items: [TASKS, KANBAN, PROJECTS, TEAM, REPORTS, WORKLOAD, TIME_TRACKING],
+      items: [TASKS, KANBAN, PROJECTS, TEAM, REPORTS, WORKLOAD, TIME_TRACKING, SLA_REPORT],
     },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },
   ],

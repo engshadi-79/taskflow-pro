@@ -9,6 +9,7 @@ import { ChecklistSection } from "@/components/dashboard/checklist-section";
 import { SubtasksSection } from "@/components/dashboard/subtasks-section";
 import { DependenciesSection } from "@/components/dashboard/dependencies-section";
 import { TimeTrackingSection } from "@/components/dashboard/time-tracking-section";
+import { SlaSection } from "@/components/dashboard/sla-section";
 import { DeleteTaskButton } from "@/components/dashboard/delete-task-button";
 import { SubmitForReviewButton } from "@/components/dashboard/submit-for-review-button";
 import { ReviewSection } from "@/components/dashboard/review-section";
@@ -22,6 +23,7 @@ import {
   type TaskStatus,
 } from "@/lib/types/task";
 import type { DependencyType, TaskChecklistItem } from "@/lib/types/project";
+import type { TaskSla } from "@/lib/types/sla";
 
 export default async function TaskDetailPage({
   params,
@@ -48,6 +50,7 @@ export default async function TaskDetailPage({
     { data: timeEntries },
     { data: myOpenEntryRows },
     { data: summaryRows },
+    { data: slaRows },
   ] = await Promise.all([
     supabase.from("tasks").select("*").eq("id", id).single<Task>(),
     supabase
@@ -107,12 +110,14 @@ export default async function TaskDetailPage({
       .is("ended_at", null)
       .limit(1),
     supabase.rpc("task_time_summary", { p_task_id: id }),
+    supabase.rpc("task_sla", { p_task_id: id }),
   ]);
 
   if (!task) {
     notFound();
   }
 
+  const sla = (slaRows as TaskSla[] | null)?.[0] ?? null;
   const myOpenEntry = myOpenEntryRows?.[0] ?? null;
   const summary = (summaryRows as { actual_seconds: number; has_running: boolean }[] | null)?.[0] ?? {
     actual_seconds: 0,
@@ -206,6 +211,8 @@ export default async function TaskDetailPage({
       )}
 
       {canManage && task.status === "pending_review" && <ReviewSection taskId={task.id} />}
+
+      <SlaSection sla={sla} />
 
       <DependenciesSection
         taskId={task.id}
