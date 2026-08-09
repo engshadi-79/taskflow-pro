@@ -11,6 +11,7 @@ import {
   ChartIcon,
   CheckSquareIcon,
   ChevronDownIcon,
+  ClockIcon,
   CloseIcon,
   FolderIcon,
   GridIcon,
@@ -29,7 +30,8 @@ type IconKey =
   | "chart"
   | "user"
   | "bell"
-  | "briefcase";
+  | "briefcase"
+  | "clock";
 
 type NavItem = {
   href: string;
@@ -52,6 +54,7 @@ const ICONS: Record<IconKey, (p: { className?: string }) => React.ReactElement> 
   user: UserIcon,
   bell: BellIcon,
   briefcase: BriefcaseIcon,
+  clock: ClockIcon,
 };
 
 // Icon colours on the dark rail, mirroring the ACAS portal's multi-hue nav.
@@ -113,6 +116,18 @@ const REPORTS: NavItem = {
   icon: "chart",
   tone: "green",
 };
+const WORKLOAD: NavItem = {
+  href: "/dashboard/workload",
+  label: "الحمل الوظيفي",
+  icon: "chart",
+  tone: "indigo",
+};
+const TIME_TRACKING: NavItem = {
+  href: "/dashboard/time-tracking",
+  label: "سجلّ الوقت",
+  icon: "clock",
+  tone: "amber",
+};
 const PROFILE: NavItem = {
   href: "/dashboard/profile",
   label: "الملف الشخصي",
@@ -131,13 +146,16 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
     { label: "التنقل", items: [DASHBOARD] },
     {
       label: "إدارة العمل",
-      items: [TASKS, KANBAN, PROJECTS, TEAM, DEPARTMENTS, REPORTS],
+      items: [TASKS, KANBAN, PROJECTS, TEAM, DEPARTMENTS, REPORTS, WORKLOAD, TIME_TRACKING],
     },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },
   ],
   department_manager: [
     { label: "التنقل", items: [DASHBOARD] },
-    { label: "إدارة العمل", items: [TASKS, KANBAN, PROJECTS, TEAM, REPORTS] },
+    {
+      label: "إدارة العمل",
+      items: [TASKS, KANBAN, PROJECTS, TEAM, REPORTS, WORKLOAD, TIME_TRACKING],
+    },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },
   ],
   employee: [

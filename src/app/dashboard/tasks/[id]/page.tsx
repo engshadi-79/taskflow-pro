@@ -8,6 +8,7 @@ import { AttachmentsSection } from "@/components/dashboard/attachments-section";
 import { ChecklistSection } from "@/components/dashboard/checklist-section";
 import { SubtasksSection } from "@/components/dashboard/subtasks-section";
 import { DependenciesSection } from "@/components/dashboard/dependencies-section";
+import { TimeTrackingSection } from "@/components/dashboard/time-tracking-section";
 import { DeleteTaskButton } from "@/components/dashboard/delete-task-button";
 import { SubmitForReviewButton } from "@/components/dashboard/submit-for-review-button";
 import { ReviewSection } from "@/components/dashboard/review-section";
@@ -44,6 +45,9 @@ export default async function TaskDetailPage({
     { data: subtasks },
     { data: dependsOn },
     { data: blocks },
+    { data: timeEntries },
+    { data: myOpenEntryRows },
+    { data: summaryRows },
   ] = await Promise.all([
     supabase.from("tasks").select("*").eq("id", id).single<Task>(),
     supabase
@@ -80,11 +84,40 @@ export default async function TaskDetailPage({
       .select("id, dependency_type, task:tasks!task_dependencies_task_id_fkey(id, title, status)")
       .eq("depends_on_task_id", id)
       .returns<{ id: string; dependency_type: DependencyType; task: { id: string; title: string; status: TaskStatus } }[]>(),
+    supabase
+      .from("task_time_entries")
+      .select("id, user_id, started_at, ended_at, duration_seconds, note, user:users(full_name)")
+      .eq("task_id", id)
+      .order("started_at", { ascending: false })
+      .returns<
+        {
+          id: string;
+          user_id: string;
+          started_at: string;
+          ended_at: string | null;
+          duration_seconds: number | null;
+          note: string | null;
+          user: { full_name: string } | null;
+        }[]
+      >(),
+    supabase
+      .from("task_time_entries")
+      .select("id, task_id")
+      .eq("user_id", profile.id)
+      .is("ended_at", null)
+      .limit(1),
+    supabase.rpc("task_time_summary", { p_task_id: id }),
   ]);
 
   if (!task) {
     notFound();
   }
+
+  const myOpenEntry = myOpenEntryRows?.[0] ?? null;
+  const summary = (summaryRows as { actual_seconds: number; has_running: boolean }[] | null)?.[0] ?? {
+    actual_seconds: 0,
+    has_running: false,
+  };
 
   const parentTask = task.parent_task_id
     ? (await supabase.from("tasks").select("id, title").eq("id", task.parent_task_id).single()).data
@@ -180,6 +213,17 @@ export default async function TaskDetailPage({
         blocks={blocks ?? []}
         otherTasks={otherTasks}
         canManage={canManage}
+      />
+
+      <TimeTrackingSection
+        taskId={task.id}
+        entries={timeEntries ?? []}
+        estimatedHours={task.estimated_hours}
+        actualSeconds={summary.actual_seconds}
+        hasRunning={summary.has_running}
+        currentUserId={profile.id}
+        myOpenEntry={myOpenEntry}
+        canDeleteAny={profile.role === "super_admin"}
       />
 
       <ChecklistSection taskId={task.id} items={checklistItems ?? []} />

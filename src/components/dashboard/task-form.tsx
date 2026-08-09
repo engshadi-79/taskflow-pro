@@ -135,6 +135,19 @@ export function TaskForm({
           </>
         )}
 
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium text-foreground">الوقت المخطط (ساعات)</span>
+          <input
+            type="number"
+            name="estimated_hours"
+            min="0"
+            step="0.5"
+            defaultValue={task?.estimated_hours ?? ""}
+            placeholder="اختياري"
+            className={inputClass}
+          />
+        </label>
+
         <label className="flex items-end gap-2 pb-2">
           <input
             type="checkbox"

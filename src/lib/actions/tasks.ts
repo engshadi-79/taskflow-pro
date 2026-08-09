@@ -29,6 +29,8 @@ function parseTaskFields(formData: FormData) {
   // tasks_enforce_milestone_project_match trigger (projects_foundation.sql)
   // rejects the write server-side too if these ever disagree
   const milestoneId = projectId ? (formData.get("milestone_id") as string) || null : null;
+  const estimatedHoursRaw = (formData.get("estimated_hours") as string)?.trim();
+  const estimatedHours = estimatedHoursRaw ? Number(estimatedHoursRaw) : null;
 
   return {
     title,
@@ -44,6 +46,7 @@ function parseTaskFields(formData: FormData) {
     recurrencePattern,
     projectId,
     milestoneId,
+    estimatedHours,
   };
 }
 
@@ -62,6 +65,9 @@ export async function createTask(
   if (!fields.assignedTo) return { error: "اختر الموظف المسند إليه المهمة" };
   if (fields.isRecurring && !fields.recurrencePattern) {
     return { error: "اختر نمط التكرار للمهمة المتكررة" };
+  }
+  if (fields.estimatedHours !== null && (Number.isNaN(fields.estimatedHours) || fields.estimatedHours < 0)) {
+    return { error: "الوقت المخطط يجب أن يكون رقمًا صحيحًا موجبًا" };
   }
 
   const supabase = await createClient();
@@ -83,6 +89,7 @@ export async function createTask(
       recurrence_pattern: fields.recurrencePattern,
       project_id: fields.projectId,
       milestone_id: fields.milestoneId,
+      estimated_hours: fields.estimatedHours,
     })
     .select("id")
     .single();
@@ -112,6 +119,9 @@ export async function updateTask(
   if (fields.isRecurring && !fields.recurrencePattern) {
     return { error: "اختر نمط التكرار للمهمة المتكررة" };
   }
+  if (fields.estimatedHours !== null && (Number.isNaN(fields.estimatedHours) || fields.estimatedHours < 0)) {
+    return { error: "الوقت المخطط يجب أن يكون رقمًا صحيحًا موجبًا" };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -130,6 +140,7 @@ export async function updateTask(
       recurrence_pattern: fields.recurrencePattern,
       project_id: fields.projectId,
       milestone_id: fields.milestoneId,
+      estimated_hours: fields.estimatedHours,
     })
     .eq("id", id);
 

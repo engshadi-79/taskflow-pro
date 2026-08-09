@@ -26,6 +26,7 @@ export type Task = {
   project_id: string | null;
   milestone_id: string | null;
   parent_task_id: string | null;
+  estimated_hours: number | null;
   created_at: string;
   updated_at: string;
 };
