@@ -190,11 +190,18 @@ supabase/kanban_status_notifications.sql  # يستبدل notify_task_event بن�
 supabase/google_signup.sql                # تسجيل عام عبر Google، يحتاج avatars.sql قبله
 supabase/reports_extended.sql             # دوال إضافية لصفحة التقارير الجديدة
 supabase/self_profile_update.sql          # يسمح لأي مستخدم بتعديل صفّه الخاص
+supabase/profile_fields_v2.sql            # secondary_email · bio · manager_id
 supabase/seed.sql          # بيانات تجريبية للأدوار الثلاثة
 ```
 
-آخر خمس ملفات مُضافة بعد الإطلاق الأول — إن كانت قاعدتك الحيّة مُنشأة قبل
+آخر ستة ملفات مُضافة بعد الإطلاق الأول — إن كانت قاعدتك الحيّة مُنشأة قبل
 هذا التوثيق، شغّلها يدويًا في SQL Editor بهذا الترتيب.
+
+`profile_fields_v2.sql` أضاف الأعمدة فقط، بلا واجهة أو Server Action تعرضها
+بعد — `job_title` كان موجودًا مسبقًا في `schema.sql` فلم يُعَد إضافته. لا
+سياسة RLS جديدة: مغطاة بـ `users_self_update`/`super_admin`، لكن هذا يعني
+أن أي كود مستقبلي يسمح للمستخدم بتعديل `manager_id` بنفسه يحتاج قرارًا
+صريحًا — RLS لا تمنعه، بنفس حدود العمود مقابل الصف المذكورة أعلاه.
 
 ---
 
