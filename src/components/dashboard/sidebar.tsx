@@ -158,6 +158,12 @@ const WORKFLOW_TEMPLATES: NavItem = {
   icon: "gear",
   tone: "amber",
 };
+const AUTOMATION_RULES: NavItem = {
+  href: "/dashboard/automation-rules",
+  label: "الأتمتة",
+  icon: "board",
+  tone: "teal",
+};
 const PROFILE: NavItem = {
   href: "/dashboard/profile",
   label: "الملف الشخصي",
@@ -189,6 +195,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         SLA_POLICIES,
         WORKFLOW_REQUESTS,
         WORKFLOW_TEMPLATES,
+        AUTOMATION_RULES,
       ],
     },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },
