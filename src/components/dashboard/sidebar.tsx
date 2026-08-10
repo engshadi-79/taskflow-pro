@@ -146,6 +146,18 @@ const SLA_POLICIES: NavItem = {
   icon: "gear",
   tone: "violet",
 };
+const WORKFLOW_REQUESTS: NavItem = {
+  href: "/dashboard/workflow-requests",
+  label: "الطلبات",
+  icon: "folder",
+  tone: "green",
+};
+const WORKFLOW_TEMPLATES: NavItem = {
+  href: "/dashboard/workflow-templates",
+  label: "أنواع الطلبات",
+  icon: "gear",
+  tone: "amber",
+};
 const PROFILE: NavItem = {
   href: "/dashboard/profile",
   label: "الملف الشخصي",
@@ -175,6 +187,8 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         TIME_TRACKING,
         SLA_REPORT,
         SLA_POLICIES,
+        WORKFLOW_REQUESTS,
+        WORKFLOW_TEMPLATES,
       ],
     },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },
@@ -183,13 +197,23 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
     { label: "التنقل", items: [DASHBOARD] },
     {
       label: "إدارة العمل",
-      items: [TASKS, KANBAN, PROJECTS, TEAM, REPORTS, WORKLOAD, TIME_TRACKING, SLA_REPORT],
+      items: [
+        TASKS,
+        KANBAN,
+        PROJECTS,
+        TEAM,
+        REPORTS,
+        WORKLOAD,
+        TIME_TRACKING,
+        SLA_REPORT,
+        WORKFLOW_REQUESTS,
+      ],
     },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },
   ],
   employee: [
     { label: "التنقل", items: [{ ...DASHBOARD, label: "مهامي" }] },
-    { label: "إدارة العمل", items: [KANBAN, PROJECTS] },
+    { label: "إدارة العمل", items: [KANBAN, PROJECTS, WORKFLOW_REQUESTS] },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },
   ],
 };
