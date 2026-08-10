@@ -3,6 +3,7 @@ import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
 import { SidebarShell } from "@/components/dashboard/sidebar-shell";
 import { Topbar } from "@/components/dashboard/topbar";
+import { AiAssistantPanel } from "@/components/dashboard/ai-assistant-panel";
 
 export default async function DashboardLayout({
   children,
@@ -40,6 +41,7 @@ export default async function DashboardLayout({
         unreadCount={unreadCount ?? 0}
       />
       <main className="flex-1 overflow-y-auto p-6">{children}</main>
+      <AiAssistantPanel />
     </SidebarShell>
   );
 }
