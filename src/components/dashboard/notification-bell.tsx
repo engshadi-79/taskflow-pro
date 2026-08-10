@@ -146,38 +146,52 @@ export function NotificationBell({
 
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel(`notifications:${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          setCount((c) => c + 1);
-          const row = payload.new as Notification;
-          // keep an already-open panel in sync without a refetch
-          setItems((prev) =>
-            prev ? [row, ...prev].slice(0, PANEL_LIMIT) : prev
-          );
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
 
-          // raise an OS toast alongside the in-app badge. The hook decides
-          // whether it actually fires, based on permission, the user's
-          // preference and whether this tab is focused.
-          notifyRef.current(metaFor(row.type).label, {
-            body: row.message,
-            tag: row.id,
-            url: urlFor(row),
-          });
-        }
-      )
-      .subscribe();
+    // Realtime's postgres_changes stream is filtered by RLS, which needs
+    // this client's JWT to already be attached to the socket - subscribing
+    // immediately after createClient() can race ahead of that internal
+    // handshake, so the channel joins as an unauthenticated connection and
+    // every row gets silently filtered out (the insert still succeeds; it
+    // just never reaches this tab). Awaiting getSession() first forces that
+    // handshake to complete before the channel is ever created.
+    supabase.auth.getSession().then(() => {
+      if (cancelled) return;
+      channel = supabase
+        .channel(`notifications:${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            setCount((c) => c + 1);
+            const row = payload.new as Notification;
+            // keep an already-open panel in sync without a refetch
+            setItems((prev) =>
+              prev ? [row, ...prev].slice(0, PANEL_LIMIT) : prev
+            );
+
+            // raise an OS toast alongside the in-app badge. The hook decides
+            // whether it actually fires, based on permission, the user's
+            // preference and whether this tab is focused.
+            notifyRef.current(metaFor(row.type).label, {
+              body: row.message,
+              tag: row.id,
+              url: urlFor(row),
+            });
+          }
+        )
+        .subscribe();
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
     };
   }, [userId]);
 
