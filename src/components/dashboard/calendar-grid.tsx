@@ -16,12 +16,14 @@ export type CalendarTaskItem = {
 
 export type CalendarMilestoneItem = { id: string; title: string; project_name: string };
 export type CalendarProjectItem = { id: string; name: string };
+export type CalendarMeetingItem = { id: string; title: string; meeting_time: string | null };
 
 export type CalendarCell = {
   date: DateKey;
   tasks: CalendarTaskItem[];
   milestones: CalendarMilestoneItem[];
   projectDeadlines: CalendarProjectItem[];
+  meetings: CalendarMeetingItem[];
 };
 
 const PRIORITY_DOT: Record<Priority, string> = {
@@ -139,6 +141,15 @@ export function CalendarGrid({
                   <div key={`m-${m.id}`} className="truncate rounded bg-teal-50 px-1.5 py-1 text-[11px] font-bold text-teal-600">
                     مرحلة: {m.title}
                   </div>
+                ))}
+                {cell.meetings.map((mt) => (
+                  <Link
+                    key={`mt-${mt.id}`}
+                    href={`/dashboard/meetings/${mt.id}`}
+                    className="block truncate rounded bg-orange-50 px-1.5 py-1 text-[11px] font-bold text-orange-600 hover:underline"
+                  >
+                    اجتماع{mt.meeting_time ? ` ${mt.meeting_time}` : ""}: {mt.title}
+                  </Link>
                 ))}
                 {tasks.map((task) => (
                   <div

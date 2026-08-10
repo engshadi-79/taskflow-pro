@@ -89,17 +89,33 @@ export default async function CalendarPage({
     .not("due_date", "is", null);
   if (params.project_id) projectQuery = projectQuery.eq("id", params.project_id);
 
-  const [{ data: tasks }, { data: milestones }, { data: projectDeadlines }, { data: departments }, { data: projects }, { data: employees }] =
-    await Promise.all([
-      taskQuery.returns<
-        { id: string; title: string; status: TaskStatus; priority: Priority; due_date: string; assignee: { full_name: string } | null }[]
-      >(),
-      milestoneQuery.returns<{ id: string; title: string; due_date: string; project: { name: string } | null }[]>(),
-      projectQuery.returns<{ id: string; name: string; due_date: string }[]>(),
-      profile.role === "super_admin" ? supabase.from("departments").select("id, name").order("name") : Promise.resolve({ data: [] }),
-      supabase.from("projects").select("id, name").order("name"),
-      supabase.from("users").select("id, full_name").order("full_name"),
-    ]);
+  let meetingQuery = supabase
+    .from("meetings")
+    .select("id, title, meeting_date, meeting_time")
+    .gte("meeting_date", rangeStart)
+    .lte("meeting_date", rangeEnd)
+    .neq("status", "cancelled");
+  if (params.project_id) meetingQuery = meetingQuery.eq("project_id", params.project_id);
+
+  const [
+    { data: tasks },
+    { data: milestones },
+    { data: projectDeadlines },
+    { data: meetings },
+    { data: departments },
+    { data: projects },
+    { data: employees },
+  ] = await Promise.all([
+    taskQuery.returns<
+      { id: string; title: string; status: TaskStatus; priority: Priority; due_date: string; assignee: { full_name: string } | null }[]
+    >(),
+    milestoneQuery.returns<{ id: string; title: string; due_date: string; project: { name: string } | null }[]>(),
+    projectQuery.returns<{ id: string; name: string; due_date: string }[]>(),
+    meetingQuery.returns<{ id: string; title: string; meeting_date: string; meeting_time: string | null }[]>(),
+    profile.role === "super_admin" ? supabase.from("departments").select("id, name").order("name") : Promise.resolve({ data: [] }),
+    supabase.from("projects").select("id, name").order("name"),
+    supabase.from("users").select("id, full_name").order("full_name"),
+  ]);
 
   const cellDates: DateKey[] = [];
   for (let d = rangeStart; d <= rangeEnd; d = addDays(d, 1)) {
@@ -118,6 +134,9 @@ export default async function CalendarPage({
     projectDeadlines: (projectDeadlines ?? [])
       .filter((p) => p.due_date === date)
       .map((p) => ({ id: p.id, name: p.name })),
+    meetings: (meetings ?? [])
+      .filter((m) => m.meeting_date === date)
+      .map((m) => ({ id: m.id, title: m.title, meeting_time: m.meeting_time })),
   }));
 
   const baseParams = new URLSearchParams();
@@ -136,7 +155,7 @@ export default async function CalendarPage({
     <div className="space-y-4.5">
       <PageHeader
         title="التقويم"
-        subtitle="المهام والمراحل والمواعيد النهائية في مكان واحد"
+        subtitle="المهام والمراحل والاجتماعات والمواعيد النهائية في مكان واحد"
         variant="violet"
         icon={<CalendarIcon className="h-6 w-6" />}
       >

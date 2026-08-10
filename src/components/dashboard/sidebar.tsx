@@ -113,6 +113,12 @@ const CALENDAR: NavItem = {
   icon: "calendar",
   tone: "violet",
 };
+const MEETINGS: NavItem = {
+  href: "/dashboard/meetings",
+  label: "الاجتماعات",
+  icon: "calendar",
+  tone: "amber",
+};
 const TEAM: NavItem = {
   href: "/dashboard/employees",
   label: "الفريق",
@@ -195,6 +201,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         TASKS,
         KANBAN,
         CALENDAR,
+        MEETINGS,
         PROJECTS,
         TEAM,
         DEPARTMENTS,
@@ -218,6 +225,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         TASKS,
         KANBAN,
         CALENDAR,
+        MEETINGS,
         PROJECTS,
         TEAM,
         REPORTS,
@@ -231,7 +239,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
   ],
   employee: [
     { label: "التنقل", items: [{ ...DASHBOARD, label: "مهامي" }] },
-    { label: "إدارة العمل", items: [KANBAN, CALENDAR, PROJECTS, WORKFLOW_REQUESTS] },
+    { label: "إدارة العمل", items: [KANBAN, CALENDAR, MEETINGS, PROJECTS, WORKFLOW_REQUESTS] },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },
   ],
 };
