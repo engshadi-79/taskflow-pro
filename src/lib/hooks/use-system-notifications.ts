@@ -45,7 +45,10 @@ export const DEFAULT_PREFS: SystemNotificationPrefs = {
   // the real gate here - flipping this to true does not, and cannot, skip
   // it. See requestPermissionOnFirstInteraction below.
   enabled: true,
-  onlyWhenHidden: true,
+  // Show the OS toast every time, even while the tab is focused and the
+  // in-app bell already updated - requested explicitly over the
+  // originally quieter default, which suppressed it in that case.
+  onlyWhenHidden: false,
   sound: true,
 };
 
