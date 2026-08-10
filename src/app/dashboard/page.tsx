@@ -9,6 +9,7 @@ import {
   TrendPanel,
   TopPerformerRow,
   ActivityRow,
+  MiniListPanel,
 } from "@/components/dashboard/dashboard-widgets";
 import { WelcomeBanner } from "@/components/dashboard/welcome-banner";
 import { QuickShortcuts } from "@/components/dashboard/quick-shortcuts";
@@ -21,6 +22,7 @@ import {
   UsersIcon,
 } from "@/components/shared/icons";
 import { PRIORITY_LABEL, type Priority, type Task } from "@/lib/types/task";
+import { PROJECT_STATUS_LABEL } from "@/lib/types/project";
 import { timeAgo } from "@/lib/format-time-ago";
 
 type WeeklyTopEmployeeRow = { user_id: string; full_name: string; completed_count: number };
@@ -51,32 +53,52 @@ export default async function DashboardPage() {
   const supabase = await createClient();
 
   if (profile.role === "employee") {
-    const [{ data: tasks }, { data: ownDept }] = await Promise.all([
-      supabase
-        .from("tasks")
-        .select("*")
-        .eq("assigned_to", profile.id)
-        .order("due_date", { ascending: true, nullsFirst: false })
-        .returns<Task[]>(),
-      profile.department_id
-        ? supabase
-            .from("departments")
-            .select("name")
-            .eq("id", profile.department_id)
-            .single()
-        : Promise.resolve({ data: null }),
-    ]);
+    const nowDate = new Date();
+    const todayIso = nowDate.toISOString().slice(0, 10);
+    const weekAheadIso = new Date(nowDate.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+
+    const [{ data: tasks }, { data: ownDept }, { data: workloadRows }, { data: statsRows }] =
+      await Promise.all([
+        supabase
+          .from("tasks")
+          .select("*")
+          .eq("assigned_to", profile.id)
+          .order("due_date", { ascending: true, nullsFirst: false })
+          .returns<Task[]>(),
+        profile.department_id
+          ? supabase.from("departments").select("name").eq("id", profile.department_id).single()
+          : Promise.resolve({ data: null }),
+        // RLS on public.users restricts employee_workload()'s own internal
+        // query to just this caller's row, so this returns exactly "my
+        // workload" with no p_user_id parameter needed
+        supabase.rpc("employee_workload"),
+        supabase.rpc("report_employee_stats", { p_user_id: profile.id }),
+      ]);
 
     const myTasks = tasks ?? [];
-    const todayIso = new Date().toISOString().slice(0, 10);
-    const done = myTasks.filter((t) => t.status === "completed").length;
-    const active = myTasks.filter((t) =>
-      ["new", "in_progress", "pending_review"].includes(t.status)
-    ).length;
     const overdue = myTasks.filter(
       (t) =>
         t.status !== "completed" && t.due_date && t.due_date.slice(0, 10) < todayIso
     ).length;
+    const dueToday = myTasks.filter(
+      (t) => t.status !== "completed" && t.due_date?.slice(0, 10) === todayIso
+    ).length;
+    const upcoming = myTasks.filter(
+      (t) =>
+        t.status !== "completed" &&
+        t.due_date &&
+        t.due_date.slice(0, 10) > todayIso &&
+        t.due_date.slice(0, 10) <= weekAheadIso
+    ).length;
+
+    const myWorkload = (
+      workloadRows as { load_percent: number; load_status: string; open_count: number }[] | null
+    )?.[0];
+    const myStats = (
+      statsRows as
+        | { completed_count: number; on_time_rate: number; avg_resolution_hours: number | null }[]
+        | null
+    )?.[0];
 
     return (
       <div className="space-y-5">
@@ -95,26 +117,76 @@ export default async function DashboardPage() {
             href="/dashboard/kanban"
           />
           <StatCard
-            value={active}
-            label="مهام قائمة"
+            value={dueToday}
+            label="مستحقة اليوم"
+            tone="amber"
+            icon={<InboxIcon className="h-[22px] w-[22px]" />}
+            href="/dashboard/kanban"
+          />
+          <StatCard
+            value={upcoming}
+            label="قادمة (٧ أيام)"
             tone="blue"
             icon={<InboxIcon className="h-[22px] w-[22px]" />}
+            href="/dashboard/kanban"
           />
           <StatCard
             value={overdue}
             label="مهام متأخرة"
             tone="red"
             icon={<BellIcon className="h-[22px] w-[22px]" />}
-          />
-          <StatCard
-            value={done}
-            label="مهام منجزة"
-            tone="green"
-            icon={<ChartIcon className="h-[22px] w-[22px]" />}
+            href="/dashboard/kanban"
           />
         </div>
 
         <QuickShortcuts role={profile.role} />
+
+        <div className="grid grid-cols-1 gap-4.5 sm:grid-cols-2">
+          <div className="rounded-[18px] border border-border bg-surface p-[22px]">
+            <h4 className="mb-3 text-[14.5px] font-extrabold text-foreground">حملي الوظيفي</h4>
+            {myWorkload ? (
+              <>
+                <div className="mb-1.5 flex items-center justify-between text-[13px]">
+                  <span className="text-muted">{myWorkload.open_count} مهمة مفتوحة</span>
+                  <b className="text-foreground">{myWorkload.load_percent}٪</b>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-background">
+                  <div
+                    className="h-full rounded-full bg-accent-500"
+                    style={{ width: `${Math.min(myWorkload.load_percent, 100)}%` }}
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted">لا توجد بيانات كافية بعد</p>
+            )}
+          </div>
+
+          <div className="rounded-[18px] border border-border bg-surface p-[22px]">
+            <h4 className="mb-3 text-[14.5px] font-extrabold text-foreground">أدائي</h4>
+            {myStats ? (
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <div className="font-display text-[20px] text-foreground">{myStats.completed_count}</div>
+                  <span className="text-[11px] text-faint">مكتملة</span>
+                </div>
+                <div>
+                  <div className="font-display text-[20px] text-foreground">{myStats.on_time_rate}٪</div>
+                  <span className="text-[11px] text-faint">بالوقت</span>
+                </div>
+                <div>
+                  <div className="font-display text-[20px] text-foreground">
+                    {myStats.avg_resolution_hours ?? "—"}
+                  </div>
+                  <span className="text-[11px] text-faint">ساعة/مهمة</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted">لا توجد بيانات كافية بعد</p>
+            )}
+          </div>
+        </div>
+
         <EmployeeTaskList tasks={myTasks} />
       </div>
     );
@@ -124,6 +196,12 @@ export default async function DashboardPage() {
   const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
   const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000).toISOString();
 
+  // a department_manager's view of these three is scoped to their own
+  // department; super_admin passes null for org-wide - RLS would enforce
+  // the same boundary regardless, this just makes the framing explicit
+  // ("Department Tasks" vs "Organization Overview" per Prompt 14)
+  const scopeDepartmentId = profile.role === "department_manager" ? profile.department_id : null;
+
   const [
     { count: employeeCount },
     { count: totalMembers },
@@ -131,6 +209,7 @@ export default async function DashboardPage() {
     { count: completedCount },
     { count: totalCount },
     { count: pendingCount },
+    { count: overdueCount },
     { count: unreadCount },
     { count: completedThisWeek },
     { count: completedLastWeek },
@@ -141,6 +220,10 @@ export default async function DashboardPage() {
     { data: trendRaw },
     { data: activityRaw },
     { data: ownDepartment },
+    { data: workloadRows },
+    { data: slaRows },
+    { data: projectRows },
+    { count: projectCount },
   ] = await Promise.all([
     supabase.from("users").select("*", { count: "exact", head: true }).eq("role", "employee"),
     supabase.from("users").select("*", { count: "exact", head: true }),
@@ -151,6 +234,7 @@ export default async function DashboardPage() {
       .from("tasks")
       .select("*", { count: "exact", head: true })
       .in("status", ["new", "in_progress", "pending_review"]),
+    supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "overdue"),
     supabase
       .from("notifications")
       .select("*", { count: "exact", head: true })
@@ -185,6 +269,14 @@ export default async function DashboardPage() {
     profile.department_id
       ? supabase.from("departments").select("name").eq("id", profile.department_id).single()
       : Promise.resolve({ data: null }),
+    supabase.rpc("employee_workload", { p_department_id: scopeDepartmentId }),
+    supabase.rpc("sla_report", { p_department_id: scopeDepartmentId }),
+    supabase
+      .from("projects")
+      .select("id, name, status")
+      .order("created_at", { ascending: false })
+      .limit(5),
+    supabase.from("projects").select("*", { count: "exact", head: true }),
   ]);
 
   const completionRate =
@@ -205,6 +297,14 @@ export default async function DashboardPage() {
           count: row.task_count,
         }));
 
+  const workload = (
+    workloadRows as { user_id: string; full_name: string; load_percent: number }[] | null
+  ) ?? [];
+  const sla = (
+    slaRows as { total_count: number; breached_count: number; compliance_rate: number }[] | null
+  )?.[0] ?? { total_count: 0, breached_count: 0, compliance_rate: 100 };
+  const projects = (projectRows as { id: string; name: string; status: string }[] | null) ?? [];
+
   return (
     <div className="space-y-4.5">
       <WelcomeBanner
@@ -213,7 +313,7 @@ export default async function DashboardPage() {
         departmentName={(ownDepartment as { name: string } | null)?.name}
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
         <StatCard
           value={totalCount ?? 0}
           label="إجمالي المهام"
@@ -227,6 +327,13 @@ export default async function DashboardPage() {
           tone="blue"
           icon={<InboxIcon className="h-[22px] w-[22px]" />}
           href="/dashboard/kanban"
+        />
+        <StatCard
+          value={overdueCount ?? 0}
+          label="مهام متأخرة"
+          tone="red"
+          icon={<BellIcon className="h-[22px] w-[22px]" />}
+          href="/dashboard/tasks?status=overdue"
         />
         <StatCard
           value={completedCount ?? 0}
@@ -324,6 +431,51 @@ export default async function DashboardPage() {
         />
 
         <TrendPanel counts={trend.map((r) => r.completed_count)} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4.5 lg:grid-cols-3">
+        <MiniListPanel
+          title="الحمل الوظيفي"
+          caption={profile.role === "super_admin" ? "الأعلى حملًا بالمؤسسة" : "الأعلى حملًا بالقسم"}
+          href="/dashboard/workload"
+          emptyLabel="لا توجد بيانات كافية بعد"
+          rows={workload.slice(0, 5).map((w) => ({
+            key: w.user_id,
+            label: w.full_name,
+            value: `${w.load_percent}٪`,
+          }))}
+        />
+
+        <div className="rounded-[18px] border border-border bg-surface p-[22px]">
+          <div className="mb-4 flex items-center justify-between">
+            <h4 className="text-[14.5px] font-extrabold text-foreground">الالتزام بـ SLA</h4>
+            <a href="/dashboard/sla-report" className="text-[12px] font-bold text-accent-600 hover:underline">
+              التقرير الكامل
+            </a>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-center">
+            <div>
+              <div className="font-display text-[24px] text-green-600">{sla.compliance_rate}٪</div>
+              <span className="text-[11px] text-faint">نسبة الالتزام</span>
+            </div>
+            <div>
+              <div className="font-display text-[24px] text-brand-red-500">{sla.breached_count}</div>
+              <span className="text-[11px] text-faint">متجاوزة من {sla.total_count}</span>
+            </div>
+          </div>
+        </div>
+
+        <MiniListPanel
+          title="المشاريع"
+          caption={`${projectCount ?? 0} مشروع`}
+          href="/dashboard/projects"
+          emptyLabel="لا توجد مشاريع بعد"
+          rows={projects.map((p) => ({
+            key: p.id,
+            label: p.name,
+            value: PROJECT_STATUS_LABEL[p.status as keyof typeof PROJECT_STATUS_LABEL] ?? p.status,
+          }))}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4.5 lg:grid-cols-[1fr_1.5fr]">

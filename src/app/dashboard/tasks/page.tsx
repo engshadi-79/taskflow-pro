@@ -5,9 +5,15 @@ import { createClient } from "@/lib/supabase/server";
 import { TaskList } from "@/components/dashboard/task-list";
 import { PageHeader } from "@/components/shared/page-header";
 import { CheckSquareIcon, PlusIcon } from "@/components/shared/icons";
-import type { TaskWithAssignee } from "@/lib/types/task";
+import type { TaskStatus, TaskWithAssignee } from "@/lib/types/task";
 
-export default async function TasksPage() {
+const VALID_STATUSES: TaskStatus[] = ["new", "in_progress", "pending_review", "completed", "overdue", "cancelled"];
+
+export default async function TasksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
   const profile = await getCurrentProfile();
 
   if (!profile) {
@@ -17,6 +23,9 @@ export default async function TasksPage() {
   if (profile.role === "employee") {
     redirect("/dashboard");
   }
+
+  const { status } = await searchParams;
+  const initialFilter = status && VALID_STATUSES.includes(status as TaskStatus) ? (status as TaskStatus) : "all";
 
   const supabase = await createClient();
   const { data: tasks } = await supabase
@@ -43,7 +52,7 @@ export default async function TasksPage() {
         </Link>
       </PageHeader>
 
-      <TaskList tasks={tasks ?? []} canDelete={profile.role === "super_admin"} />
+      <TaskList tasks={tasks ?? []} canDelete={profile.role === "super_admin"} initialFilter={initialFilter} />
     </div>
   );
 }

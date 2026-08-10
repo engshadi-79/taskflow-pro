@@ -1,4 +1,53 @@
+import Link from "next/link";
+
 type KpiTone = "orange" | "pink" | "green" | "purple";
+
+/**
+ * Generic "list + see-all link" card, reused for Projects/Workload/any
+ * other small ranked list on the dashboard - one shape instead of a
+ * bespoke component per widget.
+ */
+export function MiniListPanel({
+  title,
+  caption,
+  href,
+  rows,
+  emptyLabel,
+}: {
+  title: string;
+  caption?: string;
+  href: string;
+  rows: { key: string; label: string; value: string }[];
+  emptyLabel: string;
+}) {
+  return (
+    <div className="rounded-[18px] border border-border bg-surface p-[22px]">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h4 className="text-[14.5px] font-extrabold text-foreground">{title}</h4>
+          {caption && (
+            <small className="mt-0.5 block text-[11.5px] font-medium text-faint">{caption}</small>
+          )}
+        </div>
+        <Link href={href} className="text-[12px] font-bold text-accent-600 hover:underline">
+          عرض الكل
+        </Link>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted">{emptyLabel}</p>
+      ) : (
+        <div className="space-y-2.5">
+          {rows.map((r) => (
+            <div key={r.key} className="flex items-center justify-between gap-2 text-[12.5px]">
+              <span className="truncate font-semibold text-muted">{r.label}</span>
+              <b className="shrink-0 font-extrabold text-foreground">{r.value}</b>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const KPI_GRADIENT: Record<KpiTone, string> = {
   orange: "from-orange-500 to-orange-600",

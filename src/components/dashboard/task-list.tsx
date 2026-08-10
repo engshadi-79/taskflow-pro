@@ -34,11 +34,15 @@ const FILTERS: { key: "all" | TaskStatus; label: string }[] = [
 export function TaskList({
   tasks,
   canDelete,
+  initialFilter = "all",
 }: {
   tasks: TaskWithAssignee[];
   canDelete: boolean;
+  /** Drives drill-down from the dashboard, e.g. clicking an "overdue" KPI
+   * links here with ?status=overdue instead of landing on the unfiltered list. */
+  initialFilter?: "all" | TaskStatus;
 }) {
-  const [filter, setFilter] = useState<"all" | TaskStatus>("all");
+  const [filter, setFilter] = useState<"all" | TaskStatus>(initialFilter);
   const [search, setSearch] = useState("");
 
   const counts = useMemo(() => {
