@@ -65,6 +65,21 @@ const TYPE_META: Record<string, Meta> = {
     tint: "bg-orange-500",
     icon: <UserIcon className="h-[17px] w-[17px]" />,
   },
+  workflow_pending_approval: {
+    label: "طلب بانتظار موافقتك",
+    tint: "bg-orange-500",
+    icon: <EyeIcon className="h-[17px] w-[17px]" />,
+  },
+  workflow_approved: {
+    label: "تم قبول طلبك",
+    tint: "bg-green-500",
+    icon: <CheckCircleIcon className="h-[17px] w-[17px]" />,
+  },
+  workflow_rejected: {
+    label: "تم رفض طلبك",
+    tint: "bg-brand-red-500",
+    icon: <XCircleIcon className="h-[17px] w-[17px]" />,
+  },
 };
 
 const FALLBACK: Meta = {
@@ -78,8 +93,13 @@ function metaFor(type: string): Meta {
   return TYPE_META[type] ?? FALLBACK;
 }
 
+const WORKFLOW_TYPES = ["workflow_pending_approval", "workflow_approved", "workflow_rejected"];
+
 function urlFor(n: Pick<Notification, "type" | "task_id">): string {
   if (n.type === "user_pending_approval") return "/dashboard/employees";
+  // notifications has no request_id column, only task_id (unused here) -
+  // the list page is the honest link we can give without a schema change
+  if (WORKFLOW_TYPES.includes(n.type)) return "/dashboard/workflow-requests";
   return n.task_id ? `/dashboard/tasks/${n.task_id}` : "/dashboard/notifications";
 }
 
