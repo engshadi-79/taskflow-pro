@@ -160,11 +160,10 @@ function StatusSelect({ meetingId, status }: { meetingId: string; status: Meetin
   }
 
   return (
-    <form action={action}>
+    <form action={action} className="flex items-center gap-2">
       <select
         name="status"
         defaultValue={status}
-        onChange={(e) => e.currentTarget.form?.requestSubmit()}
         className="rounded-full border border-border bg-surface px-3.5 py-1.5 text-[12.5px] font-extrabold text-foreground outline-none focus:border-accent-500"
       >
         {(Object.keys(MEETING_STATUS_LABEL) as MeetingStatus[]).map((s) => (
@@ -173,6 +172,12 @@ function StatusSelect({ meetingId, status }: { meetingId: string; status: Meetin
           </option>
         ))}
       </select>
+      <button
+        type="submit"
+        className="rounded-full bg-accent-500 px-3 py-1.5 text-[12px] font-extrabold text-white hover:bg-accent-600"
+      >
+        تحديث
+      </button>
     </form>
   );
 }
