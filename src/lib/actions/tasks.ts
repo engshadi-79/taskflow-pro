@@ -215,6 +215,38 @@ export async function createSubtask(
   return {};
 }
 
+/**
+ * Calendar drag-and-drop reschedule - a Server Action, not a client-only UI
+ * update, per Prompt 11 ("يجب أن يمر تغيير الموعد عبر Server Action/API").
+ * Same permission shape as moveTaskStatus: managers can move anyone's task,
+ * an assignee can only move their own.
+ */
+export async function rescheduleTask(taskId: string, newDueDate: string): Promise<TaskFormState> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { error: "يجب تسجيل الدخول" };
+
+  const supabase = await createClient();
+  const { data: task } = await supabase
+    .from("tasks")
+    .select("id, assigned_to")
+    .eq("id", taskId)
+    .single();
+
+  if (!task) return { error: "المهمة غير موجودة" };
+
+  const canManage = MANAGE_ROLES.includes(profile.role);
+  if (!canManage && task.assigned_to !== profile.id) {
+    return { error: "غير مصرح لك بتحديث هذه المهمة" };
+  }
+
+  const { error } = await supabase.from("tasks").update({ due_date: newDueDate }).eq("id", taskId);
+  if (error) return { error: error.message || "تعذر تحديث الموعد" };
+
+  revalidatePath("/dashboard/calendar");
+  revalidatePath(`/dashboard/tasks/${taskId}`);
+  return {};
+}
+
 const DRAG_ALLOWED_FOR_ASSIGNEE: TaskStatus[] = ["new", "in_progress", "pending_review"];
 
 export async function moveTaskStatus(

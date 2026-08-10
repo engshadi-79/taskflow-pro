@@ -9,6 +9,7 @@ import {
   BellIcon,
   BoardIcon,
   BriefcaseIcon,
+  CalendarIcon,
   ChartIcon,
   CheckSquareIcon,
   ChevronDownIcon,
@@ -35,7 +36,8 @@ type IconKey =
   | "briefcase"
   | "clock"
   | "alert"
-  | "gear";
+  | "gear"
+  | "calendar";
 
 type NavItem = {
   href: string;
@@ -61,6 +63,7 @@ const ICONS: Record<IconKey, (p: { className?: string }) => React.ReactElement> 
   clock: ClockIcon,
   alert: AlertIcon,
   gear: GearIcon,
+  calendar: CalendarIcon,
 };
 
 // Icon colours on the dark rail, mirroring the ACAS portal's multi-hue nav.
@@ -103,6 +106,12 @@ const PROJECTS: NavItem = {
   label: "المشاريع",
   icon: "briefcase",
   tone: "pink",
+};
+const CALENDAR: NavItem = {
+  href: "/dashboard/calendar",
+  label: "التقويم",
+  icon: "calendar",
+  tone: "violet",
 };
 const TEAM: NavItem = {
   href: "/dashboard/employees",
@@ -185,6 +194,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
       items: [
         TASKS,
         KANBAN,
+        CALENDAR,
         PROJECTS,
         TEAM,
         DEPARTMENTS,
@@ -207,6 +217,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
       items: [
         TASKS,
         KANBAN,
+        CALENDAR,
         PROJECTS,
         TEAM,
         REPORTS,
@@ -220,7 +231,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
   ],
   employee: [
     { label: "التنقل", items: [{ ...DASHBOARD, label: "مهامي" }] },
-    { label: "إدارة العمل", items: [KANBAN, PROJECTS, WORKFLOW_REQUESTS] },
+    { label: "إدارة العمل", items: [KANBAN, CALENDAR, PROJECTS, WORKFLOW_REQUESTS] },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },
   ],
 };
