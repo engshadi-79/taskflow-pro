@@ -51,16 +51,15 @@ export async function createMeeting(
       .from("meeting_attendees")
       .insert(attendeeIds.map((userId) => ({ meeting_id: data.id, user_id: userId })));
 
-    // invite notification for every attendee added at creation time - the
-    // 1-day/1-hour reminders (send_meeting_reminders(), meeting_fixes.sql)
-    // are a separate, cron-driven concern for as the meeting gets close
-    await supabase.from("notifications").insert(
-      attendeeIds.map((userId) => ({
-        user_id: userId,
-        meeting_id: data.id,
-        type: "meeting_invited",
-        message: `تمت دعوتك إلى اجتماع "${title}" بتاريخ ${meetingDate}`,
-      }))
+    // invite notification for every attendee added at creation time - via
+    // notify_meeting_invite() (SECURITY DEFINER), since notifications has
+    // no INSERT policy for a plain client insert to satisfy. The 1-day/
+    // 1-hour reminders (send_meeting_reminders(), meeting_fixes.sql) are a
+    // separate, cron-driven concern for as the meeting gets close.
+    await Promise.all(
+      attendeeIds.map((userId) =>
+        supabase.rpc("notify_meeting_invite", { p_meeting_id: data.id, p_user_id: userId })
+      )
     );
   }
 
@@ -98,19 +97,7 @@ export async function addMeetingAttendee(meetingId: string, userId: string): Pro
 
   if (error) return { error: "تعذر إضافة الحضور (قد يكون مضافًا مسبقًا)" };
 
-  const { data: meeting } = await supabase
-    .from("meetings")
-    .select("title, meeting_date")
-    .eq("id", meetingId)
-    .single();
-  if (meeting) {
-    await supabase.from("notifications").insert({
-      user_id: userId,
-      meeting_id: meetingId,
-      type: "meeting_invited",
-      message: `تمت دعوتك إلى اجتماع "${meeting.title}" بتاريخ ${meeting.meeting_date}`,
-    });
-  }
+  await supabase.rpc("notify_meeting_invite", { p_meeting_id: meetingId, p_user_id: userId });
 
   revalidatePath(`/dashboard/meetings/${meetingId}`);
   return {};
