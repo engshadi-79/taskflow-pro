@@ -50,6 +50,18 @@ export async function createMeeting(
     await supabase
       .from("meeting_attendees")
       .insert(attendeeIds.map((userId) => ({ meeting_id: data.id, user_id: userId })));
+
+    // invite notification for every attendee added at creation time - the
+    // 1-day/1-hour reminders (send_meeting_reminders(), meeting_fixes.sql)
+    // are a separate, cron-driven concern for as the meeting gets close
+    await supabase.from("notifications").insert(
+      attendeeIds.map((userId) => ({
+        user_id: userId,
+        meeting_id: data.id,
+        type: "meeting_invited",
+        message: `تمت دعوتك إلى اجتماع "${title}" بتاريخ ${meetingDate}`,
+      }))
+    );
   }
 
   revalidatePath("/dashboard/meetings");
@@ -84,8 +96,24 @@ export async function addMeetingAttendee(meetingId: string, userId: string): Pro
     .from("meeting_attendees")
     .insert({ meeting_id: meetingId, user_id: userId });
 
+  if (error) return { error: "تعذر إضافة الحضور (قد يكون مضافًا مسبقًا)" };
+
+  const { data: meeting } = await supabase
+    .from("meetings")
+    .select("title, meeting_date")
+    .eq("id", meetingId)
+    .single();
+  if (meeting) {
+    await supabase.from("notifications").insert({
+      user_id: userId,
+      meeting_id: meetingId,
+      type: "meeting_invited",
+      message: `تمت دعوتك إلى اجتماع "${meeting.title}" بتاريخ ${meeting.meeting_date}`,
+    });
+  }
+
   revalidatePath(`/dashboard/meetings/${meetingId}`);
-  return error ? { error: "تعذر إضافة الحضور (قد يكون مضافًا مسبقًا)" } : {};
+  return {};
 }
 
 export async function removeMeetingAttendee(id: string, meetingId: string): Promise<MeetingFormState> {

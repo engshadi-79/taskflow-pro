@@ -21,9 +21,24 @@ export default async function MeetingsPage() {
   const supabase = await createClient();
   const { data: meetings } = await supabase
     .from("meetings")
-    .select("*, organizer:users!meetings_organizer_id_fkey(full_name)")
+    .select("*")
     .order("meeting_date", { ascending: false })
-    .returns<(Meeting & { organizer: { full_name: string } | null })[]>();
+    .returns<Meeting[]>();
+
+  // organizer names come from a SECURITY DEFINER RPC, not a plain embedded
+  // join - users_select restricts a viewer to their own department, which
+  // would silently null out the organizer for any cross-department meeting
+  // (see meeting_fixes.sql for the full reasoning)
+  const meetingIds = (meetings ?? []).map((m) => m.id);
+  const { data: organizerRows } = meetingIds.length
+    ? await supabase.rpc("meetings_organizer_names", { p_meeting_ids: meetingIds })
+    : { data: [] };
+  const organizerNameById = new Map(
+    ((organizerRows as { meeting_id: string; organizer_name: string }[] | null) ?? []).map((r) => [
+      r.meeting_id,
+      r.organizer_name,
+    ])
+  );
 
   const canCreate = profile.role === "super_admin" || profile.role === "department_manager";
 
@@ -66,7 +81,7 @@ export default async function MeetingsPage() {
                     {m.title}
                   </Link>
                 </td>
-                <td className="px-1.5 py-3 text-muted">{m.organizer?.full_name ?? "—"}</td>
+                <td className="px-1.5 py-3 text-muted">{organizerNameById.get(m.id) ?? "—"}</td>
                 <td className="px-1.5 py-3 text-muted">
                   {m.meeting_date}
                   {m.meeting_time ? ` — ${m.meeting_time}` : ""}

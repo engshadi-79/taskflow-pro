@@ -29,17 +29,23 @@ export default async function MeetingDetailPage({
 
   const supabase = await createClient();
 
-  const { data: meeting } = await supabase
-    .from("meetings")
-    .select("*, organizer:users!meetings_organizer_id_fkey(full_name), project:projects(name)")
-    .eq("id", id)
-    .single<Meeting & { organizer: { full_name: string } | null; project: { name: string } | null }>();
+  const { data: meeting } = await supabase.from("meetings").select("*").eq("id", id).single<Meeting>();
 
   if (!meeting) {
     notFound();
   }
 
   const canManage = profile.role === "super_admin" || meeting.organizer_id === profile.id;
+
+  // organizer/project names via a SECURITY DEFINER RPC, not a plain
+  // embedded join - see meeting_fixes.sql for why a plain join silently
+  // nulls both out for anyone outside the organizer's department or the
+  // project's own visibility scope
+  const { data: extraRows } = await supabase.rpc("meeting_detail_extra", { p_meeting_id: id });
+  const extra = (extraRows as { organizer_name: string; project_name: string | null }[] | null)?.[0] ?? {
+    organizer_name: null,
+    project_name: null,
+  };
 
   const [
     { data: attendees },
@@ -98,7 +104,8 @@ export default async function MeetingDetailPage({
             {meeting.meeting_date}
             {meeting.meeting_time ? ` — ${meeting.meeting_time}` : ""}
             {meeting.location ? ` · ${meeting.location}` : ""}
-            {meeting.project ? ` · مشروع: ${meeting.project.name}` : ""}
+            {extra.project_name ? ` · مشروع: ${extra.project_name}` : ""}
+            {extra.organizer_name ? ` · المنظِّم: ${extra.organizer_name}` : ""}
           </p>
         </div>
         {canManage ? (

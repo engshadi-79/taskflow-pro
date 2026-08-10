@@ -80,6 +80,21 @@ const TYPE_META: Record<string, Meta> = {
     tint: "bg-brand-red-500",
     icon: <XCircleIcon className="h-[17px] w-[17px]" />,
   },
+  meeting_invited: {
+    label: "دعوة اجتماع",
+    tint: "bg-accent-500",
+    icon: <UserIcon className="h-[17px] w-[17px]" />,
+  },
+  meeting_reminder_1day: {
+    label: "تذكير باجتماع",
+    tint: "bg-orange-500",
+    icon: <ClockIcon className="h-[17px] w-[17px]" />,
+  },
+  meeting_reminder_1hour: {
+    label: "تذكير باجتماع",
+    tint: "bg-orange-500",
+    icon: <ClockIcon className="h-[17px] w-[17px]" />,
+  },
 };
 
 const FALLBACK: Meta = {
@@ -95,11 +110,12 @@ function metaFor(type: string): Meta {
 
 const WORKFLOW_TYPES = ["workflow_pending_approval", "workflow_approved", "workflow_rejected"];
 
-function urlFor(n: Pick<Notification, "type" | "task_id">): string {
+function urlFor(n: Pick<Notification, "type" | "task_id" | "meeting_id">): string {
   if (n.type === "user_pending_approval") return "/dashboard/employees";
   // notifications has no request_id column, only task_id (unused here) -
   // the list page is the honest link we can give without a schema change
   if (WORKFLOW_TYPES.includes(n.type)) return "/dashboard/workflow-requests";
+  if (n.meeting_id) return `/dashboard/meetings/${n.meeting_id}`;
   return n.task_id ? `/dashboard/tasks/${n.task_id}` : "/dashboard/notifications";
 }
 
