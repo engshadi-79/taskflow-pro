@@ -8,6 +8,8 @@ import { DepartmentHoursChart } from "@/components/dashboard/department-hours-ch
 import { MonthlyTrendChart } from "@/components/dashboard/monthly-trend-chart";
 import { StatusDonutChart } from "@/components/dashboard/status-donut-chart";
 import { RecentTasksPanel } from "@/components/dashboard/recent-tasks-panel";
+import { PerformanceTable, type PerformanceRow } from "@/components/dashboard/performance-table";
+import { MiniListPanel } from "@/components/dashboard/dashboard-widgets";
 import {
   AlertIcon,
   ChartIcon,
@@ -22,7 +24,13 @@ import {
   toDateKey,
   type ReportPeriod,
 } from "@/lib/report-periods";
-import type { TaskStatus, TaskWithAssignee } from "@/lib/types/task";
+import {
+  PRIORITY_LABEL,
+  STATUS_LABEL,
+  type Priority,
+  type TaskStatus,
+  type TaskWithAssignee,
+} from "@/lib/types/task";
 
 type TopDepartmentRow = { department_id: string; department_name: string; completed_count: number };
 type DailyRow = { day: string; created_count: number; completed_count: number };
@@ -32,7 +40,13 @@ const MONTH_LABEL = new Intl.DateTimeFormat("ar", { month: "short" });
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{
+    period?: string;
+    department_id?: string;
+    project_id?: string;
+    priority?: string;
+    status?: string;
+  }>;
 }) {
   const profile = await getCurrentProfile();
 
@@ -44,12 +58,21 @@ export default async function ReportsPage({
     redirect("/dashboard");
   }
 
-  const period: ReportPeriod = parsePeriod((await searchParams).period);
+  const params = await searchParams;
+  const period: ReportPeriod = parsePeriod(params.period);
   const { since, until, prevSince, prevUntil } = periodRange(period);
   const sinceIso = since.toISOString();
   const untilIso = until.toISOString();
   const prevSinceIso = prevSince.toISOString();
   const prevUntilIso = prevUntil.toISOString();
+
+  // a department_manager's own filter is fixed to their department - same
+  // boundary RLS already enforces, just explicit here too
+  const departmentFilter =
+    profile.role === "department_manager" ? profile.department_id : params.department_id || null;
+  const projectFilter = params.project_id || null;
+  const priorityFilter = params.priority || null;
+  const statusFilter = params.status || null;
 
   // 8 months of daily data covers the sparklines (sliced to the selected
   // period below) and the monthly trend chart from one query.
@@ -71,6 +94,12 @@ export default async function ReportsPage({
     { data: deptHoursRaw, error: deptHoursError },
     { data: statusBreakdownRaw, error: statusBreakdownError },
     { data: recentTasksRaw, error: recentTasksError },
+    { data: deptPerformanceRaw, error: deptPerformanceError },
+    { data: employeePerformanceRaw, error: employeePerformanceError },
+    { data: projectPerformanceRaw, error: projectPerformanceError },
+    { data: priorityPerformanceRaw, error: priorityPerformanceError },
+    { data: overdueByDeptRaw, error: overdueByDeptError },
+    { data: projectsForFilter },
   ] = await Promise.all([
     supabase
       .from("tasks")
@@ -110,6 +139,26 @@ export default async function ReportsPage({
       .order("created_at", { ascending: false })
       .limit(8)
       .returns<TaskWithAssignee[]>(),
+    supabase.rpc("report_department_performance", {
+      p_since: sinceIso,
+      p_until: untilIso,
+      p_priority: priorityFilter,
+      p_status: statusFilter,
+    }),
+    supabase.rpc("report_employee_performance", {
+      p_department_id: departmentFilter,
+      p_since: sinceIso,
+      p_until: untilIso,
+      p_priority: priorityFilter,
+      p_status: statusFilter,
+    }),
+    supabase.rpc("report_project_performance", {
+      p_project_id: projectFilter,
+      p_priority: priorityFilter,
+    }),
+    supabase.rpc("report_priority_performance", { p_since: sinceIso, p_until: untilIso }),
+    supabase.rpc("report_overdue_by_department"),
+    supabase.from("projects").select("id, name").order("name"),
   ]);
 
   // These RPCs return an empty result set on failure too (data: null), which
@@ -125,6 +174,11 @@ export default async function ReportsPage({
     ["report_avg_hours_by_department", deptHoursError],
     ["report_status_breakdown", statusBreakdownError],
     ["recent tasks query", recentTasksError],
+    ["report_department_performance", deptPerformanceError],
+    ["report_employee_performance", employeePerformanceError],
+    ["report_project_performance", projectPerformanceError],
+    ["report_priority_performance", priorityPerformanceError],
+    ["report_overdue_by_department", overdueByDeptError],
   ] as const) {
     if (error) console.error(`[reports] ${name} failed:`, error.message);
   }
@@ -155,6 +209,70 @@ export default async function ReportsPage({
 
   const monthly = groupByMonth(dailySeries);
 
+  type PerfRaw = {
+    total_count: number;
+    completed_count: number;
+    overdue_count?: number;
+    completion_rate: number;
+    avg_hours: number | null;
+  };
+
+  const departmentPerformance: PerformanceRow[] = (
+    (deptPerformanceRaw as (PerfRaw & { department_id: string; department_name: string })[] | null) ?? []
+  ).map((r) => ({
+    key: r.department_id,
+    name: r.department_name,
+    total: r.total_count,
+    completed: r.completed_count,
+    overdue: r.overdue_count,
+    completionRate: r.completion_rate,
+    avgHours: r.avg_hours,
+  }));
+
+  const employeePerformance: PerformanceRow[] = (
+    (employeePerformanceRaw as (PerfRaw & { user_id: string; full_name: string })[] | null) ?? []
+  ).map((r) => ({
+    key: r.user_id,
+    name: r.full_name,
+    total: r.total_count,
+    completed: r.completed_count,
+    overdue: r.overdue_count,
+    completionRate: r.completion_rate,
+    avgHours: r.avg_hours,
+  }));
+
+  const projectPerformance: PerformanceRow[] = (
+    (projectPerformanceRaw as (PerfRaw & { project_id: string; project_name: string })[] | null) ?? []
+  ).map((r) => ({
+    key: r.project_id,
+    name: r.project_name,
+    total: r.total_count,
+    completed: r.completed_count,
+    overdue: r.overdue_count,
+    completionRate: r.completion_rate,
+    avgHours: null,
+  }));
+
+  const priorityPerformance: PerformanceRow[] = (
+    (priorityPerformanceRaw as (PerfRaw & { priority: Priority })[] | null) ?? []
+  ).map((r) => ({
+    key: r.priority,
+    name: PRIORITY_LABEL[r.priority],
+    total: r.total_count,
+    completed: r.completed_count,
+    completionRate: r.completion_rate,
+    avgHours: r.avg_hours,
+  }));
+
+  const overdueByDepartment = (
+    (overdueByDeptRaw as { department_id: string; department_name: string; overdue_count: number }[] | null) ?? []
+  ).map((r) => ({ key: r.department_id, label: r.department_name, value: String(r.overdue_count) }));
+
+  const { data: departmentsForFilter } =
+    profile.role === "super_admin"
+      ? await supabase.from("departments").select("id, name").order("name")
+      : { data: null };
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -173,6 +291,58 @@ export default async function ReportsPage({
       </PageHeader>
 
       <PeriodTabs active={period} />
+
+      {/* filters for the new Department/Employee/Project/Priority
+          performance tables below - the existing widgets above keep using
+          just the period tabs, unchanged */}
+      <form method="get" className="flex flex-wrap items-end gap-2.5 rounded-[18px] border border-border bg-surface p-4">
+        <input type="hidden" name="period" value={period} />
+        {profile.role === "super_admin" && (
+          <select
+            name="department_id"
+            defaultValue={params.department_id ?? ""}
+            className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500"
+          >
+            <option value="">كل الأقسام</option>
+            {(departmentsForFilter ?? []).map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+        )}
+        <select
+          name="project_id"
+          defaultValue={params.project_id ?? ""}
+          className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500"
+        >
+          <option value="">كل المشاريع</option>
+          {(projectsForFilter ?? []).map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+        <select
+          name="priority"
+          defaultValue={params.priority ?? ""}
+          className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500"
+        >
+          <option value="">كل الأولويات</option>
+          {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
+            <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>
+          ))}
+        </select>
+        <select
+          name="status"
+          defaultValue={params.status ?? ""}
+          className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500"
+        >
+          <option value="">كل الحالات</option>
+          {(Object.keys(STATUS_LABEL) as TaskStatus[]).map((s) => (
+            <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+          ))}
+        </select>
+        <button type="submit" className="rounded-md bg-accent-500 px-3 py-1.5 text-[12.5px] font-bold text-white hover:bg-accent-600">
+          تصفية
+        </button>
+      </form>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="banner-violet relative overflow-hidden rounded-[16px] p-4 text-white">
@@ -237,6 +407,60 @@ export default async function ReportsPage({
         <StatusDonutChart
           rows={statusBreakdown.map((r) => ({ status: r.status, count: r.task_count }))}
         />
+      </div>
+
+      {profile.role === "super_admin" && (
+        <div>
+          <h3 className="mb-2.5 text-[14.5px] font-extrabold text-foreground">أداء الأقسام</h3>
+          <PerformanceTable rows={departmentPerformance} nameHeader="القسم" />
+        </div>
+      )}
+
+      <div>
+        <h3 className="mb-2.5 text-[14.5px] font-extrabold text-foreground">أداء الموظفين</h3>
+        <PerformanceTable rows={employeePerformance} nameHeader="الموظف" />
+      </div>
+
+      <div>
+        <h3 className="mb-2.5 text-[14.5px] font-extrabold text-foreground">أداء المشاريع</h3>
+        <PerformanceTable rows={projectPerformance} nameHeader="المشروع" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div>
+          <h3 className="mb-2.5 text-[14.5px] font-extrabold text-foreground">أداء المهام حسب الأولوية</h3>
+          <PerformanceTable rows={priorityPerformance} nameHeader="الأولوية" />
+        </div>
+        <MiniListPanel
+          title="المهام المتأخرة حسب القسم"
+          href="/dashboard/tasks?status=overdue"
+          emptyLabel="لا توجد مهام متأخرة حاليًا"
+          rows={overdueByDepartment}
+        />
+      </div>
+
+      <div className="rounded-[18px] border border-border bg-surface p-5">
+        <h4 className="mb-3 text-[13px] font-extrabold text-foreground">تقارير أخرى</h4>
+        <div className="flex flex-wrap gap-2.5">
+          <a
+            href="/dashboard/workload"
+            className="rounded-full border border-border bg-background px-3.5 py-1.5 text-[12.5px] font-bold text-foreground hover:bg-accent-50"
+          >
+            الحمل الوظيفي (Workload)
+          </a>
+          <a
+            href="/dashboard/time-tracking"
+            className="rounded-full border border-border bg-background px-3.5 py-1.5 text-[12.5px] font-bold text-foreground hover:bg-accent-50"
+          >
+            سجلّ الوقت (Time Tracking)
+          </a>
+          <a
+            href="/dashboard/sla-report"
+            className="rounded-full border border-border bg-background px-3.5 py-1.5 text-[12.5px] font-bold text-foreground hover:bg-accent-50"
+          >
+            الالتزام بـ SLA
+          </a>
+        </div>
       </div>
     </div>
   );
