@@ -9,6 +9,7 @@ import { MonthlyTrendChart } from "@/components/dashboard/monthly-trend-chart";
 import { StatusDonutChart } from "@/components/dashboard/status-donut-chart";
 import { RecentTasksPanel } from "@/components/dashboard/recent-tasks-panel";
 import { PerformanceTable, type PerformanceRow } from "@/components/dashboard/performance-table";
+import { PerformanceBarChart } from "@/components/dashboard/performance-bar-chart";
 import { MiniListPanel } from "@/components/dashboard/dashboard-widgets";
 import {
   AlertIcon,
@@ -36,6 +37,15 @@ type TopDepartmentRow = { department_id: string; department_name: string; comple
 type DailyRow = { day: string; created_count: number; completed_count: number };
 
 const MONTH_LABEL = new Intl.DateTimeFormat("ar", { month: "short" });
+
+// same priority color coding already used for the calendar's task dots
+// (src/components/dashboard/calendar-grid.tsx PRIORITY_DOT)
+const PRIORITY_BAR_COLOR: Record<Priority, string> = {
+  low: "bg-border",
+  medium: "bg-brand-blue-500",
+  high: "bg-orange-500",
+  urgent: "bg-brand-red-500",
+};
 
 export default async function ReportsPage({
   searchParams,
@@ -412,32 +422,60 @@ export default async function ReportsPage({
       {profile.role === "super_admin" && (
         <div>
           <h3 className="mb-2.5 text-[14.5px] font-extrabold text-foreground">أداء الأقسام</h3>
-          <PerformanceTable rows={departmentPerformance} nameHeader="القسم" />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <PerformanceBarChart
+              title="نسبة الإنجاز حسب القسم"
+              subtitle="مقارنة سريعة بين الأقسام"
+              rows={departmentPerformance}
+            />
+            <PerformanceTable rows={departmentPerformance} nameHeader="القسم" />
+          </div>
         </div>
       )}
 
       <div>
         <h3 className="mb-2.5 text-[14.5px] font-extrabold text-foreground">أداء الموظفين</h3>
-        <PerformanceTable rows={employeePerformance} nameHeader="الموظف" />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <PerformanceBarChart
+            title="نسبة الإنجاز حسب الموظف"
+            subtitle="مقارنة سريعة بين الموظفين"
+            rows={employeePerformance}
+          />
+          <PerformanceTable rows={employeePerformance} nameHeader="الموظف" />
+        </div>
       </div>
 
       <div>
         <h3 className="mb-2.5 text-[14.5px] font-extrabold text-foreground">أداء المشاريع</h3>
-        <PerformanceTable rows={projectPerformance} nameHeader="المشروع" />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <PerformanceBarChart
+            title="نسبة الإنجاز حسب المشروع"
+            subtitle="مقارنة سريعة بين المشاريع"
+            rows={projectPerformance}
+          />
+          <PerformanceTable rows={projectPerformance} nameHeader="المشروع" />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div>
-          <h3 className="mb-2.5 text-[14.5px] font-extrabold text-foreground">أداء المهام حسب الأولوية</h3>
+      <div>
+        <h3 className="mb-2.5 text-[14.5px] font-extrabold text-foreground">أداء المهام حسب الأولوية</h3>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <PerformanceBarChart
+            title="نسبة الإنجاز حسب الأولوية"
+            subtitle="مقارنة سريعة بين مستويات الأولوية"
+            rows={priorityPerformance}
+            colorFor={(row) => PRIORITY_BAR_COLOR[row.key as Priority]}
+          />
           <PerformanceTable rows={priorityPerformance} nameHeader="الأولوية" />
         </div>
-        <MiniListPanel
-          title="المهام المتأخرة حسب القسم"
-          href="/dashboard/tasks?status=overdue"
-          emptyLabel="لا توجد مهام متأخرة حاليًا"
-          rows={overdueByDepartment}
-        />
       </div>
+
+      <MiniListPanel
+        title="المهام المتأخرة حسب القسم"
+        href="/dashboard/tasks?status=overdue"
+        emptyLabel="لا توجد مهام متأخرة حاليًا"
+        rows={overdueByDepartment}
+      />
 
       <div className="rounded-[18px] border border-border bg-surface p-5">
         <h4 className="mb-3 text-[13px] font-extrabold text-foreground">تقارير أخرى</h4>
