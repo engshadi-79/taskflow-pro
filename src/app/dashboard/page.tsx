@@ -24,6 +24,24 @@ import {
 import { PRIORITY_LABEL, type Priority, type Task } from "@/lib/types/task";
 import { PROJECT_STATUS_LABEL } from "@/lib/types/project";
 import { timeAgo } from "@/lib/format-time-ago";
+import { parsePeriod, periodRange, PERIOD_LABEL, type ReportPeriod } from "@/lib/report-periods";
+
+/** Applies the optional employee/project dashboard filters to a tasks
+ * query - loosely typed since PostgrestFilterBuilder's generics don't
+ * survive a shared helper cleanly, same tradeoff Reports page's own
+ * inline `let query = query.eq(...)` reassignments make implicitly. */
+function withDashboardFilters(
+  query: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  opts: { employeeId: string | null; employeeIds: string[] | null; projectId: string | null }
+) {
+  let q = query;
+  if (opts.employeeId) q = q.eq("assigned_to", opts.employeeId);
+  else if (opts.employeeIds) {
+    q = q.in("assigned_to", opts.employeeIds.length ? opts.employeeIds : ["00000000-0000-0000-0000-000000000000"]);
+  }
+  if (opts.projectId) q = q.eq("project_id", opts.projectId);
+  return q;
+}
 
 type WeeklyTopEmployeeRow = { user_id: string; full_name: string; completed_count: number };
 type DistributionByDeptRow = { department_name: string; task_count: number };
@@ -43,13 +61,23 @@ function pctDelta(current: number, previous: number) {
   return Math.round(((current - previous) / previous) * 100);
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    period?: string;
+    department_id?: string;
+    project_id?: string;
+    employee_id?: string;
+  }>;
+}) {
   const profile = await getCurrentProfile();
 
   if (!profile) {
     redirect("/login");
   }
 
+  const params = await searchParams;
   const supabase = await createClient();
 
   if (profile.role === "employee") {
@@ -192,15 +220,29 @@ export default async function DashboardPage() {
     );
   }
 
-  const now = new Date();
-  const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
-  const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000).toISOString();
+  const period: ReportPeriod = parsePeriod(params.period);
+  const { since, prevSince } = periodRange(period);
+  const weekAgo = since.toISOString();
+  const twoWeeksAgo = prevSince.toISOString();
 
   // a department_manager's view of these three is scoped to their own
-  // department; super_admin passes null for org-wide - RLS would enforce
-  // the same boundary regardless, this just makes the framing explicit
-  // ("Department Tasks" vs "Organization Overview" per Prompt 14)
-  const scopeDepartmentId = profile.role === "department_manager" ? profile.department_id : null;
+  // department; super_admin passes null for org-wide, or a specific
+  // department if they picked one in the filter bar below - RLS would
+  // enforce the manager boundary regardless, this just makes the framing
+  // explicit ("Department Tasks" vs "Organization Overview" per Prompt 14)
+  const scopeDepartmentId =
+    profile.role === "department_manager" ? profile.department_id : params.department_id || null;
+  const employeeIdFilter = params.employee_id || null;
+  const projectIdFilter = params.project_id || null;
+
+  // only super_admin's department pick needs resolving to member ids - a
+  // department_manager is already scoped by RLS with no extra query needed
+  let departmentEmployeeIds: string[] | null = null;
+  if (profile.role === "super_admin" && params.department_id) {
+    const { data } = await supabase.from("users").select("id").eq("department_id", params.department_id);
+    departmentEmployeeIds = (data ?? []).map((u) => u.id);
+  }
+  const filterOpts = { employeeId: employeeIdFilter, employeeIds: departmentEmployeeIds, projectId: projectIdFilter };
 
   const [
     { count: employeeCount },
@@ -224,38 +266,62 @@ export default async function DashboardPage() {
     { data: slaRows },
     { data: projectRows },
     { count: projectCount },
+    { data: departmentsForFilter },
+    { data: projectsForFilter },
+    { data: employeesForFilter },
   ] = await Promise.all([
     supabase.from("users").select("*", { count: "exact", head: true }).eq("role", "employee"),
     supabase.from("users").select("*", { count: "exact", head: true }),
     supabase.from("departments").select("*", { count: "exact", head: true }),
-    supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "completed"),
-    supabase.from("tasks").select("*", { count: "exact", head: true }),
-    supabase
-      .from("tasks")
-      .select("*", { count: "exact", head: true })
-      .in("status", ["new", "in_progress", "pending_review"]),
-    supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "overdue"),
+    withDashboardFilters(
+      supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "completed"),
+      filterOpts
+    ),
+    withDashboardFilters(supabase.from("tasks").select("*", { count: "exact", head: true }), filterOpts),
+    withDashboardFilters(
+      supabase
+        .from("tasks")
+        .select("*", { count: "exact", head: true })
+        .in("status", ["new", "in_progress", "pending_review"]),
+      filterOpts
+    ),
+    withDashboardFilters(
+      supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "overdue"),
+      filterOpts
+    ),
     supabase
       .from("notifications")
       .select("*", { count: "exact", head: true })
       .eq("is_read", false),
-    supabase
-      .from("tasks")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "completed")
-      .gte("updated_at", weekAgo),
-    supabase
-      .from("tasks")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "completed")
-      .gte("updated_at", twoWeeksAgo)
-      .lt("updated_at", weekAgo),
-    supabase.from("tasks").select("*", { count: "exact", head: true }).gte("created_at", weekAgo),
-    supabase
-      .from("tasks")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", twoWeeksAgo)
-      .lt("created_at", weekAgo),
+    withDashboardFilters(
+      supabase
+        .from("tasks")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "completed")
+        .gte("updated_at", weekAgo),
+      filterOpts
+    ),
+    withDashboardFilters(
+      supabase
+        .from("tasks")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "completed")
+        .gte("updated_at", twoWeeksAgo)
+        .lt("updated_at", weekAgo),
+      filterOpts
+    ),
+    withDashboardFilters(
+      supabase.from("tasks").select("*", { count: "exact", head: true }).gte("created_at", weekAgo),
+      filterOpts
+    ),
+    withDashboardFilters(
+      supabase
+        .from("tasks")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", twoWeeksAgo)
+        .lt("created_at", weekAgo),
+      filterOpts
+    ),
     supabase.rpc("report_weekly_top_employees"),
     profile.role === "super_admin"
       ? supabase.rpc("report_task_distribution_by_department")
@@ -269,14 +335,19 @@ export default async function DashboardPage() {
     profile.department_id
       ? supabase.from("departments").select("name").eq("id", profile.department_id).single()
       : Promise.resolve({ data: null }),
-    supabase.rpc("employee_workload", { p_department_id: scopeDepartmentId }),
-    supabase.rpc("sla_report", { p_department_id: scopeDepartmentId }),
+    supabase.rpc("employee_workload", { p_department_id: scopeDepartmentId, p_project_id: projectIdFilter }),
+    supabase.rpc("sla_report", { p_department_id: scopeDepartmentId, p_user_id: employeeIdFilter }),
     supabase
       .from("projects")
       .select("id, name, status")
       .order("created_at", { ascending: false })
       .limit(5),
     supabase.from("projects").select("*", { count: "exact", head: true }),
+    profile.role === "super_admin"
+      ? supabase.from("departments").select("id, name").order("name")
+      : Promise.resolve({ data: [] }),
+    supabase.from("projects").select("id, name").order("name"),
+    supabase.from("users").select("id, full_name").order("full_name"),
   ]);
 
   const completionRate =
@@ -312,6 +383,53 @@ export default async function DashboardPage() {
         role={profile.role}
         departmentName={(ownDepartment as { name: string } | null)?.name}
       />
+
+      <form method="get" className="flex flex-wrap items-end gap-2.5 rounded-[18px] border border-border bg-surface p-4">
+        <select
+          name="period"
+          defaultValue={period}
+          className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500"
+        >
+          {(Object.keys(PERIOD_LABEL) as ReportPeriod[]).map((p) => (
+            <option key={p} value={p}>{PERIOD_LABEL[p]}</option>
+          ))}
+        </select>
+        {profile.role === "super_admin" && (
+          <select
+            name="department_id"
+            defaultValue={params.department_id ?? ""}
+            className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500"
+          >
+            <option value="">كل الأقسام</option>
+            {(departmentsForFilter ?? []).map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+        )}
+        <select
+          name="project_id"
+          defaultValue={params.project_id ?? ""}
+          className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500"
+        >
+          <option value="">كل المشاريع</option>
+          {(projectsForFilter ?? []).map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+        <select
+          name="employee_id"
+          defaultValue={params.employee_id ?? ""}
+          className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500"
+        >
+          <option value="">كل الموظفين</option>
+          {(employeesForFilter ?? []).map((e) => (
+            <option key={e.id} value={e.id}>{e.full_name}</option>
+          ))}
+        </select>
+        <button type="submit" className="rounded-md bg-accent-500 px-3 py-1.5 text-[12.5px] font-bold text-white hover:bg-accent-600">
+          تصفية
+        </button>
+      </form>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
         <StatCard
