@@ -11,8 +11,16 @@ function linePoints(values: number[], max: number) {
     .join(" ");
 }
 
-/** Two-series line chart — created vs completed tasks per month. */
-export function MonthlyTrendChart({ rows }: { rows: MonthlyTrendRow[] }) {
+/** Two-series line chart — created vs completed tasks per bucket (month by default). */
+export function MonthlyTrendChart({
+  rows,
+  title = "اتجاهات الأداء",
+  subtitle = "مقارنة بين المهام المضافة والمنجزة شهريًا",
+}: {
+  rows: MonthlyTrendRow[];
+  title?: string;
+  subtitle?: string;
+}) {
   const max = Math.max(...rows.map((r) => r.created), ...rows.map((r) => r.completed), 1);
   const createdPoints = linePoints(
     rows.map((r) => r.created),
@@ -27,10 +35,8 @@ export function MonthlyTrendChart({ rows }: { rows: MonthlyTrendRow[] }) {
     <div className="rounded-[18px] border border-border bg-surface p-[22px]">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h4 className="text-[14.5px] font-extrabold text-foreground">اتجاهات الأداء</h4>
-          <small className="mt-0.5 block text-[11.5px] font-medium text-faint">
-            مقارنة بين المهام المضافة والمنجزة شهريًا
-          </small>
+          <h4 className="text-[14.5px] font-extrabold text-foreground">{title}</h4>
+          <small className="mt-0.5 block text-[11.5px] font-medium text-faint">{subtitle}</small>
         </div>
         <div className="flex items-center gap-3.5 text-[11.5px] font-bold">
           <span className="flex items-center gap-1.5 text-muted">

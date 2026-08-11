@@ -398,6 +398,17 @@ export async function reviewTask(
   if (error) return { error: error.message || "تعذر تحديث حالة المهمة" };
 
   const trimmedNotes = notes.trim();
+
+  // recorded unconditionally (unlike the comment below) so the review
+  // rejection rate report never undercounts approvals just because they
+  // happened to have no notes - notes are optional there, unlike reject
+  await supabase.from("task_reviews").insert({
+    task_id: taskId,
+    reviewer_id: profile.id,
+    decision,
+    note: trimmedNotes || null,
+  });
+
   if (trimmedNotes) {
     await supabase.from("task_comments").insert({
       task_id: taskId,

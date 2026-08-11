@@ -15,8 +15,10 @@ import {
   AlertIcon,
   ChartIcon,
   CheckCircleIcon,
+  ClockIcon,
   DownloadIcon,
   TrophyIcon,
+  XCircleIcon,
 } from "@/components/shared/icons";
 import {
   parsePeriod,
@@ -37,6 +39,7 @@ type TopDepartmentRow = { department_id: string; department_name: string; comple
 type DailyRow = { day: string; created_count: number; completed_count: number };
 
 const MONTH_LABEL = new Intl.DateTimeFormat("ar", { month: "short" });
+const WEEK_LABEL = new Intl.DateTimeFormat("ar", { day: "numeric", month: "short" });
 
 // same priority color coding already used for the calendar's task dots
 // (src/components/dashboard/calendar-grid.tsx PRIORITY_DOT)
@@ -110,6 +113,9 @@ export default async function ReportsPage({
     { data: priorityPerformanceRaw, error: priorityPerformanceError },
     { data: overdueByDeptRaw, error: overdueByDeptError },
     { data: projectsForFilter },
+    { data: delayRateRaw, error: delayRateError },
+    { data: avgCompletionHoursRaw, error: avgCompletionHoursError },
+    { data: rejectionRateRaw, error: rejectionRateError },
   ] = await Promise.all([
     supabase
       .from("tasks")
@@ -169,6 +175,13 @@ export default async function ReportsPage({
     supabase.rpc("report_priority_performance", { p_since: sinceIso, p_until: untilIso }),
     supabase.rpc("report_overdue_by_department"),
     supabase.from("projects").select("id, name").order("name"),
+    supabase.rpc("report_delay_rate"),
+    supabase.rpc("report_avg_completion_hours"),
+    supabase.rpc("report_review_rejection_rate", {
+      p_since: sinceIso,
+      p_until: untilIso,
+      p_department_id: departmentFilter,
+    }),
   ]);
 
   // These RPCs return an empty result set on failure too (data: null), which
@@ -189,6 +202,9 @@ export default async function ReportsPage({
     ["report_project_performance", projectPerformanceError],
     ["report_priority_performance", priorityPerformanceError],
     ["report_overdue_by_department", overdueByDeptError],
+    ["report_delay_rate", delayRateError],
+    ["report_avg_completion_hours", avgCompletionHoursError],
+    ["report_review_rejection_rate", rejectionRateError],
   ] as const) {
     if (error) console.error(`[reports] ${name} failed:`, error.message);
   }
@@ -218,6 +234,13 @@ export default async function ReportsPage({
       : 0;
 
   const monthly = groupByMonth(dailySeries);
+  const weekly = groupByWeek(dailySeries);
+
+  const delayRate = (delayRateRaw as number | null) ?? 0;
+  const avgCompletionHours = avgCompletionHoursRaw as number | null;
+  const rejectionRate = (
+    rejectionRateRaw as { total_reviews: number; rejected_count: number; rejection_rate: number }[] | null
+  )?.[0] ?? { total_reviews: 0, rejected_count: 0, rejection_rate: 0 };
 
   type PerfRaw = {
     total_count: number;
@@ -403,6 +426,30 @@ export default async function ReportsPage({
         />
       </div>
 
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <ReportStatCard
+          label="نسبة التأخير"
+          value={`${delayRate}٪`}
+          tone="red"
+          icon={<AlertIcon className="h-5 w-5" />}
+          deltaLabel="من إجمالي المهام (متأخرة أو أُنجزت بعد موعدها)"
+        />
+        <ReportStatCard
+          label="متوسط وقت الإنجاز"
+          value={avgCompletionHours !== null ? `${avgCompletionHours} ساعة` : "—"}
+          tone="blue"
+          icon={<ClockIcon className="h-5 w-5" />}
+          deltaLabel="لكل مهمة مكتملة، على مستوى المؤسسة"
+        />
+        <ReportStatCard
+          label="معدل رفض المراجعة"
+          value={`${rejectionRate.rejection_rate}٪`}
+          tone="amber"
+          icon={<XCircleIcon className="h-5 w-5" />}
+          deltaLabel={`${rejectionRate.rejected_count} من ${rejectionRate.total_reviews} مراجعة خلال الفترة`}
+        />
+      </div>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DepartmentHoursChart
           rows={deptHours
@@ -411,6 +458,8 @@ export default async function ReportsPage({
         />
         <MonthlyTrendChart rows={monthly} />
       </div>
+
+      <MonthlyTrendChart rows={weekly} title="الاتجاه الأسبوعي" subtitle="مقارنة بين المهام المضافة والمنجزة أسبوعيًا" />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
         <RecentTasksPanel tasks={recentTasks} />
@@ -519,6 +568,32 @@ function groupByMonth(daily: DailyRow[]) {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([monthKey, totals]) => ({
       label: MONTH_LABEL.format(new Date(`${monthKey}-01T00:00:00`)),
+      ...totals,
+    }));
+}
+
+/** Same shape as groupByMonth, bucketed by the Sunday-starting week
+ * instead - plain string/date-math on the `day` (YYYY-MM-DD) key, no
+ * timezone concerns since it never touches local getters (same reasoning
+ * calendar-dates.ts documents for its own UTC-only arithmetic). */
+function groupByWeek(daily: DailyRow[]) {
+  const buckets = new Map<string, { created: number; completed: number }>();
+
+  for (const row of daily) {
+    const d = new Date(`${row.day}T00:00:00Z`);
+    const weekStart = new Date(d.getTime() - d.getUTCDay() * 86400000);
+    const weekKey = weekStart.toISOString().slice(0, 10);
+    const bucket = buckets.get(weekKey) ?? { created: 0, completed: 0 };
+    bucket.created += row.created_count;
+    bucket.completed += row.completed_count;
+    buckets.set(weekKey, bucket);
+  }
+
+  return [...buckets.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-10)
+    .map(([weekKey, totals]) => ({
+      label: WEEK_LABEL.format(new Date(`${weekKey}T00:00:00Z`)),
       ...totals,
     }));
 }
