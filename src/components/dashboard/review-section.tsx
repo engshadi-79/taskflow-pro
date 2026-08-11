@@ -11,6 +11,10 @@ export function ReviewSection({ taskId }: { taskId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   async function handle(decision: "approve" | "reject") {
+    if (decision === "reject" && !notes.trim()) {
+      setError("سبب الإرجاع مطلوب");
+      return;
+    }
     setPending(true);
     setError(null);
     const result = await reviewTask(taskId, decision, notes);
@@ -29,7 +33,7 @@ export function ReviewSection({ taskId }: { taskId: string }) {
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         rows={2}
-        placeholder="ملاحظات (اختياري)"
+        placeholder="ملاحظات (مطلوبة عند الرفض)"
         className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
       />
       <div className="flex gap-3">

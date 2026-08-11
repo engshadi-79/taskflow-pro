@@ -336,6 +336,9 @@ export async function reviewTask(
   if (task.status !== "pending_review") {
     return { error: "هذه المهمة ليست بانتظار المراجعة" };
   }
+  if (decision === "reject" && !notes.trim()) {
+    return { error: "سبب الإرجاع مطلوب" };
+  }
 
   const nextStatus = decision === "approve" ? "completed" : "in_progress";
 

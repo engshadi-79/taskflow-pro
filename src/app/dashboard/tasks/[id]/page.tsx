@@ -13,6 +13,7 @@ import { SlaSection } from "@/components/dashboard/sla-section";
 import { DeleteTaskButton } from "@/components/dashboard/delete-task-button";
 import { SubmitForReviewButton } from "@/components/dashboard/submit-for-review-button";
 import { ReviewSection } from "@/components/dashboard/review-section";
+import { TaskTimeline, type TaskTimelineEntry } from "@/components/dashboard/task-timeline";
 import { updateTask } from "@/lib/actions/tasks";
 import {
   PRIORITY_LABEL,
@@ -51,6 +52,7 @@ export default async function TaskDetailPage({
     { data: myOpenEntryRows },
     { data: summaryRows },
     { data: slaRows },
+    { data: timelineRaw },
   ] = await Promise.all([
     supabase.from("tasks").select("*").eq("id", id).single<Task>(),
     supabase
@@ -111,6 +113,13 @@ export default async function TaskDetailPage({
       .limit(1),
     supabase.rpc("task_time_summary", { p_task_id: id }),
     supabase.rpc("task_sla", { p_task_id: id }),
+    supabase
+      .from("activity_log")
+      .select("id, action_type, description, created_at, user:users(full_name)")
+      .eq("entity_type", "task")
+      .eq("entity_id", id)
+      .order("created_at", { ascending: false })
+      .returns<TaskTimelineEntry[]>(),
   ]);
 
   if (!task) {
@@ -258,6 +267,8 @@ export default async function TaskDetailPage({
         currentUserId={profile.id}
         canDeleteAny={profile.role === "super_admin"}
       />
+
+      <TaskTimeline entries={timelineRaw ?? []} />
     </div>
   );
 }

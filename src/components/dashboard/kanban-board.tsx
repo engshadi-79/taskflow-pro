@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { moveTaskStatus } from "@/lib/actions/tasks";
 import { CalendarIcon, InboxIcon } from "@/components/shared/icons";
 import { Avatar } from "@/components/shared/avatar";
@@ -40,6 +41,36 @@ export function KanbanBoard({
   const [items, setItems] = useState(tasks);
   const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+
+    // same auth-race fix as notification-bell.tsx: await the session before
+    // subscribing, or RLS silently drops every event on a freshly-loaded tab
+    supabase.auth.getSession().then(() => {
+      if (cancelled) return;
+      channel = supabase
+        .channel("kanban-tasks")
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "tasks" },
+          (payload) => {
+            const updated = payload.new as { id: string; status: TaskStatus };
+            setItems((prev) =>
+              prev.map((t) => (t.id === updated.id ? { ...t, status: updated.status } : t))
+            );
+          }
+        )
+        .subscribe();
+    });
+
+    return () => {
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, []);
 
   async function handleDrop(status: TaskStatus, taskId: string) {
     setDragOverStatus(null);
