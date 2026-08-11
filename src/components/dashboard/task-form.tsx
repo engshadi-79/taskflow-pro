@@ -19,6 +19,11 @@ type ProjectOption = {
 
 const initialState: TaskFormState = {};
 
+// index = JS/Postgres day-of-week (0=Sunday..6=Saturday), matching
+// recurrence_days_of_week's extract(dow from ...) convention in
+// supabase/recurring_tasks.sql
+const WEEKDAY_LABELS = ["أحد", "اثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"];
+
 const inputClass =
   "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500";
 
@@ -37,6 +42,8 @@ export function TaskForm({
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const [isRecurring, setIsRecurring] = useState(task?.is_recurring ?? false);
+  const [recurrencePattern, setRecurrencePattern] = useState(task?.recurrence_pattern ?? "weekly");
+  const [recurrenceDays, setRecurrenceDays] = useState<number[]>(task?.recurrence_days_of_week ?? []);
   const [projectId, setProjectId] = useState(task?.project_id ?? "");
   const milestones = projects.find((p) => p.id === projectId)?.milestones ?? [];
 
@@ -180,19 +187,91 @@ export function TaskForm({
       </div>
 
       {isRecurring && (
-        <label className="block sm:w-1/2">
-          <span className="mb-1.5 block text-sm font-medium text-foreground">نمط التكرار</span>
-          <select
-            name="recurrence_pattern"
-            defaultValue={task?.recurrence_pattern ?? "weekly"}
-            className={inputClass}
-          >
-            <option value="daily">يوميًا</option>
-            <option value="weekly">أسبوعيًا</option>
-            <option value="monthly">شهريًا</option>
-            <option value="yearly">سنويًا</option>
-          </select>
-        </label>
+        <div className="space-y-4 rounded-md border border-border bg-background p-4">
+          <div className="flex flex-wrap gap-4">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-foreground">نمط التكرار</span>
+              <select
+                name="recurrence_pattern"
+                value={recurrencePattern}
+                onChange={(e) => setRecurrencePattern(e.target.value as typeof recurrencePattern)}
+                className={inputClass}
+              >
+                <option value="daily">يوميًا</option>
+                <option value="weekly">أسبوعيًا</option>
+                <option value="monthly">شهريًا</option>
+                <option value="yearly">سنويًا</option>
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-foreground">
+                كل كم {recurrencePattern === "daily" ? "يوم" : recurrencePattern === "weekly" ? "أسبوع" : recurrencePattern === "monthly" ? "شهر" : "سنة"}
+              </span>
+              <input
+                type="number"
+                name="recurrence_interval"
+                min={1}
+                defaultValue={task?.recurrence_interval ?? 1}
+                className={`${inputClass} w-24`}
+              />
+            </label>
+          </div>
+
+          {recurrencePattern === "weekly" && (
+            <div>
+              <span className="mb-1.5 block text-sm font-medium text-foreground">أيام محددة (اختياري)</span>
+              <div className="flex flex-wrap gap-2">
+                {WEEKDAY_LABELS.map((label, dow) => (
+                  <label
+                    key={dow}
+                    className={`cursor-pointer rounded-full border px-3 py-1.5 text-xs font-bold ${
+                      recurrenceDays.includes(dow)
+                        ? "border-accent-500 bg-accent-50 text-accent-700"
+                        : "border-border bg-surface text-muted"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="recurrence_days_of_week"
+                      value={dow}
+                      checked={recurrenceDays.includes(dow)}
+                      onChange={(e) =>
+                        setRecurrenceDays((prev) =>
+                          e.target.checked ? [...prev, dow] : prev.filter((d) => d !== dow)
+                        )
+                      }
+                      className="hidden"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-4">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-foreground">تاريخ الانتهاء (اختياري)</span>
+              <input
+                type="date"
+                name="recurrence_end_date"
+                defaultValue={task?.recurrence_end_date ?? ""}
+                className={inputClass}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-foreground">أقصى عدد مرات (اختياري)</span>
+              <input
+                type="number"
+                name="recurrence_count"
+                min={1}
+                defaultValue={task?.recurrence_count ?? ""}
+                className={`${inputClass} w-32`}
+              />
+            </label>
+          </div>
+        </div>
       )}
 
       <div className="flex items-center gap-3">

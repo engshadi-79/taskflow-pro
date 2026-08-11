@@ -23,6 +23,12 @@ export type Task = {
   due_time: string | null;
   is_recurring: boolean;
   recurrence_pattern: RecurrencePattern | null;
+  recurrence_interval: number;
+  recurrence_days_of_week: number[] | null;
+  recurrence_end_date: string | null;
+  recurrence_count: number | null;
+  recurring_root_id: string | null;
+  occurrence_number: number;
   project_id: string | null;
   milestone_id: string | null;
   parent_task_id: string | null;
@@ -71,4 +77,11 @@ export const STATUS_LABEL: Record<TaskStatus, string> = {
   completed: "مكتملة",
   overdue: "متأخرة",
   cancelled: "ملغاة",
+};
+
+export const RECURRENCE_LABEL: Record<RecurrencePattern, string> = {
+  daily: "يوميًا",
+  weekly: "أسبوعيًا",
+  monthly: "شهريًا",
+  yearly: "سنويًا",
 };

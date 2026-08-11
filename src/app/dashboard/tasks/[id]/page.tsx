@@ -17,6 +17,7 @@ import { TaskTimeline, type TaskTimelineEntry } from "@/components/dashboard/tas
 import { updateTask } from "@/lib/actions/tasks";
 import {
   PRIORITY_LABEL,
+  RECURRENCE_LABEL,
   STATUS_LABEL,
   type Task,
   type TaskAttachment,
@@ -137,6 +138,19 @@ export default async function TaskDetailPage({
     ? (await supabase.from("tasks").select("id, title").eq("id", task.parent_task_id).single()).data
     : null;
 
+  const recurringRoot = task.recurring_root_id
+    ? (await supabase.from("tasks").select("id, title").eq("id", task.recurring_root_id).single()).data
+    : null;
+
+  const recurringOccurrenceCount = task.is_recurring
+    ? (
+        await supabase
+          .from("tasks")
+          .select("*", { count: "exact", head: true })
+          .or(`id.eq.${task.id},recurring_root_id.eq.${task.id}`)
+      ).count
+    : null;
+
   const canManage = profile.role === "super_admin" || profile.role === "department_manager";
 
   const attachmentsWithUrls = await Promise.all(
@@ -174,6 +188,23 @@ export default async function TaskDetailPage({
         >
           ← جزء من: {parentTask.title}
         </Link>
+      )}
+
+      {recurringRoot && (
+        <Link
+          href={`/dashboard/tasks/${recurringRoot.id}`}
+          className="inline-block text-[12.5px] font-bold text-accent-600 hover:underline"
+        >
+          ← نسخة متكررة رقم {task.occurrence_number} من: {recurringRoot.title}
+        </Link>
+      )}
+
+      {task.is_recurring && task.recurrence_pattern && (
+        <p className="text-[12.5px] font-bold text-muted">
+          تتكرر {RECURRENCE_LABEL[task.recurrence_pattern]} (كل {task.recurrence_interval}) — {recurringOccurrenceCount ?? 1} نسخة حتى الآن
+          {task.recurrence_end_date && ` — حتى ${task.recurrence_end_date}`}
+          {task.recurrence_count && ` — بحد أقصى ${task.recurrence_count} مرة`}
+        </p>
       )}
 
       <div className="flex items-center justify-between">

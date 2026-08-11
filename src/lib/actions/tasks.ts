@@ -24,6 +24,16 @@ function parseTaskFields(formData: FormData) {
   const recurrencePattern = isRecurring
     ? ((formData.get("recurrence_pattern") as RecurrencePattern) || null)
     : null;
+  const recurrenceIntervalRaw = (formData.get("recurrence_interval") as string)?.trim();
+  const recurrenceInterval =
+    isRecurring && recurrenceIntervalRaw ? Number(recurrenceIntervalRaw) : 1;
+  const recurrenceDaysOfWeek =
+    isRecurring && recurrencePattern === "weekly"
+      ? formData.getAll("recurrence_days_of_week").map((v) => Number(v))
+      : [];
+  const recurrenceEndDate = isRecurring ? (formData.get("recurrence_end_date") as string) || null : null;
+  const recurrenceCountRaw = (formData.get("recurrence_count") as string)?.trim();
+  const recurrenceCount = isRecurring && recurrenceCountRaw ? Number(recurrenceCountRaw) : null;
   const projectId = (formData.get("project_id") as string) || null;
   // a milestone only makes sense alongside its own project - the
   // tasks_enforce_milestone_project_match trigger (projects_foundation.sql)
@@ -44,6 +54,10 @@ function parseTaskFields(formData: FormData) {
     dueTime,
     isRecurring,
     recurrencePattern,
+    recurrenceInterval,
+    recurrenceDaysOfWeek,
+    recurrenceEndDate,
+    recurrenceCount,
     projectId,
     milestoneId,
     estimatedHours,
@@ -66,6 +80,19 @@ export async function createTask(
   if (fields.isRecurring && !fields.recurrencePattern) {
     return { error: "اختر نمط التكرار للمهمة المتكررة" };
   }
+  if (fields.isRecurring && (!Number.isInteger(fields.recurrenceInterval) || fields.recurrenceInterval < 1)) {
+    return { error: "فاصل التكرار يجب أن يكون رقمًا صحيحًا موجبًا" };
+  }
+  if (
+    fields.isRecurring &&
+    fields.recurrenceCount !== null &&
+    (!Number.isInteger(fields.recurrenceCount) || fields.recurrenceCount < 1)
+  ) {
+    return { error: "عدد مرات التكرار يجب أن يكون رقمًا صحيحًا موجبًا" };
+  }
+  if (fields.isRecurring && !fields.dueDate) {
+    return { error: "المهمة المتكررة تحتاج تاريخ استحقاق أولي" };
+  }
   if (fields.estimatedHours !== null && (Number.isNaN(fields.estimatedHours) || fields.estimatedHours < 0)) {
     return { error: "الوقت المخطط يجب أن يكون رقمًا صحيحًا موجبًا" };
   }
@@ -87,6 +114,10 @@ export async function createTask(
       due_time: fields.dueTime,
       is_recurring: fields.isRecurring,
       recurrence_pattern: fields.recurrencePattern,
+      recurrence_interval: fields.recurrenceInterval,
+      recurrence_days_of_week: fields.recurrenceDaysOfWeek.length ? fields.recurrenceDaysOfWeek : null,
+      recurrence_end_date: fields.recurrenceEndDate,
+      recurrence_count: fields.recurrenceCount,
       project_id: fields.projectId,
       milestone_id: fields.milestoneId,
       estimated_hours: fields.estimatedHours,
@@ -119,6 +150,19 @@ export async function updateTask(
   if (fields.isRecurring && !fields.recurrencePattern) {
     return { error: "اختر نمط التكرار للمهمة المتكررة" };
   }
+  if (fields.isRecurring && (!Number.isInteger(fields.recurrenceInterval) || fields.recurrenceInterval < 1)) {
+    return { error: "فاصل التكرار يجب أن يكون رقمًا صحيحًا موجبًا" };
+  }
+  if (
+    fields.isRecurring &&
+    fields.recurrenceCount !== null &&
+    (!Number.isInteger(fields.recurrenceCount) || fields.recurrenceCount < 1)
+  ) {
+    return { error: "عدد مرات التكرار يجب أن يكون رقمًا صحيحًا موجبًا" };
+  }
+  if (fields.isRecurring && !fields.dueDate) {
+    return { error: "المهمة المتكررة تحتاج تاريخ استحقاق أولي" };
+  }
   if (fields.estimatedHours !== null && (Number.isNaN(fields.estimatedHours) || fields.estimatedHours < 0)) {
     return { error: "الوقت المخطط يجب أن يكون رقمًا صحيحًا موجبًا" };
   }
@@ -138,6 +182,10 @@ export async function updateTask(
       due_time: fields.dueTime,
       is_recurring: fields.isRecurring,
       recurrence_pattern: fields.recurrencePattern,
+      recurrence_interval: fields.recurrenceInterval,
+      recurrence_days_of_week: fields.recurrenceDaysOfWeek.length ? fields.recurrenceDaysOfWeek : null,
+      recurrence_end_date: fields.recurrenceEndDate,
+      recurrence_count: fields.recurrenceCount,
       project_id: fields.projectId,
       milestone_id: fields.milestoneId,
       estimated_hours: fields.estimatedHours,
