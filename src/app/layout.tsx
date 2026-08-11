@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Noto_Kufi_Arabic } from "next/font/google";
 import "./globals.css";
+import { ServiceWorkerRegister } from "@/components/shared/service-worker-register";
 
 // The ACAS portal uses Noto Kufi Arabic throughout, for headings and body alike.
 const notoKufi = Noto_Kufi_Arabic({
@@ -12,6 +13,20 @@ const notoKufi = Noto_Kufi_Arabic({
 export const metadata: Metadata = {
   title: "منجز",
   description: "نظام إدارة مهام الموظفين",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#4f46e5",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -40,6 +55,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground font-body">
         {children}
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

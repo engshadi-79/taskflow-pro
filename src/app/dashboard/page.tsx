@@ -508,18 +508,20 @@ export default async function DashboardPage() {
           {activity.length === 0 ? (
             <p className="text-sm text-muted">لا توجد نشاطات بعد</p>
           ) : (
-            <table className="w-full">
-              <tbody>
-                {activity.map((row) => (
-                  <ActivityRow
-                    key={row.id}
-                    description={row.description}
-                    actorName={row.actor?.full_name ?? null}
-                    timeAgo={timeAgo(row.created_at)}
-                  />
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <tbody>
+                  {activity.map((row) => (
+                    <ActivityRow
+                      key={row.id}
+                      description={row.description}
+                      actorName={row.actor?.full_name ?? null}
+                      timeAgo={timeAgo(row.created_at)}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

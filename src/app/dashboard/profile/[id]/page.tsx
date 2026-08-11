@@ -226,35 +226,37 @@ export default async function ProfileDetailPage({
               </Link>
             </div>
             {tasks && tasks.length > 0 ? (
-              <table className="w-full text-sm">
-                <thead className="text-xs text-faint">
-                  <tr>
-                    <th className="px-1.5 py-2 text-start">المهمة</th>
-                    <th className="px-1.5 py-2 text-start">الأولوية</th>
-                    <th className="px-1.5 py-2 text-start">الموعد</th>
-                    <th className="px-1.5 py-2 text-start">الحالة</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tasks.map((task) => (
-                    <tr key={task.id} className="border-t border-border">
-                      <td className="px-1.5 py-3">
-                        <Link
-                          href={`/dashboard/tasks/${task.id}`}
-                          className={`font-medium hover:text-accent-600 ${
-                            task.status === "completed" ? "text-faint line-through" : "text-foreground"
-                          }`}
-                        >
-                          {task.title}
-                        </Link>
-                      </td>
-                      <td className="px-1.5 py-3 text-muted">{PRIORITY_LABEL[task.priority]}</td>
-                      <td className="px-1.5 py-3 text-muted">{task.due_date ?? "—"}</td>
-                      <td className="px-1.5 py-3 text-muted">{STATUS_LABEL[task.status]}</td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-faint">
+                    <tr>
+                      <th className="px-1.5 py-2 text-start">المهمة</th>
+                      <th className="px-1.5 py-2 text-start">الأولوية</th>
+                      <th className="px-1.5 py-2 text-start">الموعد</th>
+                      <th className="px-1.5 py-2 text-start">الحالة</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {tasks.map((task) => (
+                      <tr key={task.id} className="border-t border-border">
+                        <td className="px-1.5 py-3">
+                          <Link
+                            href={`/dashboard/tasks/${task.id}`}
+                            className={`font-medium hover:text-accent-600 ${
+                              task.status === "completed" ? "text-faint line-through" : "text-foreground"
+                            }`}
+                          >
+                            {task.title}
+                          </Link>
+                        </td>
+                        <td className="px-1.5 py-3 text-muted">{PRIORITY_LABEL[task.priority]}</td>
+                        <td className="px-1.5 py-3 text-muted">{task.due_date ?? "—"}</td>
+                        <td className="px-1.5 py-3 text-muted">{STATUS_LABEL[task.status]}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <p className="text-sm text-muted">لا توجد مهام حالية</p>
             )}
