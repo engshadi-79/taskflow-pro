@@ -12,6 +12,7 @@ import {
   MiniListPanel,
 } from "@/components/dashboard/dashboard-widgets";
 import { WelcomeBanner } from "@/components/dashboard/welcome-banner";
+import { OnlineNowWidget } from "@/components/dashboard/online-now-widget";
 import { QuickShortcuts } from "@/components/dashboard/quick-shortcuts";
 import { StatCard } from "@/components/shared/stat-card";
 import {
@@ -130,11 +131,16 @@ export default async function DashboardPage({
 
     return (
       <div className="space-y-5">
-        <WelcomeBanner
-          fullName={profile.full_name}
-          role={profile.role}
-          departmentName={(ownDept as { name: string } | null)?.name}
-        />
+        <div className="flex flex-wrap-reverse gap-4">
+          <div className="min-w-0 flex-1">
+            <WelcomeBanner
+              fullName={profile.full_name}
+              role={profile.role}
+              departmentName={(ownDept as { name: string } | null)?.name}
+            />
+          </div>
+          <OnlineNowWidget organizationId={profile.organization_id} userId={profile.id} role={profile.role} />
+        </div>
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard
@@ -378,11 +384,16 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-4.5">
-      <WelcomeBanner
-        fullName={profile.full_name}
-        role={profile.role}
-        departmentName={(ownDepartment as { name: string } | null)?.name}
-      />
+      <div className="flex flex-wrap-reverse gap-4">
+        <div className="min-w-0 flex-1">
+          <WelcomeBanner
+            fullName={profile.full_name}
+            role={profile.role}
+            departmentName={(ownDepartment as { name: string } | null)?.name}
+          />
+        </div>
+        <OnlineNowWidget organizationId={profile.organization_id} userId={profile.id} role={profile.role} />
+      </div>
 
       <form method="get" className="flex flex-wrap items-end gap-2.5 rounded-[18px] border border-border bg-surface p-4">
         <select
