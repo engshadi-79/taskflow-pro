@@ -43,11 +43,11 @@ export function PresenceTracker({
       channel.subscribe((status, err) => {
         // temporary diagnostics for the "employees always shows 0" report -
         // remove once presence is confirmed working end to end
-        console.debug("[presence-tracker] subscribe status:", status, err ?? "");
+        console.log("[presence-tracker] subscribe status:", status, err ?? "");
         if (status === "SUBSCRIBED") {
           channel!
             .track({ userId, fullName, role, departmentName, avatarUrl, pathname })
-            .then((trackStatus) => console.debug("[presence-tracker] track status:", trackStatus));
+            .then((trackStatus) => console.log("[presence-tracker] track status:", trackStatus));
         }
       });
     });

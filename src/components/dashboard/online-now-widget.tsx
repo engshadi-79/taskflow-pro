@@ -52,7 +52,7 @@ export function OnlineNowWidget({ organizationId }: { organizationId: string }) 
           const state = channel!.presenceState<Partial<PresenceEntry>>();
           // temporary diagnostics for the "employees always shows 0" report -
           // remove once presence is confirmed working end to end
-          console.debug("[online-now-widget] presence sync, raw state:", state);
+          console.log("[online-now-widget] presence sync, raw state:", state);
           // another open tab can still be running an older deploy that
           // tracked fewer fields (e.g. just {role}) - normalize every
           // entry so a stale/partial payload from someone else's browser
@@ -73,7 +73,7 @@ export function OnlineNowWidget({ organizationId }: { organizationId: string }) 
           setLastSync(new Date());
         })
         .subscribe((status, err) => {
-          console.debug("[online-now-widget] subscribe status:", status, err ?? "");
+          console.log("[online-now-widget] subscribe status:", status, err ?? "");
         });
     });
 
