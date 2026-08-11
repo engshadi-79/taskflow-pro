@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/data/profile";
-import { runAssistant } from "@/lib/ai/assistant";
+import { runAssistant, AiProviderRateLimitError } from "@/lib/ai/assistant";
 
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_HISTORY_TURNS = 10;
@@ -77,6 +77,9 @@ export async function POST(request: Request) {
   try {
     result = await runAssistant({ supabase, profile }, history, message);
   } catch (err) {
+    if (err instanceof AiProviderRateLimitError) {
+      return NextResponse.json({ error: err.message }, { status: 429 });
+    }
     console.error("AI assistant error", err);
     return NextResponse.json({ error: "تعذر الوصول إلى المساعد الذكي، حاول مرة أخرى." }, { status: 502 });
   }
