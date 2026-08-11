@@ -66,8 +66,24 @@ export function OnlineNowWidget({
 
       channel
         .on("presence", { event: "sync" }, () => {
-          const state = channel!.presenceState<PresenceEntry>();
-          setEntries(Object.values(state).map((presences) => presences[0]).filter(Boolean));
+          const state = channel!.presenceState<Partial<PresenceEntry>>();
+          // another open tab can still be running an older deploy that
+          // tracked fewer fields (e.g. just {role}) - normalize every
+          // entry so a stale/partial payload from someone else's browser
+          // never crashes rendering here
+          setEntries(
+            Object.values(state)
+              .map((presences) => presences[0])
+              .filter(Boolean)
+              .map((p) => ({
+                userId: p.userId ?? "",
+                fullName: p.fullName ?? "مستخدم",
+                role: p.role ?? "employee",
+                departmentName: p.departmentName ?? null,
+                avatarUrl: p.avatarUrl ?? null,
+                pathname: p.pathname ?? "",
+              }))
+          );
           setLastSync(new Date());
         })
         .subscribe((status) => {
