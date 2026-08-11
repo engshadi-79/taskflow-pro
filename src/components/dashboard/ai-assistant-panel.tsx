@@ -115,7 +115,7 @@ export function AiAssistantPanel() {
   }
 
   return (
-    <div ref={wrapRef} className="fixed bottom-5 start-5 z-50">
+    <div ref={wrapRef} className="fixed bottom-5 end-5 z-50">
       {open && (
         <div
           role="dialog"
