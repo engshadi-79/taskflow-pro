@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { rescheduleTask } from "@/lib/actions/tasks";
 import { dayOfMonth, isSameMonth, todayKey, weekdayLabel, type DateKey } from "@/lib/calendar-dates";
+import { RefreshIcon } from "@/components/shared/icons";
 import { PRIORITY_LABEL, STATUS_LABEL, type Priority, type TaskStatus } from "@/lib/types/task";
 
 export type CalendarTaskItem = {
@@ -11,6 +12,8 @@ export type CalendarTaskItem = {
   title: string;
   status: TaskStatus;
   priority: Priority;
+  assigned_to: string;
+  is_recurring: boolean;
   assignee_name: string | null;
 };
 
@@ -37,12 +40,20 @@ export function CalendarGrid({
   cells,
   view,
   anchorMonth,
+  canManage,
+  currentUserId,
 }: {
   cells: CalendarCell[];
   view: "month" | "week" | "day";
   /** Any date within the month being shown - only used to grey out
    * days that spill into the next/previous month in month view. */
   anchorMonth: DateKey;
+  /** Same permission shape as rescheduleTask: managers can drag anyone's
+   * task, an assignee can only drag their own - gating `draggable` here
+   * too (not just the server check) matches KanbanBoard's existing UX
+   * instead of letting a disallowed drag fail after the fact. */
+  canManage: boolean;
+  currentUserId: string;
 }) {
   const [byDate, setByDate] = useState<Record<DateKey, CalendarTaskItem[]>>(() => {
     const map: Record<DateKey, CalendarTaskItem[]> = {};
@@ -151,25 +162,40 @@ export function CalendarGrid({
                     اجتماع{mt.meeting_time ? ` ${mt.meeting_time}` : ""}: {mt.title}
                   </Link>
                 ))}
-                {tasks.map((task) => (
-                  <div
-                    key={task.id}
-                    draggable
-                    onDragStart={(e) => e.dataTransfer.setData("text/plain", task.id)}
-                    title={`${PRIORITY_LABEL[task.priority]} — ${STATUS_LABEL[task.status]}`}
-                    className="flex cursor-grab items-center gap-1.5 truncate rounded bg-background px-1.5 py-1 text-[11px] active:cursor-grabbing"
-                  >
-                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${PRIORITY_DOT[task.priority]}`} />
-                    <Link
-                      href={`/dashboard/tasks/${task.id}`}
-                      className={`truncate hover:text-accent-600 ${
-                        task.status === "completed" ? "text-faint line-through" : "text-foreground"
+                {tasks.map((task) => {
+                  const canDrag = canManage || task.assigned_to === currentUserId;
+                  return (
+                    <div
+                      key={task.id}
+                      draggable={canDrag}
+                      onDragStart={(e) => {
+                        if (!canDrag) return;
+                        e.dataTransfer.setData("text/plain", task.id);
+                      }}
+                      title={`${PRIORITY_LABEL[task.priority]} — ${STATUS_LABEL[task.status]}`}
+                      className={`flex items-center gap-1.5 truncate rounded bg-background px-1.5 py-1 text-[11px] ${
+                        canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-90"
                       }`}
                     >
-                      {task.title}
-                    </Link>
-                  </div>
-                ))}
+                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${PRIORITY_DOT[task.priority]}`} />
+                      {task.is_recurring && (
+                        <RefreshIcon className="h-3 w-3 shrink-0 text-accent-500" />
+                      )}
+                      <Link
+                        href={`/dashboard/tasks/${task.id}`}
+                        className={`truncate hover:text-accent-600 ${
+                          task.status === "completed"
+                            ? "text-faint line-through"
+                            : task.status === "overdue"
+                              ? "font-bold text-brand-red-500"
+                              : "text-foreground"
+                        }`}
+                      >
+                        {task.title}
+                      </Link>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );

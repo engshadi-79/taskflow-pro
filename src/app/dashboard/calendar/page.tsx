@@ -62,7 +62,9 @@ export default async function CalendarPage({
 
   let taskQuery = supabase
     .from("tasks")
-    .select("id, title, status, priority, due_date, assignee:users!tasks_assigned_to_fkey(full_name)")
+    .select(
+      "id, title, status, priority, due_date, assigned_to, is_recurring, assignee:users!tasks_assigned_to_fkey(full_name)"
+    )
     .gte("due_date", rangeStart)
     .lte("due_date", rangeEnd)
     .not("due_date", "is", null);
@@ -107,7 +109,16 @@ export default async function CalendarPage({
     { data: employees },
   ] = await Promise.all([
     taskQuery.returns<
-      { id: string; title: string; status: TaskStatus; priority: Priority; due_date: string; assignee: { full_name: string } | null }[]
+      {
+        id: string;
+        title: string;
+        status: TaskStatus;
+        priority: Priority;
+        due_date: string;
+        assigned_to: string;
+        is_recurring: boolean;
+        assignee: { full_name: string } | null;
+      }[]
     >(),
     milestoneQuery.returns<{ id: string; title: string; due_date: string; project: { name: string } | null }[]>(),
     projectQuery.returns<{ id: string; name: string; due_date: string }[]>(),
@@ -127,7 +138,15 @@ export default async function CalendarPage({
     date,
     tasks: (tasks ?? [])
       .filter((t) => t.due_date === date)
-      .map((t) => ({ id: t.id, title: t.title, status: t.status, priority: t.priority, assignee_name: t.assignee?.full_name ?? null })),
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        priority: t.priority,
+        assigned_to: t.assigned_to,
+        is_recurring: t.is_recurring,
+        assignee_name: t.assignee?.full_name ?? null,
+      })),
     milestones: (milestones ?? [])
       .filter((m) => m.due_date === date)
       .map((m) => ({ id: m.id, title: m.title, project_name: m.project?.name ?? "" })),
@@ -238,7 +257,13 @@ export default async function CalendarPage({
         </form>
       </div>
 
-      <CalendarGrid cells={cells} view={view} anchorMonth={anchor} />
+      <CalendarGrid
+        cells={cells}
+        view={view}
+        anchorMonth={anchor}
+        canManage={profile.role === "super_admin" || profile.role === "department_manager"}
+        currentUserId={profile.id}
+      />
     </div>
   );
 }
