@@ -1,9 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { BriefcaseIcon, UserIcon } from "@/components/shared/icons";
+import { Avatar } from "@/components/shared/avatar";
+import { Modal } from "@/components/shared/modal";
+import { BriefcaseIcon, RefreshIcon, UserIcon } from "@/components/shared/icons";
 import type { Role } from "@/lib/types/roles";
+
+const ROLE_LABEL: Record<Role, string> = {
+  super_admin: "مدير عام",
+  department_manager: "مدير قسم",
+  employee: "موظف",
+};
+
+type PresenceEntry = {
+  userId: string;
+  fullName: string;
+  role: Role;
+  departmentName: string | null;
+  avatarUrl: string | null;
+  pathname: string;
+};
 
 /**
  * Real presence, not a stored/derived number: every dashboard tab that has
@@ -15,14 +33,22 @@ import type { Role } from "@/lib/types/roles";
 export function OnlineNowWidget({
   organizationId,
   userId,
+  fullName,
   role,
+  departmentName,
+  avatarUrl,
 }: {
   organizationId: string;
   userId: string;
+  fullName: string;
   role: Role;
+  departmentName: string | null;
+  avatarUrl: string | null;
 }) {
-  const [managers, setManagers] = useState(0);
-  const [employees, setEmployees] = useState(0);
+  const [entries, setEntries] = useState<PresenceEntry[]>([]);
+  const [openGroup, setOpenGroup] = useState<"management" | "employees" | null>(null);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     const supabase = createClient();
@@ -40,21 +66,13 @@ export function OnlineNowWidget({
 
       channel
         .on("presence", { event: "sync" }, () => {
-          const state = channel!.presenceState<{ role: Role }>();
-          let m = 0;
-          let e = 0;
-          for (const presences of Object.values(state)) {
-            const p = presences[0];
-            if (!p) continue;
-            if (p.role === "employee") e += 1;
-            else m += 1;
-          }
-          setManagers(m);
-          setEmployees(e);
+          const state = channel!.presenceState<PresenceEntry>();
+          setEntries(Object.values(state).map((presences) => presences[0]).filter(Boolean));
+          setLastSync(new Date());
         })
         .subscribe((status) => {
           if (status === "SUBSCRIBED") {
-            channel!.track({ role });
+            channel!.track({ userId, fullName, role, departmentName, avatarUrl, pathname });
           }
         });
     });
@@ -63,26 +81,103 @@ export function OnlineNowWidget({
       cancelled = true;
       if (channel) supabase.removeChannel(channel);
     };
-  }, [organizationId, userId, role]);
+    // re-tracking on every pathname change keeps "current page" fresh for
+    // everyone else without needing a manual refresh
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, userId, pathname]);
+
+  const management = entries.filter((e) => e.role !== "employee");
+  const employees = entries.filter((e) => e.role === "employee");
 
   return (
-    <div className="flex shrink-0 flex-col justify-center gap-2 rounded-[20px] border border-border bg-surface px-4 py-3.5">
-      <p className="flex items-center gap-1.5 text-[12.5px] font-extrabold text-foreground">
-        <span className="h-2 w-2 rounded-full bg-green-500" />
-        متصلون الآن
-      </p>
-      <div className="flex items-center gap-2">
-        <div className="flex flex-1 flex-col items-center gap-1 rounded-xl border border-border bg-background px-3 py-2">
-          <BriefcaseIcon className="h-4 w-4 text-accent-600" />
-          <b className="text-[15px] text-foreground">{managers}</b>
-          <span className="text-[10.5px] font-bold text-faint">الإدارة</span>
-        </div>
-        <div className="flex flex-1 flex-col items-center gap-1 rounded-xl border border-border bg-background px-3 py-2">
-          <UserIcon className="h-4 w-4 text-accent-600" />
-          <b className="text-[15px] text-foreground">{employees}</b>
-          <span className="text-[10.5px] font-bold text-faint">الموظفون</span>
+    <>
+      <div className="flex shrink-0 flex-col justify-center gap-2 rounded-[20px] border border-border bg-surface px-4 py-3.5">
+        <p className="flex items-center gap-1.5 text-[12.5px] font-extrabold text-foreground">
+          <span className="h-2 w-2 rounded-full bg-green-500" />
+          متصلون الآن
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setOpenGroup("management")}
+            className="flex flex-1 flex-col items-center gap-1 rounded-xl border border-border bg-background px-3 py-2 transition-colors hover:bg-accent-50"
+          >
+            <BriefcaseIcon className="h-4 w-4 text-accent-600" />
+            <b className="text-[15px] text-foreground">{management.length}</b>
+            <span className="text-[10.5px] font-bold text-faint">الإدارة</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpenGroup("employees")}
+            className="flex flex-1 flex-col items-center gap-1 rounded-xl border border-border bg-background px-3 py-2 transition-colors hover:bg-accent-50"
+          >
+            <UserIcon className="h-4 w-4 text-accent-600" />
+            <b className="text-[15px] text-foreground">{employees.length}</b>
+            <span className="text-[10.5px] font-bold text-faint">الموظفون</span>
+          </button>
         </div>
       </div>
-    </div>
+
+      {openGroup && (
+        <OnlineListModal
+          title={openGroup === "management" ? "المتصلون من الإدارة" : "المتصلون من الموظفين"}
+          entries={openGroup === "management" ? management : employees}
+          lastSync={lastSync}
+          onClose={() => setOpenGroup(null)}
+        />
+      )}
+    </>
+  );
+}
+
+function OnlineListModal({
+  title,
+  entries,
+  lastSync,
+  onClose,
+}: {
+  title: string;
+  entries: PresenceEntry[];
+  lastSync: Date | null;
+  onClose: () => void;
+}) {
+  return (
+    <Modal title={title} subtitle={`${entries.length} متصل الآن`} onClose={onClose}>
+      <div className="space-y-2.5">
+        {entries.length === 0 && <p className="text-sm text-muted">لا يوجد أحد متصل حاليًا</p>}
+
+        {entries.map((e) => (
+          <div key={e.userId} className="flex items-center gap-3 rounded-xl border border-border bg-background p-2.5">
+            <Avatar src={e.avatarUrl} name={e.fullName} size={38} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-extrabold text-foreground">{e.fullName}</p>
+              <p className="truncate text-[11.5px] text-faint">
+                {ROLE_LABEL[e.role]}
+                {e.departmentName && ` — ${e.departmentName}`}
+              </p>
+              <p className="truncate text-[10.5px] text-muted">{e.pathname}</p>
+            </div>
+            <span className="flex items-center gap-1 text-[11px] font-bold text-green-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+              الآن
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
+        <span className="flex items-center gap-1.5 text-[11px] text-faint">
+          <RefreshIcon className="h-3 w-3" />
+          يتحدّث لحظيًا — آخر تغيير: {lastSync ? lastSync.toLocaleTimeString("ar") : "—"}
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full border border-border px-3 py-1.5 text-[12px] font-bold text-foreground hover:bg-background"
+        >
+          إغلاق
+        </button>
+      </div>
+    </Modal>
   );
 }

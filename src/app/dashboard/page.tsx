@@ -139,7 +139,14 @@ export default async function DashboardPage({
               departmentName={(ownDept as { name: string } | null)?.name}
             />
           </div>
-          <OnlineNowWidget organizationId={profile.organization_id} userId={profile.id} role={profile.role} />
+          <OnlineNowWidget
+            organizationId={profile.organization_id}
+            userId={profile.id}
+            fullName={profile.full_name}
+            role={profile.role}
+            departmentName={(ownDept as { name: string } | null)?.name ?? null}
+            avatarUrl={profile.avatar_url}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -392,7 +399,14 @@ export default async function DashboardPage({
             departmentName={(ownDepartment as { name: string } | null)?.name}
           />
         </div>
-        <OnlineNowWidget organizationId={profile.organization_id} userId={profile.id} role={profile.role} />
+        <OnlineNowWidget
+          organizationId={profile.organization_id}
+          userId={profile.id}
+          fullName={profile.full_name}
+          role={profile.role}
+          departmentName={(ownDepartment as { name: string } | null)?.name ?? null}
+          avatarUrl={profile.avatar_url}
+        />
       </div>
 
       <form method="get" className="flex flex-wrap items-end gap-2.5 rounded-[18px] border border-border bg-surface p-4">
