@@ -5,6 +5,14 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
 import { BriefcaseIcon, PlusIcon } from "@/components/shared/icons";
 import { PROJECT_STATUS_LABEL, type ProjectWithManager } from "@/lib/types/project";
+import { PRIORITY_LABEL } from "@/lib/types/task";
+
+const PRIORITY_BADGE: Record<string, string> = {
+  low: "bg-background text-muted",
+  medium: "bg-brand-blue-50 text-brand-blue-600",
+  high: "bg-orange-50 text-orange-600",
+  urgent: "bg-brand-red-50 text-brand-red-500",
+};
 
 const STATUS_BADGE: Record<string, string> = {
   planning: "bg-border text-foreground",
@@ -88,11 +96,18 @@ export default async function ProjectsPage() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="font-display text-[16px] text-foreground">{project.name}</h3>
-                  <span
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-extrabold ${STATUS_BADGE[project.status]}`}
-                  >
-                    {PROJECT_STATUS_LABEL[project.status]}
-                  </span>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${STATUS_BADGE[project.status]}`}
+                    >
+                      {PROJECT_STATUS_LABEL[project.status]}
+                    </span>
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${PRIORITY_BADGE[project.priority]}`}
+                    >
+                      {PRIORITY_LABEL[project.priority]}
+                    </span>
+                  </div>
                 </div>
 
                 {project.description && (

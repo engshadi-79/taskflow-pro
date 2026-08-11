@@ -16,7 +16,7 @@ import {
   type ProjectMilestone,
   type ProjectTaskStats,
 } from "@/lib/types/project";
-import type { TaskWithAssignee } from "@/lib/types/task";
+import { PRIORITY_LABEL, type TaskWithAssignee } from "@/lib/types/task";
 
 export default async function ProjectDetailPage({
   params,
@@ -260,9 +260,14 @@ export default async function ProjectDetailPage({
           </Link>
           <h1 className="font-display text-[22px] text-foreground">{project.name}</h1>
         </div>
-        <span className="rounded-full bg-accent-50 px-3.5 py-1.5 text-[12.5px] font-extrabold text-accent-600">
-          {PROJECT_STATUS_LABEL[project.status]}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-accent-50 px-3.5 py-1.5 text-[12.5px] font-extrabold text-accent-600">
+            {PROJECT_STATUS_LABEL[project.status]}
+          </span>
+          <span className="rounded-full bg-background px-3.5 py-1.5 text-[12.5px] font-extrabold text-muted">
+            {PRIORITY_LABEL[project.priority]}
+          </span>
+        </div>
       </div>
 
       <ProjectTabs panels={panels} />

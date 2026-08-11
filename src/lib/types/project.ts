@@ -1,3 +1,5 @@
+import type { Priority } from "@/lib/types/task";
+
 export type ProjectStatus = "planning" | "active" | "on_hold" | "completed" | "cancelled" | "archived";
 export type MilestoneStatus = "pending" | "in_progress" | "completed";
 export type DependencyType = "finish_to_start" | "start_to_start" | "finish_to_finish" | "start_to_finish";
@@ -10,6 +12,7 @@ export type Project = {
   name: string;
   description: string | null;
   status: ProjectStatus;
+  priority: Priority;
   start_date: string | null;
   due_date: string | null;
   created_by: string | null;

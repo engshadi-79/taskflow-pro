@@ -5,6 +5,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/data/profile";
 import type { ProjectStatus, MilestoneStatus } from "@/lib/types/project";
+import type { Priority } from "@/lib/types/task";
+
+const VALID_PRIORITIES: Priority[] = ["low", "medium", "high", "urgent"];
 
 export type ProjectFormState = { error?: string };
 
@@ -29,6 +32,7 @@ export async function createProject(
 
   const name = (formData.get("name") as string)?.trim();
   const description = (formData.get("description") as string)?.trim() || null;
+  const priority = (formData.get("priority") as Priority) || "medium";
   const managerId = (formData.get("manager_id") as string) || null;
   const startDate = (formData.get("start_date") as string) || null;
   const dueDate = (formData.get("due_date") as string) || null;
@@ -41,6 +45,7 @@ export async function createProject(
       : (formData.get("department_id") as string) || null;
 
   if (!name) return { error: "اسم المشروع مطلوب" };
+  if (!VALID_PRIORITIES.includes(priority)) return { error: "أولوية غير صالحة" };
   if (startDate && dueDate && dueDate < startDate) {
     return { error: "لا يمكن أن يكون الموعد النهائي قبل تاريخ البدء" };
   }
@@ -54,6 +59,7 @@ export async function createProject(
       manager_id: managerId,
       name,
       description,
+      priority,
       start_date: startDate,
       due_date: dueDate,
       created_by: profile.id,
@@ -82,12 +88,14 @@ export async function updateProject(
   const name = (formData.get("name") as string)?.trim();
   const description = (formData.get("description") as string)?.trim() || null;
   const status = formData.get("status") as ProjectStatus;
+  const priority = (formData.get("priority") as Priority) || "medium";
   const managerId = (formData.get("manager_id") as string) || null;
   const startDate = (formData.get("start_date") as string) || null;
   const dueDate = (formData.get("due_date") as string) || null;
 
   if (!name) return { error: "اسم المشروع مطلوب" };
   if (!VALID_STATUSES.includes(status)) return { error: "حالة غير صالحة" };
+  if (!VALID_PRIORITIES.includes(priority)) return { error: "أولوية غير صالحة" };
   if (startDate && dueDate && dueDate < startDate) {
     return { error: "لا يمكن أن يكون الموعد النهائي قبل تاريخ البدء" };
   }
@@ -97,6 +105,7 @@ export async function updateProject(
     name,
     description,
     status,
+    priority,
     manager_id: managerId,
     start_date: startDate,
     due_date: dueDate,

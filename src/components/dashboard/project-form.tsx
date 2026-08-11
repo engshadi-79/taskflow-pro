@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { createProject, updateProject, type ProjectFormState } from "@/lib/actions/projects";
 import { PROJECT_STATUS_LABEL, type Project, type ProjectStatus } from "@/lib/types/project";
+import { PRIORITY_LABEL, type Priority } from "@/lib/types/task";
 
 type EmployeeOption = { id: string; full_name: string };
 type DepartmentOption = { id: string; name: string };
@@ -73,6 +74,17 @@ export function ProjectForm({
             </select>
           </label>
         )}
+
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium text-foreground">الأولوية</span>
+          <select name="priority" defaultValue={project?.priority ?? "medium"} className={inputClass}>
+            {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
+              <option key={p} value={p}>
+                {PRIORITY_LABEL[p]}
+              </option>
+            ))}
+          </select>
+        </label>
 
         {isSuperAdmin && (
           <label className="block">
