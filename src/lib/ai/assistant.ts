@@ -1,10 +1,11 @@
 import { GoogleGenAI, type Content } from "@google/genai";
 import { TOOL_DEFINITIONS, runTool, type SuggestedActionDraft, type ToolContext } from "@/lib/ai/tools";
 
-// Gemini 2.5 Flash: the model with a genuinely free, ongoing quota (no
-// trial-credit expiry like Anthropic/OpenAI) that still supports function
-// calling well enough for the tool-use loop below.
-const MODEL = "gemini-2.5-flash";
+// "gemini-flash-latest" (not a pinned version like "gemini-2.5-flash") -
+// pinned snapshots get retired from new API keys without notice (hit this
+// exact 404 in testing), the "-latest" alias always resolves to whatever
+// current Flash model Google has live, sidestepping that churn.
+const MODEL = "gemini-flash-latest";
 // hard cap on tool round-trips per request - both a cost/quota guard and a
 // circuit breaker against a tool result (e.g. a knowledge article or
 // meeting minute) trying to talk the model into looping forever
