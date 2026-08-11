@@ -297,3 +297,9 @@ export const SendIcon = (p: IconProps) => (
     <path d="M4 12l16-8-6 8 6 8-16-8z" />
   </Svg>
 );
+
+export const PaperclipIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8 12.5l6.5-6.5a3 3 0 1 1 4.24 4.24L12 17a4.5 4.5 0 1 1-6.36-6.36L13 3.3" />
+  </Svg>
+);

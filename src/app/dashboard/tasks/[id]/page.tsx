@@ -43,7 +43,7 @@ export default async function TaskDetailPage({
 
   const [
     { data: task },
-    { data: comments },
+    { data: commentsRaw },
     { data: attachments },
     { data: checklistItems },
     { data: subtasks },
@@ -54,14 +54,10 @@ export default async function TaskDetailPage({
     { data: summaryRows },
     { data: slaRows },
     { data: timelineRaw },
+    { data: mentionableUsersRaw },
   ] = await Promise.all([
     supabase.from("tasks").select("*").eq("id", id).single<Task>(),
-    supabase
-      .from("task_comments")
-      .select("*, author:users!task_comments_user_id_fkey(id, full_name)")
-      .eq("task_id", id)
-      .order("created_at", { ascending: true })
-      .returns<TaskCommentWithAuthor[]>(),
+    supabase.rpc("task_comments_with_authors", { p_task_id: id }),
     supabase
       .from("task_attachments")
       .select("*")
@@ -121,7 +117,11 @@ export default async function TaskDetailPage({
       .eq("entity_id", id)
       .order("created_at", { ascending: false })
       .returns<TaskTimelineEntry[]>(),
+    supabase.rpc("task_mentionable_users", { p_task_id: id }),
   ]);
+
+  const comments = (commentsRaw as unknown as TaskCommentWithAuthor[] | null) ?? [];
+  const mentionableUsers = (mentionableUsersRaw as unknown as { id: string; full_name: string }[] | null) ?? [];
 
   if (!task) {
     notFound();
@@ -160,6 +160,18 @@ export default async function TaskDetailPage({
         .createSignedUrl(attachment.file_url, 60 * 60);
       return { ...attachment, signedUrl: data?.signedUrl ?? null };
     })
+  );
+
+  const commentsWithSignedAttachments = await Promise.all(
+    (comments ?? []).map(async (comment) => ({
+      ...comment,
+      attachments: await Promise.all(
+        comment.attachments.map(async (a) => {
+          const { data } = await supabase.storage.from("task-attachments").createSignedUrl(a.file_url, 60 * 60);
+          return { ...a, file_url: data?.signedUrl ?? a.file_url };
+        })
+      ),
+    }))
   );
 
   let employees: { id: string; full_name: string }[] = [];
@@ -294,9 +306,10 @@ export default async function TaskDetailPage({
 
       <CommentsSection
         taskId={task.id}
-        comments={comments ?? []}
+        comments={commentsWithSignedAttachments}
         currentUserId={profile.id}
         canDeleteAny={profile.role === "super_admin"}
+        mentionableUsers={mentionableUsers ?? []}
       />
 
       <TaskTimeline entries={timelineRaw ?? []} />

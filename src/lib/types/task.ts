@@ -55,12 +55,26 @@ export type TaskComment = {
   id: string;
   task_id: string;
   user_id: string | null;
+  parent_comment_id: string | null;
   content: string;
   created_at: string;
+  updated_at: string;
 };
 
-export type TaskCommentWithAuthor = TaskComment & {
-  author: { id: string; full_name: string } | null;
+/** Shape returned by the task_comments_with_authors() RPC - resolves
+ * author names server-side (SECURITY DEFINER) since a plain employee can't
+ * otherwise see another user's row under users_select RLS. */
+export type TaskCommentWithAuthor = {
+  id: string;
+  parent_comment_id: string | null;
+  user_id: string;
+  author_name: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  is_edited: boolean;
+  mentioned_names: string[];
+  attachments: { id: string; file_name: string; file_url: string; file_type: string | null }[];
 };
 
 export const PRIORITY_LABEL: Record<Priority, string> = {

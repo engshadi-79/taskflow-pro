@@ -420,17 +420,60 @@ export async function addComment(
 
   const taskId = formData.get("task_id") as string;
   const content = (formData.get("content") as string)?.trim();
+  const parentCommentId = (formData.get("parent_comment_id") as string) || null;
+  const mentionedUserIds = formData.getAll("mentioned_user_id") as string[];
+  const file = formData.get("file") as File | null;
 
   if (!content) return { error: "اكتب تعليقًا قبل الإرسال" };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("task_comments").insert({
-    task_id: taskId,
-    user_id: profile.id,
-    content,
-  });
+  const { data: comment, error } = await supabase
+    .from("task_comments")
+    .insert({
+      task_id: taskId,
+      user_id: profile.id,
+      parent_comment_id: parentCommentId,
+      content,
+    })
+    .select("id")
+    .single();
 
-  if (error) return { error: "تعذر إضافة التعليق" };
+  if (error || !comment) return { error: "تعذر إضافة التعليق" };
+
+  if (mentionedUserIds.length) {
+    await supabase
+      .from("task_comment_mentions")
+      .insert(mentionedUserIds.map((userId) => ({ comment_id: comment.id, mentioned_user_id: userId })));
+  }
+
+  if (file && file.size > 0) {
+    const path = `comments/${comment.id}/${crypto.randomUUID()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage.from("task-attachments").upload(path, file);
+    if (!uploadError) {
+      await supabase.from("task_comment_attachments").insert({
+        comment_id: comment.id,
+        uploaded_by: profile.id,
+        file_url: path,
+        file_name: file.name,
+        file_type: file.type || null,
+      });
+    }
+  }
+
+  revalidatePath(`/dashboard/tasks/${taskId}`);
+  return {};
+}
+
+export async function editComment(id: string, taskId: string, content: string): Promise<TaskFormState> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { error: "يجب تسجيل الدخول" };
+
+  const trimmed = content.trim();
+  if (!trimmed) return { error: "لا يمكن أن يكون التعليق فارغًا" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("task_comments").update({ content: trimmed }).eq("id", id);
+  if (error) return { error: "تعذر تعديل التعليق (يمكنك تعديل تعليقاتك فقط)" };
 
   revalidatePath(`/dashboard/tasks/${taskId}`);
   return {};
