@@ -485,6 +485,24 @@ export async function deleteComment(id: string, taskId: string) {
   revalidatePath(`/dashboard/tasks/${taskId}`);
 }
 
+const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+const ALLOWED_ATTACHMENT_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+  "text/csv",
+  "application/zip",
+];
+
 export async function uploadAttachment(
   _prevState: TaskFormState,
   formData: FormData
@@ -494,10 +512,36 @@ export async function uploadAttachment(
 
   const taskId = formData.get("task_id") as string;
   const file = formData.get("file") as File | null;
+  // when set, this upload is a new version of an existing document rather
+  // than an unrelated new attachment
+  const replacesId = (formData.get("replaces_id") as string) || null;
 
   if (!file || file.size === 0) return { error: "اختر ملفًا للرفع" };
+  if (file.size > MAX_ATTACHMENT_BYTES) return { error: "حجم الملف يجب ألا يتجاوز 20 ميجابايت" };
+  if (file.type && !ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
+    return { error: "نوع الملف غير مدعوم" };
+  }
 
   const supabase = await createClient();
+
+  let originalAttachmentId: string | null = null;
+  let versionNumber = 1;
+  if (replacesId) {
+    const { data: existing } = await supabase
+      .from("task_attachments")
+      .select("id, original_attachment_id, version_number")
+      .eq("id", replacesId)
+      .single();
+    if (existing) {
+      originalAttachmentId = existing.original_attachment_id ?? existing.id;
+      const { count } = await supabase
+        .from("task_attachments")
+        .select("*", { count: "exact", head: true })
+        .or(`id.eq.${originalAttachmentId},original_attachment_id.eq.${originalAttachmentId}`);
+      versionNumber = (count ?? existing.version_number) + 1;
+    }
+  }
+
   const path = `${taskId}/${crypto.randomUUID()}-${file.name}`;
 
   const { error: uploadError } = await supabase.storage
@@ -512,6 +556,9 @@ export async function uploadAttachment(
     file_url: path,
     file_name: file.name,
     file_type: file.type || null,
+    file_size: file.size,
+    version_number: versionNumber,
+    original_attachment_id: originalAttachmentId,
   });
 
   if (insertError) {

@@ -48,6 +48,9 @@ export type TaskAttachment = {
   file_url: string;
   file_name: string;
   file_type: string | null;
+  file_size: number | null;
+  version_number: number;
+  original_attachment_id: string | null;
   uploaded_at: string;
 };
 
