@@ -5,7 +5,8 @@
   --surface: #ffffff;
   --foreground: #1a202c;
   --muted: #64748b;
-  --faint: #94a3b8;
+  /* was #94a3b8 (2.56:1 on white, fails WCAG AA) - darkened to clear 4.5:1 */
+  --faint: #677890;
   --border: #e2e8f0;
 
   /* dark navy nav rail */
@@ -68,7 +69,8 @@
   --surface: #1a1f33;
   --foreground: #e2e8f0;
   --muted: #9aa3bd;
-  --faint: #6b7490;
+  /* was #6b7490 (3.51:1 on the dark surface, fails WCAG AA) - lightened to clear 4.5:1 */
+  --faint: #7f89a5;
   --border: #2b3350;
 
   --sidebar: #0c1020;

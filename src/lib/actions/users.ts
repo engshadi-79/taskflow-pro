@@ -56,10 +56,9 @@ export async function uploadAvatar(
 
   const { data: publicUrl } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
 
-  const { error: updateError } = await supabase
-    .from("users")
-    .update({ avatar_url: publicUrl.publicUrl })
-    .eq("id", profile.id);
+  const { error: updateError } = await supabase.rpc("update_own_avatar", {
+    p_avatar_url: publicUrl.publicUrl,
+  });
 
   if (updateError) {
     await supabase.storage.from(AVATAR_BUCKET).remove([path]);
@@ -84,7 +83,7 @@ export async function removeAvatar(): Promise<UserFormState> {
   const supabase = await createClient();
   const path = pathFromAvatarUrl(profile.avatar_url);
 
-  const { error } = await supabase.from("users").update({ avatar_url: null }).eq("id", profile.id);
+  const { error } = await supabase.rpc("update_own_avatar", { p_avatar_url: null });
   if (error) {
     return { error: "تعذر حذف الصورة" };
   }
@@ -107,14 +106,13 @@ export type UpdateOwnProfileState = { error?: string; success?: boolean };
 
 /**
  * Every field a user can touch on their own record — full_name, phone,
- * secondary_email, bio. role/organization_id/department_id/is_active/
- * manager_id never appear in this update call, by construction, regardless
- * of what a form happens to submit: that's the actual enforcement, the same
- * way uploadAvatar above only ever writes avatar_url. RLS (see
- * supabase/self_profile_update.sql) is what lets the row be touched at all;
- * it isn't relied on to filter which columns a client could smuggle in,
- * since a USING/WITH CHECK clause on this table can't see column-level
- * intent, only whether the row may be written.
+ * secondary_email, bio. Goes through update_own_profile (SECURITY DEFINER,
+ * see supabase/fix_self_profile_update.sql) rather than a plain table
+ * update: there is no RLS policy anymore that lets a session update its own
+ * users row directly, specifically so a raw REST call can't smuggle in
+ * role/organization_id/department_id/is_active the way it could under the
+ * old users_self_update policy (which restricted which ROW could be
+ * written, not which COLUMNS).
  */
 export async function updateOwnProfile(
   _prevState: UpdateOwnProfileState,
@@ -140,10 +138,12 @@ export async function updateOwnProfile(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("users")
-    .update({ full_name: fullName, phone, secondary_email: secondaryEmail, bio })
-    .eq("id", profile.id);
+  const { error } = await supabase.rpc("update_own_profile", {
+    p_full_name: fullName,
+    p_phone: phone,
+    p_secondary_email: secondaryEmail,
+    p_bio: bio,
+  });
 
   if (error) {
     return { error: "تعذر حفظ التعديلات، حاول مرة أخرى" };
