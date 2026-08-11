@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SidebarShell } from "@/components/dashboard/sidebar-shell";
 import { Topbar } from "@/components/dashboard/topbar";
 import { AiAssistantPanel } from "@/components/dashboard/ai-assistant-panel";
+import { PresenceTracker } from "@/components/dashboard/presence-tracker";
 
 export default async function DashboardLayout({
   children,
@@ -25,10 +26,12 @@ export default async function DashboardLayout({
   }
 
   const supabase = await createClient();
-  const { count: unreadCount } = await supabase
-    .from("notifications")
-    .select("*", { count: "exact", head: true })
-    .eq("is_read", false);
+  const [{ count: unreadCount }, { data: department }] = await Promise.all([
+    supabase.from("notifications").select("*", { count: "exact", head: true }).eq("is_read", false),
+    profile.department_id
+      ? supabase.from("departments").select("name").eq("id", profile.department_id).single()
+      : Promise.resolve({ data: null }),
+  ]);
 
   return (
     <SidebarShell role={profile.role}>
@@ -42,6 +45,14 @@ export default async function DashboardLayout({
       />
       <main className="flex-1 overflow-y-auto p-6">{children}</main>
       <AiAssistantPanel />
+      <PresenceTracker
+        organizationId={profile.organization_id}
+        userId={profile.id}
+        fullName={profile.full_name}
+        role={profile.role}
+        departmentName={(department as { name: string } | null)?.name ?? null}
+        avatarUrl={profile.avatar_url}
+      />
     </SidebarShell>
   );
 }

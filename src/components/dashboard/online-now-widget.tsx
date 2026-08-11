@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/shared/avatar";
 import { Modal } from "@/components/shared/modal";
@@ -24,31 +23,17 @@ type PresenceEntry = {
 };
 
 /**
- * Real presence, not a stored/derived number: every dashboard tab that has
- * this mounted tracks itself on a Supabase Realtime Presence channel keyed
- * by organization, so "متصلون الآن" always reflects who is actually on the
- * app in this exact moment - it disappears the instant a tab closes or the
- * connection drops, the same way Presence is designed to work.
+ * Read-only: PresenceTracker (mounted once in the dashboard layout, so it
+ * survives navigating between pages) is the only thing that ever calls
+ * track() on this channel. This just listens, so "متصلون الآن" reflects
+ * whoever is on ANY /dashboard/** page right now, not only this one - it
+ * disappears the instant a tab closes or the connection drops, the same
+ * way Presence is designed to work.
  */
-export function OnlineNowWidget({
-  organizationId,
-  userId,
-  fullName,
-  role,
-  departmentName,
-  avatarUrl,
-}: {
-  organizationId: string;
-  userId: string;
-  fullName: string;
-  role: Role;
-  departmentName: string | null;
-  avatarUrl: string | null;
-}) {
+export function OnlineNowWidget({ organizationId }: { organizationId: string }) {
   const [entries, setEntries] = useState<PresenceEntry[]>([]);
   const [openGroup, setOpenGroup] = useState<"management" | "employees" | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
-  const pathname = usePathname();
 
   useEffect(() => {
     const supabase = createClient();
@@ -60,9 +45,7 @@ export function OnlineNowWidget({
     // realtime subscription, to avoid a race on a freshly-loaded tab
     supabase.auth.getSession().then(() => {
       if (cancelled) return;
-      channel = supabase.channel(`presence:org:${organizationId}`, {
-        config: { presence: { key: userId } },
-      });
+      channel = supabase.channel(`presence:org:${organizationId}`);
 
       channel
         .on("presence", { event: "sync" }, () => {
@@ -86,21 +69,14 @@ export function OnlineNowWidget({
           );
           setLastSync(new Date());
         })
-        .subscribe((status) => {
-          if (status === "SUBSCRIBED") {
-            channel!.track({ userId, fullName, role, departmentName, avatarUrl, pathname });
-          }
-        });
+        .subscribe();
     });
 
     return () => {
       cancelled = true;
       if (channel) supabase.removeChannel(channel);
     };
-    // re-tracking on every pathname change keeps "current page" fresh for
-    // everyone else without needing a manual refresh
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [organizationId, userId, pathname]);
+  }, [organizationId]);
 
   const management = entries.filter((e) => e.role !== "employee");
   const employees = entries.filter((e) => e.role === "employee");
