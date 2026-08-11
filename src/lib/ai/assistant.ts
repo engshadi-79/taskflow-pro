@@ -83,7 +83,12 @@ export async function runAssistant(
       return { text: text || "لم أتمكن من توليد رد.", suggestionDrafts, toolCalls, inputTokens, outputTokens };
     }
 
-    contents.push({ role: "model", parts: calls.map((c) => ({ functionCall: c })) });
+    // Push back the model's own content verbatim (not a hand-rebuilt
+    // { functionCall: c } part) - newer Gemini models attach a
+    // thoughtSignature to each function-call part that must round-trip
+    // unchanged, or the next call fails with 400 INVALID_ARGUMENT.
+    const modelContent = response.candidates?.[0]?.content;
+    contents.push(modelContent ?? { role: "model", parts: calls.map((c) => ({ functionCall: c })) });
 
     const responseParts: Content["parts"] = [];
     for (const call of calls) {
