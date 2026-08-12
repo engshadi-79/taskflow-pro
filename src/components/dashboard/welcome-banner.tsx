@@ -15,7 +15,7 @@ function greeting(hour: number) {
   return "مساء النور";
 }
 
-/** Solid white pill, matching the reference layout's chip style - distinct
+/** Solid white pill, matching the requested layout's chip style - distinct
  * from HeaderChip's translucent-on-gradient look used elsewhere. */
 function SolidChip({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -29,6 +29,9 @@ function SolidChip({ icon, children }: { icon: React.ReactNode; children: React.
 /**
  * Rendered on the server, so the greeting and date come from one clock and
  * cannot drift between server and client.
+ *
+ * Layout (RTL): photo first on the right, the name beside it, the role
+ * chip below the photo, and the date (+ department) pinned to the left.
  */
 export function WelcomeBanner({
   fullName,
@@ -54,26 +57,16 @@ export function WelcomeBanner({
     <section className="banner-violet relative mb-5 overflow-hidden rounded-[20px] px-6 py-7 text-white shadow-lg shadow-accent-600/20">
       <AnimatedBackground intensity="subtle" />
 
-      {/* floating chips pinned to the far side, mirroring the reference
-          layout's two stacked pills opposite the avatar */}
-      <div className="relative mb-5 flex flex-col items-start gap-2 sm:absolute sm:top-6 sm:start-6 sm:mb-0">
+      {/* date (+ department) pinned to the left, opposite the photo */}
+      <div className="relative mb-5 flex flex-col items-start gap-2 sm:absolute sm:top-6 sm:end-6 sm:mb-0">
         {departmentName && (
           <SolidChip icon={<FolderIcon className="h-3.5 w-3.5 text-accent-600" />}>{departmentName}</SolidChip>
         )}
         <SolidChip icon={<CalendarIcon className="h-3.5 w-3.5 text-accent-600" />}>{dateLabel}</SolidChip>
       </div>
 
-      <div className="relative flex flex-wrap-reverse items-center justify-between gap-6">
-        <div className="min-w-0">
-          <p className="text-[13.5px] font-bold text-white/85">
-            {greeting(now.getHours())} 👋
-          </p>
-          <h1 className="mt-1 text-[28px] font-black leading-tight sm:text-[32px]">
-            {firstName}
-          </h1>
-        </div>
-
-        {/* avatar medallion with a glowing ring and presence dot */}
+      <div className="relative flex items-center gap-4">
+        {/* photo first (renders at the right edge in RTL), role chip below it */}
         <div className="flex shrink-0 flex-col items-center gap-2.5">
           <div className="relative">
             <Avatar
@@ -88,6 +81,16 @@ export function WelcomeBanner({
           <SolidChip icon={<BriefcaseIcon className="h-3.5 w-3.5 text-accent-600" />}>
             {ROLE_LABEL[role]}
           </SolidChip>
+        </div>
+
+        {/* name, beside the photo */}
+        <div className="min-w-0">
+          <p className="text-[13.5px] font-bold text-white/85">
+            {greeting(now.getHours())} 👋
+          </p>
+          <h1 className="mt-1 text-[28px] font-black leading-tight sm:text-[32px]">
+            {firstName}
+          </h1>
         </div>
       </div>
     </section>
