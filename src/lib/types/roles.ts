@@ -15,4 +15,5 @@ export type Profile = {
   avatar_url: string | null;
   is_active: boolean;
   created_at: string;
+  dashboard_shortcuts: { id: string; href: string; label: string; iconKey: string }[] | null;
 };

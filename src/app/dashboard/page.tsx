@@ -14,6 +14,7 @@ import {
 import { WelcomeBanner } from "@/components/dashboard/welcome-banner";
 import { OnlineNowWidget } from "@/components/dashboard/online-now-widget";
 import { QuickShortcuts } from "@/components/dashboard/quick-shortcuts";
+import { resolveShortcuts } from "@/lib/shortcuts-registry";
 import { StatCard } from "@/components/shared/stat-card";
 import {
   BellIcon,
@@ -173,7 +174,7 @@ export default async function DashboardPage({
           />
         </div>
 
-        <QuickShortcuts role={profile.role} />
+        <QuickShortcuts role={profile.role} initialShortcuts={resolveShortcuts(profile.role, profile.dashboard_shortcuts)} />
 
         <div className="grid grid-cols-1 gap-4.5 sm:grid-cols-2">
           <div className="rounded-[18px] border border-border bg-surface p-[22px]">
@@ -487,7 +488,7 @@ export default async function DashboardPage({
         />
       </div>
 
-      <QuickShortcuts role={profile.role} />
+      <QuickShortcuts role={profile.role} initialShortcuts={resolveShortcuts(profile.role, profile.dashboard_shortcuts)} />
 
       <div className="my-5 grid grid-cols-1 gap-4.5 lg:grid-cols-[1.65fr_1fr_1fr]">
         <HeroCard
