@@ -2,6 +2,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/dashboard/notification-bell";
 import { UserMenu } from "@/components/dashboard/user-menu";
 import { CommandPalette } from "@/components/dashboard/command-palette";
+import { RecentActivityButton } from "@/components/dashboard/recent-activity-button";
 import type { Role } from "@/lib/types/roles";
 
 export function Topbar({
@@ -11,6 +12,7 @@ export function Topbar({
   jobTitle,
   avatarUrl,
   unreadCount,
+  recentActivityCount,
 }: {
   userId: string;
   fullName: string;
@@ -18,6 +20,7 @@ export function Topbar({
   jobTitle?: string | null;
   avatarUrl?: string | null;
   unreadCount: number;
+  recentActivityCount: number;
 }) {
   return (
     // z-20 keeps the dropdowns above page content, and still below the
@@ -35,6 +38,7 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-2.5">
+        <RecentActivityButton userId={userId} initialCount={recentActivityCount} />
         <CommandPalette role={role} />
         <NotificationBell userId={userId} initialUnreadCount={unreadCount} />
         <ThemeToggle />

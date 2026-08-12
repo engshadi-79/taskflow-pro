@@ -26,11 +26,14 @@ export default async function DashboardLayout({
   }
 
   const supabase = await createClient();
-  const [{ count: unreadCount }, { data: department }] = await Promise.all([
+  const [{ count: unreadCount }, { data: department }, { data: recentActivity }] = await Promise.all([
     supabase.from("notifications").select("*", { count: "exact", head: true }).eq("is_read", false),
     profile.department_id
       ? supabase.from("departments").select("name").eq("id", profile.department_id).single()
       : Promise.resolve({ data: null }),
+    // capped at 30 to match RecentActivityButton's own panel limit, so the
+    // badge count and the list it opens always agree
+    supabase.from("activity_log").select("id").eq("user_id", profile.id).order("created_at", { ascending: false }).limit(30),
   ]);
 
   return (
@@ -42,6 +45,7 @@ export default async function DashboardLayout({
         jobTitle={profile.job_title}
         avatarUrl={profile.avatar_url}
         unreadCount={unreadCount ?? 0}
+        recentActivityCount={recentActivity?.length ?? 0}
       />
       <main className="flex-1 overflow-y-auto p-6">{children}</main>
       <AiAssistantPanel />
