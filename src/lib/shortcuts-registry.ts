@@ -65,6 +65,25 @@ export const TINT: Record<IconKey, string> = {
   external: "bg-background text-muted",
 };
 
+/** Solid per-tile hover fill, same color family as TINT - a different
+ * color per shortcut, not one shared hover state for all of them. */
+export const HOVER_TINT: Record<IconKey, string> = {
+  grid: "hover:bg-accent-500",
+  tasks: "hover:bg-brand-blue-500",
+  board: "hover:bg-purple-500",
+  briefcase: "hover:bg-pink-500",
+  calendar: "hover:bg-orange-500",
+  folder: "hover:bg-teal-500",
+  users: "hover:bg-teal-500",
+  chart: "hover:bg-green-500",
+  clock: "hover:bg-orange-500",
+  alert: "hover:bg-brand-red-500",
+  gear: "hover:bg-purple-500",
+  bell: "hover:bg-pink-500",
+  user: "hover:bg-accent-500",
+  external: "hover:bg-muted",
+};
+
 export type ShortcutItem = { id: string; href: string; label: string; iconKey: IconKey };
 
 /** Every internal page a user is allowed to pin as a shortcut - mirrors the

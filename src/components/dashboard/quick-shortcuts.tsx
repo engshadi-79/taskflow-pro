@@ -7,6 +7,7 @@ import { CloseIcon, GearIcon, PlusIcon } from "@/components/shared/icons";
 import {
   AVAILABLE_PAGES,
   DEFAULT_SHORTCUTS_BY_ROLE,
+  HOVER_TINT,
   ICON_REGISTRY,
   MAX_SHORTCUTS,
   TINT,
@@ -58,12 +59,16 @@ export function QuickShortcuts({
                 href={s.href}
                 target={s.href.startsWith("http") ? "_blank" : undefined}
                 rel={s.href.startsWith("http") ? "noopener noreferrer" : undefined}
-                className="flex flex-col items-center gap-2.5 rounded-[14px] border border-border bg-surface px-2 py-4 text-center transition-all hover:-translate-y-0.5 hover:border-accent-300 hover:shadow-md"
+                className={`group flex flex-col items-center gap-2.5 rounded-[14px] border border-border bg-surface px-2 py-4 text-center transition-all duration-200 hover:-translate-y-1 hover:scale-[1.03] hover:border-transparent hover:shadow-lg ${HOVER_TINT[s.iconKey]}`}
               >
-                <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${TINT[s.iconKey]}`}>
+                <span
+                  className={`flex h-11 w-11 items-center justify-center rounded-xl transition-colors duration-200 group-hover:bg-white/20 ${TINT[s.iconKey]} group-hover:text-white`}
+                >
                   <Icon className="h-[22px] w-[22px]" />
                 </span>
-                <span className="text-[12.5px] font-bold text-foreground">{s.label}</span>
+                <span className="text-[12.5px] font-bold text-foreground transition-colors duration-200 group-hover:text-white">
+                  {s.label}
+                </span>
               </Link>
             );
           })}
