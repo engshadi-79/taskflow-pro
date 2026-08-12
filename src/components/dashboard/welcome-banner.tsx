@@ -1,6 +1,7 @@
 import { AnimatedBackground } from "@/components/shared/animated-background";
 import { Avatar } from "@/components/shared/avatar";
 import { BriefcaseIcon, CalendarIcon, FolderIcon } from "@/components/shared/icons";
+import { LiveDateLabel, LiveGreeting, formatDateLabel, greetingFor } from "@/components/dashboard/live-greeting";
 import type { Role } from "@/lib/types/roles";
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -9,17 +10,21 @@ const ROLE_LABEL: Record<Role, string> = {
   employee: "موظف",
 };
 
-function greeting(hour: number) {
-  if (hour < 12) return "صباح الخير";
-  if (hour < 18) return "مساء الخير";
-  return "مساء النور";
-}
-
 /** Solid white pill, matching the requested layout's chip style - distinct
  * from HeaderChip's translucent-on-gradient look used elsewhere. */
-function SolidChip({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+function SolidChip({
+  icon,
+  children,
+  className = "",
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-bold text-primary shadow-sm">
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-bold text-primary shadow-sm ${className}`}
+    >
       {icon}
       {children}
     </span>
@@ -46,23 +51,22 @@ export function WelcomeBanner({
 }) {
   const now = new Date();
   const firstName = fullName.trim().split(/\s+/)[0];
-  const dateLabel = new Intl.DateTimeFormat("ar", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(now);
+  const initialGreeting = greetingFor(now.getHours());
+  const initialDateLabel = formatDateLabel(now);
 
   return (
     <section className="banner-violet relative mb-5 overflow-hidden rounded-[20px] px-6 py-7 text-white shadow-lg shadow-accent-600/20">
       <AnimatedBackground intensity="subtle" />
 
-      {/* date (+ department) pinned to the left, opposite the photo */}
-      <div className="relative mb-5 flex flex-col items-start gap-2 sm:absolute sm:top-6 sm:end-6 sm:mb-0">
+      {/* date (+ department) pinned to the left, opposite the photo, and
+          vertically centered on the banner's own height */}
+      <div className="relative mb-5 flex flex-col items-start gap-2 sm:absolute sm:end-6 sm:top-1/2 sm:mb-0 sm:-translate-y-1/2">
         {departmentName && (
           <SolidChip icon={<FolderIcon className="h-3.5 w-3.5 text-accent-600" />}>{departmentName}</SolidChip>
         )}
-        <SolidChip icon={<CalendarIcon className="h-3.5 w-3.5 text-accent-600" />}>{dateLabel}</SolidChip>
+        <SolidChip icon={<CalendarIcon className="h-4 w-4 text-accent-600" />} className="text-[14px] px-3.5 py-2">
+          <LiveDateLabel initial={initialDateLabel} />
+        </SolidChip>
       </div>
 
       <div className="relative flex items-center gap-4">
@@ -86,7 +90,7 @@ export function WelcomeBanner({
         {/* name, beside the photo */}
         <div className="min-w-0">
           <p className="text-[13.5px] font-bold text-white/85">
-            {greeting(now.getHours())} 👋
+            <LiveGreeting initial={initialGreeting} /> 👋
           </p>
           <h1 className="mt-1 text-[28px] font-black leading-tight sm:text-[32px]">
             {firstName}
