@@ -29,7 +29,12 @@ export function PresenceTracker({
 }) {
   const pathname = usePathname();
 
+  // temporary diagnostic: confirms the component itself renders with valid
+  // props, decoupled from whether the effect below ever runs
+  console.log("[presence-tracker] render", { organizationId, userId, fullName, role });
+
   useEffect(() => {
+    console.log("[presence-tracker] effect running");
     const supabase = createClient();
     let cancelled = false;
     let channel: ReturnType<typeof supabase.channel> | null = null;
