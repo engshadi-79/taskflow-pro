@@ -23,10 +23,18 @@ export function OnlineNowWidget() {
   const [entries, setEntries] = useState<PresenceEntry[]>([]);
   const [open, setOpen] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [bump, setBump] = useState(false);
 
   useEffect(() => {
     function onSync(e: Event) {
-      setEntries((e as CustomEvent<PresenceEntry[]>).detail);
+      const next = (e as CustomEvent<PresenceEntry[]>).detail;
+      setEntries((prev) => {
+        if (prev.length !== next.length) {
+          setBump(true);
+          window.setTimeout(() => setBump(false), 420);
+        }
+        return next;
+      });
       setLastSync(new Date());
     }
     window.addEventListener(PRESENCE_SYNC_EVENT, onSync);
@@ -38,17 +46,27 @@ export function OnlineNowWidget() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex shrink-0 items-center gap-3 rounded-[20px] border border-border bg-surface px-4 py-3.5 transition-colors hover:bg-accent-50"
+        className="group relative flex shrink-0 items-center gap-3 overflow-hidden rounded-[20px] border border-border bg-surface px-4 py-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-300 hover:shadow-lg hover:shadow-accent-500/10"
       >
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-50 text-accent-600">
+        <span className="absolute inset-y-0 start-0 w-1 bg-gradient-to-b from-accent-500 to-purple-500" />
+        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent-500 to-purple-500 text-white shadow-sm transition-transform group-hover:scale-105">
           <UsersIcon className="h-5 w-5" />
         </span>
         <span className="text-start">
           <span className="flex items-center gap-1.5 text-[12px] font-extrabold text-foreground">
-            <span className="h-2 w-2 rounded-full bg-green-500" />
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75 motion-reduce:hidden" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+            </span>
             متصلون الآن
           </span>
-          <b className="mt-0.5 block text-[18px] text-foreground">{entries.length}</b>
+          <b
+            className={`mt-0.5 block text-[18px] text-foreground transition-transform duration-300 ${
+              bump ? "scale-125 text-accent-600" : "scale-100"
+            }`}
+          >
+            {entries.length}
+          </b>
         </span>
       </button>
 
