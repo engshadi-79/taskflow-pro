@@ -19,7 +19,6 @@ import { StatCard } from "@/components/shared/stat-card";
 import {
   BellIcon,
   CheckSquareIcon,
-  ChartIcon,
   InboxIcon,
   UsersIcon,
 } from "@/components/shared/icons";
@@ -258,7 +257,6 @@ export default async function DashboardPage({
     { count: completedCount },
     { count: totalCount },
     { count: pendingCount },
-    { count: overdueCount },
     { count: unreadCount },
     { count: completedThisWeek },
     { count: completedLastWeek },
@@ -290,10 +288,6 @@ export default async function DashboardPage({
         .from("tasks")
         .select("*", { count: "exact", head: true })
         .in("status", ["new", "in_progress", "pending_review"]),
-      filterOpts
-    ),
-    withDashboardFilters(
-      supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "overdue"),
       filterOpts
     ),
     supabase
@@ -443,54 +437,7 @@ export default async function DashboardPage({
         </button>
       </form>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
-        <StatCard
-          value={totalCount ?? 0}
-          label="إجمالي المهام"
-          tone="indigo"
-          icon={<CheckSquareIcon className="h-[22px] w-[22px]" />}
-          href="/dashboard/tasks"
-        />
-        <StatCard
-          value={pendingCount ?? 0}
-          label="مهام قائمة"
-          tone="blue"
-          icon={<InboxIcon className="h-[22px] w-[22px]" />}
-          href="/dashboard/kanban"
-        />
-        <StatCard
-          value={overdueCount ?? 0}
-          label="مهام متأخرة"
-          tone="red"
-          icon={<BellIcon className="h-[22px] w-[22px]" />}
-          href="/dashboard/tasks?status=overdue"
-        />
-        <StatCard
-          value={completedCount ?? 0}
-          label="مهام منجزة"
-          tone="green"
-          icon={<ChartIcon className="h-[22px] w-[22px]" />}
-          href="/dashboard/reports"
-        />
-        <StatCard
-          value={unreadCount ?? 0}
-          label="إشعارات غير مقروءة"
-          tone="red"
-          icon={<BellIcon className="h-[22px] w-[22px]" />}
-          href="/dashboard/notifications"
-        />
-        <StatCard
-          value={totalMembers ?? 0}
-          label={profile.role === "super_admin" ? "أعضاء الفريق" : "أعضاء القسم"}
-          tone="amber"
-          icon={<UsersIcon className="h-[22px] w-[22px]" />}
-          href="/dashboard/employees"
-        />
-      </div>
-
-      <QuickShortcuts role={profile.role} initialShortcuts={resolveShortcuts(profile.role, profile.dashboard_shortcuts)} />
-
-      <div className="my-5 grid grid-cols-1 gap-4.5 lg:grid-cols-[1.65fr_1fr_1fr]">
+      <div className="grid grid-cols-1 gap-4.5 lg:grid-cols-[1.65fr_1fr_1fr]">
         <HeroCard
           weekCount={completedThisWeek ?? 0}
           deltaPercent={pctDelta(completedThisWeek ?? 0, completedLastWeek ?? 0)}
@@ -526,6 +473,8 @@ export default async function DashboardPage({
           foot={`${completedCount ?? 0} من ${totalCount ?? 0} مهمة`}
         />
       </div>
+
+      <QuickShortcuts role={profile.role} initialShortcuts={resolveShortcuts(profile.role, profile.dashboard_shortcuts)} />
 
       <div className="grid grid-cols-1 gap-4.5 lg:grid-cols-[1fr_1.2fr_1.3fr]">
         <div className="rounded-[18px] border border-border bg-surface p-[22px]">
