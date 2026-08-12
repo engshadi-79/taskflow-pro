@@ -43,32 +43,35 @@ export function OnlineNowWidget() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="group relative flex shrink-0 items-center gap-3 overflow-hidden rounded-[20px] border border-border bg-surface px-4 py-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-300 hover:shadow-lg hover:shadow-accent-500/10"
-      >
-        <span className="absolute inset-y-0 start-0 w-1 bg-gradient-to-b from-accent-500 to-purple-500" />
-        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent-500 to-purple-500 text-white shadow-sm transition-transform group-hover:scale-105">
-          <UsersIcon className="h-5 w-5" />
-        </span>
-        <span className="text-start">
-          <span className="flex items-center gap-1.5 text-[12px] font-extrabold text-foreground">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75 motion-reduce:hidden" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
-            </span>
-            متصلون الآن
+      <div className="w-full max-w-[220px] shrink-0 rounded-2xl border border-green-100 bg-gradient-to-br from-green-50 via-white to-white p-4 shadow-sm dark:border-green-900/40 dark:from-green-950/20 dark:via-surface dark:to-surface">
+        <p className="mb-3 text-center text-[13px] font-extrabold text-foreground">متصلون الآن</p>
+
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="group flex w-full flex-col items-center gap-1.5 rounded-xl bg-surface px-4 py-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+        >
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-emerald-600 text-white shadow-sm transition-transform group-hover:scale-105">
+            <UsersIcon className="h-5 w-5" />
           </span>
           <b
-            className={`mt-0.5 block text-[18px] text-foreground transition-transform duration-300 ${
-              bump ? "scale-125 text-accent-600" : "scale-100"
+            className={`text-[22px] leading-none text-green-600 transition-transform duration-300 ${
+              bump ? "scale-125" : "scale-100"
             }`}
           >
             {entries.length}
           </b>
-        </span>
-      </button>
+          <span className="text-[11.5px] font-bold text-muted">متصل الآن</span>
+        </button>
+
+        <p className="mt-3 flex items-center justify-center gap-1.5 text-[10.5px] text-faint">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75 motion-reduce:hidden" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+          </span>
+          اضغط الأيقونة لعرض الأسماء
+        </p>
+      </div>
 
       {open && <OnlineListModal entries={entries} lastSync={lastSync} onClose={() => setOpen(false)} />}
     </>
