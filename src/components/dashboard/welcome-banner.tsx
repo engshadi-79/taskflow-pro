@@ -15,15 +15,19 @@ const ROLE_LABEL: Record<Role, string> = {
 function SolidChip({
   icon,
   children,
-  className = "",
+  // padding/text-size are part of the default here (not hardcoded in the
+  // base template below) so a caller's override fully replaces them rather
+  // than sitting alongside them as a same-specificity Tailwind tie that
+  // resolves unpredictably by stylesheet order, not by className order
+  sizeClassName = "px-3 py-1.5 text-[12px]",
 }: {
   icon: React.ReactNode;
   children: React.ReactNode;
-  className?: string;
+  sizeClassName?: string;
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-bold text-primary shadow-sm ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full bg-white font-bold text-primary shadow-sm ${sizeClassName}`}
     >
       {icon}
       {children}
@@ -64,7 +68,10 @@ export function WelcomeBanner({
         {departmentName && (
           <SolidChip icon={<FolderIcon className="h-3.5 w-3.5 text-accent-600" />}>{departmentName}</SolidChip>
         )}
-        <SolidChip icon={<CalendarIcon className="h-4 w-4 text-accent-600" />} className="text-[14px] px-3.5 py-2">
+        <SolidChip
+          icon={<CalendarIcon className="h-4 w-4 text-accent-600" />}
+          sizeClassName="px-3.5 py-2 text-[14px]"
+        >
           <LiveDateLabel initial={initialDateLabel} />
         </SolidChip>
       </div>
