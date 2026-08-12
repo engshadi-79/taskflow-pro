@@ -6,7 +6,7 @@ import { getCurrentProfile } from "@/lib/data/profile";
 
 export async function markNotificationRead(id: string) {
   const supabase = await createClient();
-  await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+  await supabase.from("notifications").update({ is_read: true, read_at: new Date().toISOString() }).eq("id", id);
   revalidatePath("/dashboard/notifications");
 }
 
@@ -17,7 +17,7 @@ export async function markAllNotificationsRead() {
   const supabase = await createClient();
   await supabase
     .from("notifications")
-    .update({ is_read: true })
+    .update({ is_read: true, read_at: new Date().toISOString() })
     .eq("user_id", profile.id)
     .eq("is_read", false);
 

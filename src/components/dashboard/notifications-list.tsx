@@ -37,6 +37,9 @@ export function NotificationsList({ notifications }: { notifications: Notificati
                   : "border-accent-300 bg-accent-50"
               }`}
             >
+              {notification.title && (
+                <p className="mb-1 font-extrabold text-foreground">{notification.title}</p>
+              )}
               <p className="text-foreground">{notification.message}</p>
               <p className="mt-1 text-xs text-muted">
                 {new Date(notification.created_at).toLocaleString("ar")}

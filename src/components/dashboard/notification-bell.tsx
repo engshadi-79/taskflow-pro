@@ -112,6 +112,11 @@ const TYPE_META: Record<string, Meta> = {
     tint: "bg-purple-500",
     icon: <ChatIcon className="h-[17px] w-[17px]" />,
   },
+  admin_announcement: {
+    label: "إشعار إداري",
+    tint: "bg-orange-600",
+    icon: <AlertIcon className="h-[17px] w-[17px]" />,
+  },
 };
 
 const FALLBACK: Meta = {
@@ -374,7 +379,7 @@ export function NotificationBell({
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
                         <span className="truncate text-[13.5px] font-extrabold text-foreground">
-                          {meta.label}
+                          {n.title ?? meta.label}
                         </span>
                         {!n.is_read && (
                           <span
