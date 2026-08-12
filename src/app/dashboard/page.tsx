@@ -15,6 +15,8 @@ import { WelcomeBanner } from "@/components/dashboard/welcome-banner";
 import { OnlineNowWidget } from "@/components/dashboard/online-now-widget";
 import { QuickShortcuts } from "@/components/dashboard/quick-shortcuts";
 import { resolveShortcuts } from "@/lib/shortcuts-registry";
+import { MyNotesWidget } from "@/components/dashboard/my-notes-widget";
+import { MyTasksSummaryWidget } from "@/components/dashboard/my-tasks-summary-widget";
 import { StatCard } from "@/components/shared/stat-card";
 import {
   BellIcon,
@@ -86,7 +88,7 @@ export default async function DashboardPage({
     const todayIso = nowDate.toISOString().slice(0, 10);
     const weekAheadIso = new Date(nowDate.getTime() + 7 * 86400000).toISOString().slice(0, 10);
 
-    const [{ data: tasks }, { data: ownDept }, { data: workloadRows }, { data: statsRows }] =
+    const [{ data: tasks }, { data: ownDept }, { data: workloadRows }, { data: statsRows }, { data: notesRaw }] =
       await Promise.all([
         supabase
           .from("tasks")
@@ -102,6 +104,10 @@ export default async function DashboardPage({
         // workload" with no p_user_id parameter needed
         supabase.rpc("employee_workload"),
         supabase.rpc("report_employee_stats", { p_user_id: profile.id }),
+        supabase
+          .from("personal_notes")
+          .select("id, content, created_at")
+          .order("created_at", { ascending: false }),
       ]);
 
     const myTasks = tasks ?? [];
@@ -222,11 +228,17 @@ export default async function DashboardPage({
           </div>
         </div>
 
+        <div className="grid grid-cols-1 gap-4.5 sm:grid-cols-2">
+          <MyNotesWidget notes={(notesRaw as { id: string; content: string; created_at: string }[] | null) ?? []} />
+          <MyTasksSummaryWidget overdueCount={overdue} dueTodayCount={dueToday} />
+        </div>
+
         <EmployeeTaskList tasks={myTasks} />
       </div>
     );
   }
 
+  const todayIso = new Date().toISOString().slice(0, 10);
   const period: ReportPeriod = parsePeriod(params.period);
   const { since, prevSince } = periodRange(period);
   const weekAgo = since.toISOString();
@@ -275,6 +287,9 @@ export default async function DashboardPage({
     { data: departmentsForFilter },
     { data: projectsForFilter },
     { data: employeesForFilter },
+    { count: myOverdueCount },
+    { count: myDueTodayCount },
+    { data: notesRaw },
   ] = await Promise.all([
     supabase.from("users").select("*", { count: "exact", head: true }).eq("role", "employee"),
     supabase.from("users").select("*", { count: "exact", head: true }),
@@ -350,6 +365,22 @@ export default async function DashboardPage({
       : Promise.resolve({ data: [] }),
     supabase.from("projects").select("id, name").order("name"),
     supabase.from("users").select("id, full_name").order("full_name"),
+    supabase
+      .from("tasks")
+      .select("*", { count: "exact", head: true })
+      .eq("assigned_to", profile.id)
+      .neq("status", "completed")
+      .lt("due_date", todayIso),
+    supabase
+      .from("tasks")
+      .select("*", { count: "exact", head: true })
+      .eq("assigned_to", profile.id)
+      .neq("status", "completed")
+      .eq("due_date", todayIso),
+    supabase
+      .from("personal_notes")
+      .select("id, content, created_at")
+      .order("created_at", { ascending: false }),
   ]);
 
   const completionRate =
@@ -437,6 +468,11 @@ export default async function DashboardPage({
           </form>
         </div>
         <OnlineNowWidget />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4.5 sm:grid-cols-2">
+        <MyNotesWidget notes={(notesRaw as { id: string; content: string; created_at: string }[] | null) ?? []} />
+        <MyTasksSummaryWidget overdueCount={myOverdueCount ?? 0} dueTodayCount={myDueTodayCount ?? 0} />
       </div>
 
       <div className="grid grid-cols-1 gap-4.5 lg:grid-cols-[1.65fr_1fr_1fr]">

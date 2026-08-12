@@ -303,3 +303,11 @@ export const PaperclipIcon = (p: IconProps) => (
     <path d="M8 12.5l6.5-6.5a3 3 0 1 1 4.24 4.24L12 17a4.5 4.5 0 1 1-6.36-6.36L13 3.3" />
   </Svg>
 );
+
+export const NoteIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M7 3h8l4 4v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+    <path d="M15 3v4h4" />
+    <path d="M8 12h8M8 16h5" />
+  </Svg>
+);
