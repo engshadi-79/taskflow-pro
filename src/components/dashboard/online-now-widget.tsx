@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/shared/avatar";
 import { Modal } from "@/components/shared/modal";
-import { BriefcaseIcon, RefreshIcon, UserIcon } from "@/components/shared/icons";
+import { RefreshIcon, UsersIcon } from "@/components/shared/icons";
+import { PRESENCE_SYNC_EVENT, type PresenceEntry } from "@/components/dashboard/presence-tracker";
 import type { Role } from "@/lib/types/roles";
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -13,127 +13,61 @@ const ROLE_LABEL: Record<Role, string> = {
   employee: "موظف",
 };
 
-type PresenceEntry = {
-  userId: string;
-  fullName: string;
-  role: Role;
-  departmentName: string | null;
-  avatarUrl: string | null;
-  pathname: string;
-};
-
 /**
- * Read-only: PresenceTracker (mounted once in the dashboard layout, so it
- * survives navigating between pages) is the only thing that ever calls
- * track() on this channel. This just listens, so "متصلون الآن" reflects
- * whoever is on ANY /dashboard/** page right now, not only this one - it
- * disappears the instant a tab closes or the connection drops, the same
- * way Presence is designed to work.
+ * Read-only: PresenceTracker (mounted once in the dashboard layout) owns
+ * the actual Realtime Presence channel and rebroadcasts synced state as a
+ * window CustomEvent - this just listens, so "متصلون الآن" reflects
+ * whoever is on ANY /dashboard/** page right now, not only this one.
  */
-export function OnlineNowWidget({ organizationId }: { organizationId: string }) {
+export function OnlineNowWidget() {
   const [entries, setEntries] = useState<PresenceEntry[]>([]);
-  const [openGroup, setOpenGroup] = useState<"management" | "employees" | null>(null);
+  const [open, setOpen] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
-
-    // NOT gated behind auth.getSession() - see the matching comment in
-    // PresenceTracker for why: three concurrent getSession() callers on one
-    // page load could only ever resolve for one of them.
-    const channel = supabase.channel(`presence:org:${organizationId}`);
-
-    channel
-      .on("presence", { event: "sync" }, () => {
-        const state = channel.presenceState<Partial<PresenceEntry>>();
-        // temporary diagnostics for the "employees always shows 0" report -
-        // remove once presence is confirmed working end to end
-        console.log("[online-now-widget] presence sync, raw state:", state);
-        // another open tab can still be running an older deploy that
-        // tracked fewer fields (e.g. just {role}) - normalize every
-        // entry so a stale/partial payload from someone else's browser
-        // never crashes rendering here
-        setEntries(
-          Object.values(state)
-            .map((presences) => presences[0])
-            .filter(Boolean)
-            .map((p) => ({
-              userId: p.userId ?? "",
-              fullName: p.fullName ?? "مستخدم",
-              role: p.role ?? "employee",
-              departmentName: p.departmentName ?? null,
-              avatarUrl: p.avatarUrl ?? null,
-              pathname: p.pathname ?? "",
-            }))
-        );
-        setLastSync(new Date());
-      })
-      .subscribe((status, err) => {
-        console.log("[online-now-widget] subscribe status:", status, err ?? "");
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [organizationId]);
-
-  const management = entries.filter((e) => e.role !== "employee");
-  const employees = entries.filter((e) => e.role === "employee");
+    function onSync(e: Event) {
+      setEntries((e as CustomEvent<PresenceEntry[]>).detail);
+      setLastSync(new Date());
+    }
+    window.addEventListener(PRESENCE_SYNC_EVENT, onSync);
+    return () => window.removeEventListener(PRESENCE_SYNC_EVENT, onSync);
+  }, []);
 
   return (
     <>
-      <div className="flex shrink-0 flex-col justify-center gap-2 rounded-[20px] border border-border bg-surface px-4 py-3.5">
-        <p className="flex items-center gap-1.5 text-[12.5px] font-extrabold text-foreground">
-          <span className="h-2 w-2 rounded-full bg-green-500" />
-          متصلون الآن
-        </p>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setOpenGroup("management")}
-            className="flex flex-1 flex-col items-center gap-1 rounded-xl border border-border bg-background px-3 py-2 transition-colors hover:bg-accent-50"
-          >
-            <BriefcaseIcon className="h-4 w-4 text-accent-600" />
-            <b className="text-[15px] text-foreground">{management.length}</b>
-            <span className="text-[10.5px] font-bold text-faint">الإدارة</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setOpenGroup("employees")}
-            className="flex flex-1 flex-col items-center gap-1 rounded-xl border border-border bg-background px-3 py-2 transition-colors hover:bg-accent-50"
-          >
-            <UserIcon className="h-4 w-4 text-accent-600" />
-            <b className="text-[15px] text-foreground">{employees.length}</b>
-            <span className="text-[10.5px] font-bold text-faint">الموظفون</span>
-          </button>
-        </div>
-      </div>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex shrink-0 items-center gap-3 rounded-[20px] border border-border bg-surface px-4 py-3.5 transition-colors hover:bg-accent-50"
+      >
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-50 text-accent-600">
+          <UsersIcon className="h-5 w-5" />
+        </span>
+        <span className="text-start">
+          <span className="flex items-center gap-1.5 text-[12px] font-extrabold text-foreground">
+            <span className="h-2 w-2 rounded-full bg-green-500" />
+            متصلون الآن
+          </span>
+          <b className="mt-0.5 block text-[18px] text-foreground">{entries.length}</b>
+        </span>
+      </button>
 
-      {openGroup && (
-        <OnlineListModal
-          title={openGroup === "management" ? "المتصلون من الإدارة" : "المتصلون من الموظفين"}
-          entries={openGroup === "management" ? management : employees}
-          lastSync={lastSync}
-          onClose={() => setOpenGroup(null)}
-        />
-      )}
+      {open && <OnlineListModal entries={entries} lastSync={lastSync} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
 function OnlineListModal({
-  title,
   entries,
   lastSync,
   onClose,
 }: {
-  title: string;
   entries: PresenceEntry[];
   lastSync: Date | null;
   onClose: () => void;
 }) {
   return (
-    <Modal title={title} subtitle={`${entries.length} متصل الآن`} onClose={onClose}>
+    <Modal title="المتصلون الآن" subtitle={`${entries.length} متصل`} onClose={onClose}>
       <div className="space-y-2.5">
         {entries.length === 0 && <p className="text-sm text-muted">لا يوجد أحد متصل حاليًا</p>}
 

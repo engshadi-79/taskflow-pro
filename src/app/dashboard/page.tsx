@@ -139,7 +139,7 @@ export default async function DashboardPage({
               departmentName={(ownDept as { name: string } | null)?.name}
             />
           </div>
-          <OnlineNowWidget organizationId={profile.organization_id} />
+          <OnlineNowWidget />
         </div>
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -392,7 +392,7 @@ export default async function DashboardPage({
             departmentName={(ownDepartment as { name: string } | null)?.name}
           />
         </div>
-        <OnlineNowWidget organizationId={profile.organization_id} />
+        <OnlineNowWidget />
       </div>
 
       <form method="get" className="flex flex-wrap items-end gap-2.5 rounded-[18px] border border-border bg-surface p-4">
