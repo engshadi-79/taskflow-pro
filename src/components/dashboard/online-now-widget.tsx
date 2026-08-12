@@ -37,49 +37,43 @@ export function OnlineNowWidget({ organizationId }: { organizationId: string }) 
 
   useEffect(() => {
     const supabase = createClient();
-    let cancelled = false;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    // presence needs the session's JWT already attached to the socket -
-    // same getSession()-before-channel guard used for the notifications
-    // realtime subscription, to avoid a race on a freshly-loaded tab
-    supabase.auth.getSession().then(() => {
-      if (cancelled) return;
-      channel = supabase.channel(`presence:org:${organizationId}`);
+    // NOT gated behind auth.getSession() - see the matching comment in
+    // PresenceTracker for why: three concurrent getSession() callers on one
+    // page load could only ever resolve for one of them.
+    const channel = supabase.channel(`presence:org:${organizationId}`);
 
-      channel
-        .on("presence", { event: "sync" }, () => {
-          const state = channel!.presenceState<Partial<PresenceEntry>>();
-          // temporary diagnostics for the "employees always shows 0" report -
-          // remove once presence is confirmed working end to end
-          console.log("[online-now-widget] presence sync, raw state:", state);
-          // another open tab can still be running an older deploy that
-          // tracked fewer fields (e.g. just {role}) - normalize every
-          // entry so a stale/partial payload from someone else's browser
-          // never crashes rendering here
-          setEntries(
-            Object.values(state)
-              .map((presences) => presences[0])
-              .filter(Boolean)
-              .map((p) => ({
-                userId: p.userId ?? "",
-                fullName: p.fullName ?? "مستخدم",
-                role: p.role ?? "employee",
-                departmentName: p.departmentName ?? null,
-                avatarUrl: p.avatarUrl ?? null,
-                pathname: p.pathname ?? "",
-              }))
-          );
-          setLastSync(new Date());
-        })
-        .subscribe((status, err) => {
-          console.log("[online-now-widget] subscribe status:", status, err ?? "");
-        });
-    });
+    channel
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState<Partial<PresenceEntry>>();
+        // temporary diagnostics for the "employees always shows 0" report -
+        // remove once presence is confirmed working end to end
+        console.log("[online-now-widget] presence sync, raw state:", state);
+        // another open tab can still be running an older deploy that
+        // tracked fewer fields (e.g. just {role}) - normalize every
+        // entry so a stale/partial payload from someone else's browser
+        // never crashes rendering here
+        setEntries(
+          Object.values(state)
+            .map((presences) => presences[0])
+            .filter(Boolean)
+            .map((p) => ({
+              userId: p.userId ?? "",
+              fullName: p.fullName ?? "مستخدم",
+              role: p.role ?? "employee",
+              departmentName: p.departmentName ?? null,
+              avatarUrl: p.avatarUrl ?? null,
+              pathname: p.pathname ?? "",
+            }))
+        );
+        setLastSync(new Date());
+      })
+      .subscribe((status, err) => {
+        console.log("[online-now-widget] subscribe status:", status, err ?? "");
+      });
 
     return () => {
-      cancelled = true;
-      if (channel) supabase.removeChannel(channel);
+      supabase.removeChannel(channel);
     };
   }, [organizationId]);
 
