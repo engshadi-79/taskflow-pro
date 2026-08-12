@@ -470,11 +470,6 @@ export default async function DashboardPage({
         <OnlineNowWidget />
       </div>
 
-      <div className="grid grid-cols-1 gap-4.5 sm:grid-cols-2">
-        <MyNotesWidget notes={(notesRaw as { id: string; content: string; created_at: string }[] | null) ?? []} />
-        <MyTasksSummaryWidget overdueCount={myOverdueCount ?? 0} dueTodayCount={myDueTodayCount ?? 0} />
-      </div>
-
       <div className="grid grid-cols-1 gap-4.5 lg:grid-cols-[1.65fr_1fr_1fr]">
         <HeroCard
           weekCount={completedThisWeek ?? 0}
@@ -593,6 +588,11 @@ export default async function DashboardPage({
             value: PROJECT_STATUS_LABEL[p.status as keyof typeof PROJECT_STATUS_LABEL] ?? p.status,
           }))}
         />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4.5 sm:grid-cols-2">
+        <MyNotesWidget notes={(notesRaw as { id: string; content: string; created_at: string }[] | null) ?? []} />
+        <MyTasksSummaryWidget overdueCount={myOverdueCount ?? 0} dueTodayCount={myDueTodayCount ?? 0} />
       </div>
 
       <div className="grid grid-cols-1 gap-4.5 lg:grid-cols-[1fr_1.5fr]">
