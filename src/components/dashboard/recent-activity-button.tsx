@@ -116,7 +116,7 @@ export function RecentActivityButton({
         <div
           role="dialog"
           aria-label="آخر أنشطتي"
-          className="absolute end-0 top-[calc(100%+10px)] z-40 w-[min(92vw,380px)] overflow-hidden rounded-[18px] border border-border bg-surface shadow-2xl shadow-black/20"
+          className="absolute end-0 top-[calc(100%+10px)] z-40 w-[min(92vw,480px)] overflow-hidden rounded-[18px] border border-border bg-surface shadow-2xl shadow-black/20"
         >
           <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
             <span className="text-[13.5px] font-black text-foreground">آخر أنشطتي</span>
@@ -146,7 +146,7 @@ export function RecentActivityButton({
                       {meta.icon}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[12.5px] font-bold text-foreground">
+                      <span className="block break-words text-[12.5px] font-bold text-foreground">
                         {item.description ?? item.action_type}
                       </span>
                       <span className="mt-1 flex items-center gap-1.5 text-[11px] text-muted">
