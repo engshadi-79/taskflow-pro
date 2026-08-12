@@ -137,6 +137,7 @@ export default async function DashboardPage({
               fullName={profile.full_name}
               role={profile.role}
               departmentName={(ownDept as { name: string } | null)?.name}
+              avatarUrl={profile.avatar_url}
             />
           </div>
           <OnlineNowWidget />
@@ -385,6 +386,7 @@ export default async function DashboardPage({
             fullName={profile.full_name}
             role={profile.role}
             departmentName={(ownDepartment as { name: string } | null)?.name}
+            avatarUrl={profile.avatar_url}
           />
 
           <form method="get" className="flex flex-wrap items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5">
