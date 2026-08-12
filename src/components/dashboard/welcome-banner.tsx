@@ -1,7 +1,8 @@
 import { AnimatedBackground } from "@/components/shared/animated-background";
 import { Avatar } from "@/components/shared/avatar";
 import { BriefcaseIcon, CalendarIcon, FolderIcon } from "@/components/shared/icons";
-import { LiveDateLabel, LiveGreeting, formatDateLabel, greetingFor } from "@/components/dashboard/live-greeting";
+import { LiveDateLabel, LiveGreeting } from "@/components/dashboard/live-greeting";
+import { formatDateLabel, greetingFor } from "@/lib/greeting";
 import type { Role } from "@/lib/types/roles";
 
 const ROLE_LABEL: Record<Role, string> = {

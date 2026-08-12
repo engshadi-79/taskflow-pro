@@ -1,21 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-export function greetingFor(hour: number): string {
-  if (hour < 12) return "صباح الخير";
-  if (hour < 18) return "مساء الخير";
-  return "مساء النور";
-}
-
-export function formatDateLabel(d: Date): string {
-  return new Intl.DateTimeFormat("ar", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(d);
-}
+import { formatDateLabel, greetingFor } from "@/lib/greeting";
 
 /**
  * The server always computes "now" in the deployment's own clock (UTC on
