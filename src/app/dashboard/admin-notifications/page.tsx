@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { AlertIcon, CheckCircleIcon, PlusIcon, UsersIcon } from "@/components/shared/icons";
 import { timeAgo } from "@/lib/format-time-ago";
+import { AdminNotificationSeriesList } from "@/components/dashboard/admin-notification-series-list";
 
 const TYPE_LABEL: Record<string, string> = {
   general: "عام",
@@ -30,6 +31,20 @@ const TARGET_LABEL: Record<string, string> = {
   all: "جميع الموظفين",
 };
 
+const STATUS_BADGE: Record<string, string> = {
+  sent: "bg-green-50 text-green-600",
+  scheduled: "bg-blue-50 text-blue-600",
+  cancelled: "bg-red-50 text-red-600",
+  draft: "bg-gray-100 text-gray-600",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  sent: "أُرسل",
+  scheduled: "مجدول",
+  cancelled: "ملغي",
+  draft: "مسودة",
+};
+
 type AdminNotificationRow = {
   id: string;
   title: string;
@@ -37,8 +52,18 @@ type AdminNotificationRow = {
   priority: string;
   target_type: string;
   recipient_count: number;
+  status: string;
+  scheduled_at: string | null;
   sent_at: string | null;
   created_at: string;
+};
+
+type SeriesRow = {
+  id: string;
+  title: string;
+  recurrence_pattern: string;
+  recurrence_interval: number;
+  next_run_at: string;
 };
 
 export default async function AdminNotificationsPage() {
@@ -47,15 +72,24 @@ export default async function AdminNotificationsPage() {
   if (profile.role === "employee") redirect("/dashboard");
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("admin_notifications")
-    .select("id, title, type, priority, target_type, recipient_count, sent_at, created_at")
-    .order("created_at", { ascending: false })
-    .returns<AdminNotificationRow[]>();
+  const [{ data }, { data: seriesData }] = await Promise.all([
+    supabase
+      .from("admin_notifications")
+      .select("id, title, type, priority, target_type, recipient_count, status, scheduled_at, sent_at, created_at")
+      .order("created_at", { ascending: false })
+      .returns<AdminNotificationRow[]>(),
+    supabase
+      .from("admin_notification_series")
+      .select("id, title, recurrence_pattern, recurrence_interval, next_run_at")
+      .eq("is_active", true)
+      .order("next_run_at")
+      .returns<SeriesRow[]>(),
+  ]);
 
   const rows = data ?? [];
-  const totalRecipients = rows.reduce((sum, r) => sum + r.recipient_count, 0);
-  const urgentCount = rows.filter((r) => r.priority === "urgent").length;
+  const sentRows = rows.filter((r) => r.status === "sent");
+  const totalRecipients = sentRows.reduce((sum, r) => sum + r.recipient_count, 0);
+  const urgentCount = sentRows.filter((r) => r.priority === "urgent").length;
 
   return (
     <div className="space-y-4.5">
@@ -76,7 +110,7 @@ export default async function AdminNotificationsPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
-          value={rows.length}
+          value={sentRows.length}
           label="إجمالي الإشعارات المرسلة"
           tone="indigo"
           icon={<AlertIcon className="h-[22px] w-[22px]" />}
@@ -95,6 +129,8 @@ export default async function AdminNotificationsPage() {
         />
       </div>
 
+      <AdminNotificationSeriesList series={seriesData ?? []} />
+
       <div className="overflow-x-auto rounded-[18px] border border-border bg-surface">
         <table className="w-full text-sm">
           <thead className="text-xs text-faint">
@@ -104,6 +140,7 @@ export default async function AdminNotificationsPage() {
               <th className="px-4 py-3 text-start">الأولوية</th>
               <th className="px-4 py-3 text-start">المستهدفون</th>
               <th className="px-4 py-3 text-start">عدد المستلمين</th>
+              <th className="px-4 py-3 text-start">الحالة</th>
               <th className="px-4 py-3 text-start">تاريخ الإرسال</th>
             </tr>
           </thead>
@@ -119,12 +156,23 @@ export default async function AdminNotificationsPage() {
                 <td className="px-4 py-3 text-muted">{PRIORITY_LABEL[row.priority] ?? row.priority}</td>
                 <td className="px-4 py-3 text-muted">{TARGET_LABEL[row.target_type] ?? row.target_type}</td>
                 <td className="px-4 py-3 text-muted">{row.recipient_count}</td>
-                <td className="px-4 py-3 text-muted">{row.sent_at ? timeAgo(row.sent_at) : "—"}</td>
+                <td className="px-4 py-3">
+                  <span className={`rounded-full px-2.5 py-1 text-[11.5px] font-bold ${STATUS_BADGE[row.status] ?? "bg-gray-100 text-gray-600"}`}>
+                    {STATUS_LABEL[row.status] ?? row.status}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-muted">
+                  {row.status === "scheduled" && row.scheduled_at
+                    ? `مجدول: ${new Date(row.scheduled_at).toLocaleString("ar")}`
+                    : row.sent_at
+                      ? timeAgo(row.sent_at)
+                      : "—"}
+                </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted">
+                <td colSpan={7} className="px-4 py-8 text-center text-muted">
                   لا توجد إشعارات إدارية بعد
                 </td>
               </tr>
