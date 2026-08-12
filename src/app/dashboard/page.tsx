@@ -125,6 +125,11 @@ export default async function DashboardPage({
         t.due_date.slice(0, 10) > todayIso &&
         t.due_date.slice(0, 10) <= weekAheadIso
     ).length;
+    const urgentTasks = myTasks
+      .filter((t) => t.status !== "completed" && t.due_date && t.due_date.slice(0, 10) <= todayIso)
+      .sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""))
+      .slice(0, 5)
+      .map((t) => ({ id: t.id, title: t.title, due_date: t.due_date }));
 
     const myWorkload = (
       workloadRows as { load_percent: number; load_status: string; open_count: number }[] | null
@@ -230,7 +235,7 @@ export default async function DashboardPage({
 
         <div className="grid grid-cols-1 gap-4.5 sm:grid-cols-2">
           <MyNotesWidget notes={(notesRaw as { id: string; content: string; created_at: string }[] | null) ?? []} />
-          <MyTasksSummaryWidget overdueCount={overdue} dueTodayCount={dueToday} />
+          <MyTasksSummaryWidget overdueCount={overdue} dueTodayCount={dueToday} tasks={urgentTasks} />
         </div>
 
         <EmployeeTaskList tasks={myTasks} />
@@ -289,6 +294,7 @@ export default async function DashboardPage({
     { data: employeesForFilter },
     { count: myOverdueCount },
     { count: myDueTodayCount },
+    { data: myUrgentTasksRaw },
     { data: notesRaw },
   ] = await Promise.all([
     supabase.from("users").select("*", { count: "exact", head: true }).eq("role", "employee"),
@@ -377,6 +383,14 @@ export default async function DashboardPage({
       .eq("assigned_to", profile.id)
       .neq("status", "completed")
       .eq("due_date", todayIso),
+    supabase
+      .from("tasks")
+      .select("id, title, due_date")
+      .eq("assigned_to", profile.id)
+      .neq("status", "completed")
+      .lte("due_date", todayIso)
+      .order("due_date", { ascending: true })
+      .limit(5),
     supabase
       .from("personal_notes")
       .select("id, content, created_at")
@@ -592,7 +606,11 @@ export default async function DashboardPage({
 
       <div className="grid grid-cols-1 gap-4.5 sm:grid-cols-2">
         <MyNotesWidget notes={(notesRaw as { id: string; content: string; created_at: string }[] | null) ?? []} />
-        <MyTasksSummaryWidget overdueCount={myOverdueCount ?? 0} dueTodayCount={myDueTodayCount ?? 0} />
+        <MyTasksSummaryWidget
+          overdueCount={myOverdueCount ?? 0}
+          dueTodayCount={myDueTodayCount ?? 0}
+          tasks={(myUrgentTasksRaw as { id: string; title: string; due_date: string | null }[] | null) ?? []}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4.5 lg:grid-cols-[1fr_1.5fr]">

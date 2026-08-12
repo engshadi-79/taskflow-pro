@@ -1,16 +1,23 @@
 import Link from "next/link";
 import { CheckIcon, InboxIcon, AlertIcon } from "@/components/shared/icons";
 
+type UrgentTask = { id: string; title: string; due_date: string | null };
+
 /** Compact "مهامي" summary - today/overdue counts for whoever is viewing,
- * regardless of role. Purely presentational, server-rendered. */
+ * regardless of role. Purely presentational, server-rendered. `tasks`
+ * is the actual due-today/overdue rows (capped upstream, e.g. 5) so the
+ * chips aren't just numbers with nothing to click through to. */
 export function MyTasksSummaryWidget({
   overdueCount,
   dueTodayCount,
+  tasks,
 }: {
   overdueCount: number;
   dueTodayCount: number;
+  tasks: UrgentTask[];
 }) {
   const hasUrgent = overdueCount > 0 || dueTodayCount > 0;
+  const todayIso = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="rounded-[18px] border border-border bg-surface p-5">
@@ -39,6 +46,30 @@ export function MyTasksSummaryWidget({
           متأخرة: {overdueCount}
         </span>
       </div>
+
+      {hasUrgent && (
+        <div className="space-y-1.5">
+          {tasks.map((t) => {
+            const isOverdue = !!t.due_date && t.due_date.slice(0, 10) < todayIso;
+            return (
+              <Link
+                key={t.id}
+                href={`/dashboard/tasks/${t.id}`}
+                className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-[12.5px] hover:bg-background"
+              >
+                <span className="truncate font-semibold text-foreground">{t.title}</span>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold ${
+                    isOverdue ? "bg-red-50 text-red-600" : "bg-accent-50 text-accent-600"
+                  }`}
+                >
+                  {isOverdue ? "متأخرة" : "اليوم"}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
 
       {!hasUrgent && (
         <div className="flex flex-col items-center gap-2.5 py-6 text-center">
