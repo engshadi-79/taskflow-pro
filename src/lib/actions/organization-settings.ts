@@ -9,7 +9,7 @@ export type LogoUploadState = { error?: string; url?: string };
 export type HolidayFormState = { error?: string };
 
 const LOGO_BUCKET = "org-logos";
-const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+const MAX_LOGO_BYTES = 3 * 1024 * 1024;
 const ALLOWED_LOGO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"];
 const VALID_PRIORITIES = ["low", "medium", "high", "urgent"];
 
@@ -73,7 +73,7 @@ export async function uploadOrganizationLogo(
   const file = formData.get("logo") as File | null;
   if (!file || file.size === 0) return { error: "اختر صورة أولاً" };
   if (!ALLOWED_LOGO_TYPES.includes(file.type)) return { error: "الشعار يجب أن يكون JPG أو PNG أو WEBP أو SVG" };
-  if (file.size > MAX_LOGO_BYTES) return { error: "حجم الشعار يجب ألا يتجاوز 2 ميجابايت" };
+  if (file.size > MAX_LOGO_BYTES) return { error: "حجم الشعار يجب ألا يتجاوز 3 ميجابايت" };
 
   const supabase = await createClient();
   const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : file.type === "image/svg+xml" ? "svg" : "jpg";

@@ -9,7 +9,7 @@ import {
 } from "@/lib/actions/organization-settings";
 import { CameraIcon, XCircleIcon } from "@/components/shared/icons";
 
-const MAX_BYTES = 2 * 1024 * 1024;
+const MAX_BYTES = 3 * 1024 * 1024;
 
 export function OrganizationLogoUpload({
   logoUrl,
@@ -49,7 +49,7 @@ export function OrganizationLogoUpload({
       return;
     }
     if (file.size > MAX_BYTES) {
-      setLocalError("حجم الشعار يجب ألا يتجاوز 2 ميجابايت");
+      setLocalError("حجم الشعار يجب ألا يتجاوز 3 ميجابايت");
       e.target.value = "";
       return;
     }
@@ -132,6 +132,7 @@ export function OrganizationLogoUpload({
           {error}
         </p>
       )}
+      {!error && !pending && <p className="mt-2 text-[11px] text-faint">الحد الأقصى لحجم الشعار: 3 ميجابايت</p>}
     </div>
   );
 }
