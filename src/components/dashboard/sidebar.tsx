@@ -203,6 +203,12 @@ const ADMIN_NOTIFICATIONS: NavItem = {
   icon: "alert",
   tone: "amber",
 };
+const ORG_SETTINGS: NavItem = {
+  href: "/dashboard/settings",
+  label: "إعدادات المؤسسة",
+  icon: "gear",
+  tone: "indigo",
+};
 
 const NAV_BY_ROLE: Record<Role, NavSection[]> = {
   super_admin: [
@@ -228,7 +234,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         AUTOMATION_RULES,
       ],
     },
-    { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS, ADMIN_NOTIFICATIONS] },
+    { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS, ADMIN_NOTIFICATIONS, ORG_SETTINGS] },
   ],
   department_manager: [
     { label: "التنقل", items: [DASHBOARD] },

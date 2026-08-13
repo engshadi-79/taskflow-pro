@@ -17,7 +17,16 @@ const initialState: SlaFormState = {};
 const inputClass =
   "rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500";
 
-export function SlaPoliciesManager({ policies }: { policies: SlaPolicy[] }) {
+export function SlaPoliciesManager({
+  policies,
+  defaultResolutionMinutes,
+}: {
+  policies: SlaPolicy[];
+  /** Organization's default SLA target (hours, converted to minutes here)
+   * - just a prefill for the create form, doesn't affect existing policies
+   * or the breach-detection engine. */
+  defaultResolutionMinutes?: number;
+}) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [createState, createAction, creating] = useActionState(createSlaPolicy, initialState);
 
@@ -55,7 +64,7 @@ export function SlaPoliciesManager({ policies }: { policies: SlaPolicy[] }) {
         </label>
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-foreground">وقت الإنجاز (دقيقة)</span>
-          <input type="number" name="resolution_minutes" min="1" required className={inputClass} />
+          <input type="number" name="resolution_minutes" min="1" defaultValue={defaultResolutionMinutes} required className={inputClass} />
         </label>
         <button
           type="submit"

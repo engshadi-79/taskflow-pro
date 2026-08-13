@@ -32,6 +32,7 @@ export function TaskForm({
   employees,
   projects = [],
   action,
+  defaultPriority = "medium",
 }: {
   task?: Task;
   employees: EmployeeOption[];
@@ -39,6 +40,9 @@ export function TaskForm({
    * forms where linking doesn't apply. */
   projects?: ProjectOption[];
   action: (prevState: TaskFormState, formData: FormData) => Promise<TaskFormState>;
+  /** Organization-wide default for NEW tasks only - ignored once `task` is
+   * set, since an existing task's own priority always wins. */
+  defaultPriority?: Priority;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const [isRecurring, setIsRecurring] = useState(task?.is_recurring ?? false);
@@ -83,7 +87,7 @@ export function TaskForm({
 
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-foreground">الأولوية</span>
-          <select name="priority" defaultValue={task?.priority ?? "medium"} className={inputClass}>
+          <select name="priority" defaultValue={task?.priority ?? defaultPriority} className={inputClass}>
             {(Object.keys(PRIORITY_LABEL) as Priority[]).map((priority) => (
               <option key={priority} value={priority}>
                 {PRIORITY_LABEL[priority]}
