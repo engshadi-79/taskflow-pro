@@ -11,6 +11,7 @@ import {
   BriefcaseIcon,
   CalendarIcon,
   ChartIcon,
+  CheckCircleIcon,
   CheckSquareIcon,
   ChevronDownIcon,
   ClockIcon,
@@ -37,7 +38,8 @@ type IconKey =
   | "clock"
   | "alert"
   | "gear"
-  | "calendar";
+  | "calendar"
+  | "check";
 
 type NavItem = {
   href: string;
@@ -64,6 +66,7 @@ const ICONS: Record<IconKey, (p: { className?: string }) => React.ReactElement> 
   alert: AlertIcon,
   gear: GearIcon,
   calendar: CalendarIcon,
+  check: CheckCircleIcon,
 };
 
 // Icon colours on the dark rail, mirroring the ACAS portal's multi-hue nav.
@@ -173,6 +176,12 @@ const WORKFLOW_REQUESTS: NavItem = {
   icon: "folder",
   tone: "green",
 };
+const APPROVALS: NavItem = {
+  href: "/dashboard/approvals",
+  label: "مركز الموافقات",
+  icon: "check",
+  tone: "blue",
+};
 const WORKFLOW_TEMPLATES: NavItem = {
   href: "/dashboard/workflow-templates",
   label: "أنواع الطلبات",
@@ -236,6 +245,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         SLA_REPORT,
         SLA_POLICIES,
         WORKFLOW_REQUESTS,
+        APPROVALS,
         WORKFLOW_TEMPLATES,
         AUTOMATION_RULES,
         WORKFLOW_BUILDER,
@@ -260,6 +270,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         TIME_TRACKING,
         SLA_REPORT,
         WORKFLOW_REQUESTS,
+        APPROVALS,
       ],
     },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS, ADMIN_NOTIFICATIONS] },

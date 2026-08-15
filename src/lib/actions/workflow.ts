@@ -250,3 +250,12 @@ export async function actOnWorkflowRequest(
   revalidatePath(`/dashboard/workflow-requests/${requestId}`);
   return error ? { error: error.message || "تعذر تنفيذ الإجراء" } : {};
 }
+
+export async function bulkApproveWorkflowRequests(requestIds: string[]): Promise<WorkflowFormState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("bulk_approve_workflow_requests", { p_request_ids: requestIds });
+
+  revalidatePath("/dashboard/workflow-requests");
+  revalidatePath("/dashboard/approvals");
+  return error ? { error: error.message || "تعذر تنفيذ الموافقة الجماعية" } : {};
+}
