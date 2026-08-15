@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/data/profile";
+import { generateEmbedding } from "@/lib/ai/embeddings";
 import type { KnowledgeCategory, KnowledgeStatus } from "@/lib/types/knowledge";
 
 export type KnowledgeFormState = { error?: string };
@@ -36,20 +37,30 @@ export async function createArticle(
   if (!title) return { error: "عنوان المقال مطلوب" };
   if (!VALID_CATEGORIES.includes(category)) return { error: "تصنيف غير صالح" };
 
+  const embedding = await generateEmbedding(`${title}\n${content}`);
+
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const baseRow = {
+    organization_id: profile.organization_id,
+    title,
+    content,
+    category,
+    department_id: departmentId,
+    project_id: projectId,
+    author_id: profile.id,
+  };
+  let { data, error } = await supabase
     .from("knowledge_articles")
-    .insert({
-      organization_id: profile.organization_id,
-      title,
-      content,
-      category,
-      department_id: departmentId,
-      project_id: projectId,
-      author_id: profile.id,
-    })
+    .insert({ ...baseRow, ...(embedding ? { embedding } : {}) })
     .select("id")
     .single();
+
+  // knowledge_semantic_search.sql not applied yet on this database - fall
+  // back to saving without the embedding rather than failing the whole
+  // article, same as if Gemini itself had been unavailable.
+  if (error?.code === "42703" && embedding) {
+    ({ data, error } = await supabase.from("knowledge_articles").insert(baseRow).select("id").single());
+  }
 
   if (error || !data) return { error: "تعذر إنشاء المقال" };
 
@@ -74,11 +85,19 @@ export async function updateArticle(
   if (!title) return { error: "عنوان المقال مطلوب" };
   if (!VALID_CATEGORIES.includes(category)) return { error: "تصنيف غير صالح" };
 
+  const embedding = await generateEmbedding(`${title}\n${content}`);
+
   const supabase = await createClient();
-  const { error } = await supabase
+  const baseUpdate = { title, content, category, department_id: departmentId, project_id: projectId };
+  let { error } = await supabase
     .from("knowledge_articles")
-    .update({ title, content, category, department_id: departmentId, project_id: projectId })
+    .update({ ...baseUpdate, ...(embedding ? { embedding } : {}) })
     .eq("id", id);
+
+  // See createArticle - same fallback if the pgvector migration hasn't run yet.
+  if (error?.code === "42703" && embedding) {
+    ({ error } = await supabase.from("knowledge_articles").update(baseUpdate).eq("id", id));
+  }
 
   if (error) return { error: "تعذر تحديث المقال" };
 
@@ -147,4 +166,47 @@ export async function deleteKnowledgeAttachment(id: string, articleId: string, f
   await supabase.storage.from("task-attachments").remove([filePath]);
   await supabase.from("knowledge_attachments").delete().eq("id", id);
   revalidatePath(`/dashboard/knowledge/${articleId}`);
+}
+
+export type ReindexResult = { error?: string; processed?: number; remaining?: number };
+
+/**
+ * Backfills embeddings for articles saved before knowledge_semantic_search.sql
+ * existed, or whose embedding generation failed at save time. Processes one
+ * batch per call (not all rows) to stay well inside a serverless function's
+ * execution timeout; the UI shows the remaining count so an admin can just
+ * click again.
+ */
+export async function reindexKnowledgeEmbeddings(): Promise<ReindexResult> {
+  const profile = await getCurrentProfile();
+  if (!profile || profile.role !== "super_admin") {
+    return { error: "غير مصرح لك بإعادة الفهرسة" };
+  }
+
+  const supabase = await createClient();
+  const { data: missing, error } = await supabase
+    .from("knowledge_articles")
+    .select("id, title, content")
+    .is("embedding", null)
+    .limit(20);
+
+  if (error) return { error: "تعذر جلب المقالات" };
+  if (!missing || missing.length === 0) return { processed: 0, remaining: 0 };
+
+  let processed = 0;
+  for (const article of missing) {
+    const embedding = await generateEmbedding(`${article.title}\n${article.content}`);
+    if (embedding) {
+      await supabase.from("knowledge_articles").update({ embedding }).eq("id", article.id);
+      processed++;
+    }
+  }
+
+  const { count: remaining } = await supabase
+    .from("knowledge_articles")
+    .select("*", { count: "exact", head: true })
+    .is("embedding", null);
+
+  revalidatePath("/dashboard/knowledge");
+  return { processed, remaining: remaining ?? 0 };
 }

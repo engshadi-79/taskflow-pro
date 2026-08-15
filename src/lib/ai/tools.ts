@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Profile } from "@/lib/types/roles";
+import { searchKnowledgeArticles } from "@/lib/knowledge/search";
 
 export type ToolContext = { supabase: SupabaseClient; profile: Profile };
 
@@ -358,10 +359,15 @@ export async function runTool(
       };
     }
     case "search_knowledge": {
-      const { data, error } = await supabase.rpc("search_knowledge_articles", {
-        p_query: input.query as string,
-      });
-      if (error) return { kind: "error", message: error.message };
+      const articles = await searchKnowledgeArticles(supabase, input.query as string, 10);
+      const data = articles.map((a) => ({
+        id: a.id,
+        title: a.title,
+        category: a.category,
+        status: a.status,
+        updated_at: a.updated_at,
+        content_snippet: a.content.slice(0, 400),
+      }));
       return { kind: "data", data };
     }
     case "list_departments": {

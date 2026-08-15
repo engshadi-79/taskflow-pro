@@ -4,6 +4,8 @@ import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
 import { FolderIcon, PlusIcon, SearchIcon } from "@/components/shared/icons";
+import { searchKnowledgeArticles } from "@/lib/knowledge/search";
+import { KnowledgeReindexButton } from "@/components/dashboard/knowledge-reindex-button";
 import {
   KNOWLEDGE_CATEGORY_LABEL,
   KNOWLEDGE_STATUS_LABEL,
@@ -27,16 +29,9 @@ export default async function KnowledgePage({
 
   const supabase = await createClient();
 
-  let articles: (KnowledgeArticle & { rank?: number })[] = [];
+  let articles: KnowledgeArticle[] = [];
   if (query) {
-    const { data } = await supabase.rpc("search_knowledge_articles", { p_query: query });
-    const ranked = (data as { id: string; title: string; category: KnowledgeCategory; status: string; updated_at: string; rank: number }[] | null) ?? [];
-    const ids = ranked.map((r) => r.id);
-    if (ids.length) {
-      const { data: full } = await supabase.from("knowledge_articles").select("*").in("id", ids).returns<KnowledgeArticle[]>();
-      const byId = new Map((full ?? []).map((a) => [a.id, a]));
-      articles = ranked.map((r) => byId.get(r.id)).filter((a): a is KnowledgeArticle => !!a);
-    }
+    articles = await searchKnowledgeArticles(supabase, query);
   } else {
     let listQuery = supabase.from("knowledge_articles").select("*").order("updated_at", { ascending: false });
     if (category) listQuery = listQuery.eq("category", category);
@@ -89,16 +84,19 @@ export default async function KnowledgePage({
           ))}
         </div>
 
-        <form method="get" className="relative">
-          <SearchIcon className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
-          <input
-            type="search"
-            name="q"
-            defaultValue={query}
-            placeholder="بحث..."
-            className="w-55 rounded-full border border-border bg-surface py-2 pe-9 ps-4 text-[13px] text-foreground placeholder:text-faint focus:border-accent-500 focus:outline-none"
-          />
-        </form>
+        <div className="flex items-center gap-2">
+          {profile.role === "super_admin" && <KnowledgeReindexButton />}
+          <form method="get" className="relative">
+            <SearchIcon className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+            <input
+              type="search"
+              name="q"
+              defaultValue={query}
+              placeholder="بحث..."
+              className="w-55 rounded-full border border-border bg-surface py-2 pe-9 ps-4 text-[13px] text-foreground placeholder:text-faint focus:border-accent-500 focus:outline-none"
+            />
+          </form>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
