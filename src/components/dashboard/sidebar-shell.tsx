@@ -14,16 +14,18 @@ import type { Role } from "@/lib/types/roles";
  */
 export function SidebarShell({
   role,
+  logoUrl,
   children,
 }: {
   role: Role;
+  logoUrl?: string | null;
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="flex h-dvh w-full">
-      <Sidebar role={role} mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
+      <Sidebar role={role} logoUrl={logoUrl} mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="flex h-11 shrink-0 items-center border-b border-border bg-surface px-3 md:hidden">
           <button

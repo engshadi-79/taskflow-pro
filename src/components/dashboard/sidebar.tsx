@@ -275,10 +275,14 @@ const PANEL = 248;
 
 export function Sidebar({
   role,
+  logoUrl,
   mobileOpen = false,
   onMobileClose,
 }: {
   role: Role;
+  /** The organization's uploaded logo (Settings > الهوية) - falls back to
+   * the static "م" mark below when none is set. */
+  logoUrl?: string | null;
   /** Controls the <md drawer only - the lg hover-expand rail below is
    * unaffected and keeps managing its own `open` state independently. */
   mobileOpen?: boolean;
@@ -350,9 +354,17 @@ export function Sidebar({
         {/* same height as the topbar, so the two form one unbroken top strip.
             px-[22px] centres the 32px mark inside the 76px rail. */}
         <div className="relative flex h-[70px] shrink-0 items-center gap-2.5 border-b border-white/10 px-[22px] text-lg font-black text-white">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-accent-500 to-purple-500 text-sm text-white shadow-lg shadow-accent-500/30">
-            م
-          </span>
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt=""
+              className="h-8 w-8 shrink-0 rounded-[10px] object-cover shadow-lg shadow-accent-500/30"
+            />
+          ) : (
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-accent-500 to-purple-500 text-sm text-white shadow-lg shadow-accent-500/30">
+              م
+            </span>
+          )}
           {effectiveOpen && <span className="whitespace-nowrap">نظام منجز</span>}
           {/* only meaningful for the <md drawer - md+ never sets mobileOpen */}
           <button

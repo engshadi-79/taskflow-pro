@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
+import { getCurrentOrganization } from "@/lib/data/organization";
 import { createClient } from "@/lib/supabase/server";
 import { SidebarShell } from "@/components/dashboard/sidebar-shell";
 import { Topbar } from "@/components/dashboard/topbar";
@@ -26,7 +27,7 @@ export default async function DashboardLayout({
   }
 
   const supabase = await createClient();
-  const [{ count: unreadCount }, { data: department }, { data: recentActivity }] = await Promise.all([
+  const [{ count: unreadCount }, { data: department }, { data: recentActivity }, organization] = await Promise.all([
     supabase.from("notifications").select("*", { count: "exact", head: true }).eq("is_read", false),
     profile.department_id
       ? supabase.from("departments").select("name").eq("id", profile.department_id).single()
@@ -34,10 +35,11 @@ export default async function DashboardLayout({
     // capped at 30 to match RecentActivityButton's own panel limit, so the
     // badge count and the list it opens always agree
     supabase.from("activity_log").select("id").eq("user_id", profile.id).order("created_at", { ascending: false }).limit(30),
+    getCurrentOrganization(),
   ]);
 
   return (
-    <SidebarShell role={profile.role}>
+    <SidebarShell role={profile.role} logoUrl={organization?.logo_url}>
       <Topbar
         userId={profile.id}
         fullName={profile.full_name}
