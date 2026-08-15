@@ -45,13 +45,15 @@ export function NotificationPreferencesSettings() {
         <>
           <fieldset>
             <legend className="mb-1.5 text-[12.5px] font-bold text-foreground">أنواع الإشعارات المفعّلة</legend>
-            <div className="max-h-[100px] space-y-2 overflow-y-auto pe-1">
-              {NOTIFICATION_CATEGORIES.map((cat) => {
+            <div className="max-h-[92px] overflow-y-auto rounded-[10px] border border-border">
+              {NOTIFICATION_CATEGORIES.map((cat, i) => {
                 const isMuted = cat.types.every((t) => prefs.muted_types.includes(t));
                 return (
                   <label
                     key={cat.key}
-                    className="flex cursor-pointer items-center justify-between gap-3 rounded-[10px] border border-border px-3.5 py-2.5 text-[13px] font-bold text-foreground hover:bg-background"
+                    className={`flex cursor-pointer items-center justify-between gap-3 border-s-[3px] px-3 py-2 text-[13px] font-bold hover:bg-background ${
+                      i > 0 ? "border-t border-t-border" : ""
+                    } ${isMuted ? "border-s-transparent text-muted" : "border-s-accent-500 text-foreground"}`}
                   >
                     {cat.label}
                     <input
