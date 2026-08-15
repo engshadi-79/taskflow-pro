@@ -114,6 +114,8 @@ export async function submitWorkflowRequest(
   const templateId = formData.get("template_id") as string;
   const title = (formData.get("title") as string)?.trim();
   const details = (formData.get("details") as string)?.trim() || null;
+  const priority = (formData.get("priority") as string) || "medium";
+  const saveAsDraft = formData.get("save_as_draft") === "true";
 
   if (!templateId) return { error: "اختر نوع الطلب" };
   if (!title) return { error: "عنوان الطلب مطلوب" };
@@ -123,12 +125,111 @@ export async function submitWorkflowRequest(
     p_template_id: templateId,
     p_title: title,
     p_details: details,
+    p_priority: priority,
+    p_save_as_draft: saveAsDraft,
   });
 
   if (error) return { error: error.message || "تعذر تقديم الطلب" };
 
   revalidatePath("/dashboard/workflow-requests");
   return {};
+}
+
+export async function updateWorkflowRequestDraft(
+  requestId: string,
+  _prevState: WorkflowFormState,
+  formData: FormData
+): Promise<WorkflowFormState> {
+  const title = (formData.get("title") as string)?.trim();
+  const details = (formData.get("details") as string)?.trim() || null;
+  const priority = (formData.get("priority") as string) || "medium";
+
+  if (!title) return { error: "عنوان الطلب مطلوب" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_workflow_request_draft", {
+    p_request_id: requestId,
+    p_title: title,
+    p_details: details,
+    p_priority: priority,
+  });
+
+  if (error) return { error: error.message || "تعذر تعديل المسودة" };
+
+  revalidatePath("/dashboard/workflow-requests");
+  revalidatePath(`/dashboard/workflow-requests/${requestId}`);
+  return {};
+}
+
+export async function submitWorkflowRequestDraft(requestId: string): Promise<WorkflowFormState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("submit_workflow_request_draft", { p_request_id: requestId });
+
+  revalidatePath("/dashboard/workflow-requests");
+  revalidatePath(`/dashboard/workflow-requests/${requestId}`);
+  return error ? { error: error.message || "تعذر إرسال المسودة" } : {};
+}
+
+const MAX_REQUEST_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+const ALLOWED_REQUEST_ATTACHMENT_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+  "text/csv",
+];
+
+export async function uploadWorkflowRequestAttachment(
+  _prevState: WorkflowFormState,
+  formData: FormData
+): Promise<WorkflowFormState> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { error: "يجب تسجيل الدخول" };
+
+  const requestId = formData.get("request_id") as string;
+  const file = formData.get("file") as File | null;
+
+  if (!file || file.size === 0) return { error: "اختر ملفًا للرفع" };
+  if (file.size > MAX_REQUEST_ATTACHMENT_BYTES) return { error: "حجم الملف يجب ألا يتجاوز 20 ميجابايت" };
+  if (file.type && !ALLOWED_REQUEST_ATTACHMENT_TYPES.includes(file.type)) {
+    return { error: "نوع الملف غير مدعوم" };
+  }
+
+  const supabase = await createClient();
+  const path = `${requestId}/${crypto.randomUUID()}-${file.name}`;
+
+  const { error: uploadError } = await supabase.storage.from("workflow-request-attachments").upload(path, file);
+  if (uploadError) return { error: "تعذر رفع الملف" };
+
+  const { error: insertError } = await supabase.from("workflow_request_attachments").insert({
+    request_id: requestId,
+    uploaded_by: profile.id,
+    file_url: path,
+    file_name: file.name,
+    file_type: file.type || null,
+    file_size: file.size,
+  });
+
+  if (insertError) {
+    await supabase.storage.from("workflow-request-attachments").remove([path]);
+    return { error: "تعذر حفظ بيانات المرفق" };
+  }
+
+  revalidatePath(`/dashboard/workflow-requests/${requestId}`);
+  return {};
+}
+
+export async function deleteWorkflowRequestAttachment(id: string, requestId: string, filePath: string) {
+  const supabase = await createClient();
+  await supabase.storage.from("workflow-request-attachments").remove([filePath]);
+  await supabase.from("workflow_request_attachments").delete().eq("id", id);
+  revalidatePath(`/dashboard/workflow-requests/${requestId}`);
 }
 
 export async function actOnWorkflowRequest(

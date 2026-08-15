@@ -6,11 +6,15 @@ import { PageHeader } from "@/components/shared/page-header";
 import { WorkflowRequestForm } from "@/components/dashboard/workflow-request-form";
 import { GearIcon } from "@/components/shared/icons";
 import { WORKFLOW_STATUS_LABEL, type WorkflowRequest, type WorkflowTemplate } from "@/lib/types/workflow";
+import { PRIORITY_LABEL, type Priority } from "@/lib/types/task";
 
 const STATUS_BADGE: Record<string, string> = {
+  draft: "bg-border text-muted",
   pending: "bg-accent-50 text-accent-700",
   approved: "bg-green-50 text-green-600",
   rejected: "bg-brand-red-50 text-brand-red-500",
+  processing: "bg-purple-50 text-purple-600",
+  completed: "bg-green-50 text-green-600",
   cancelled: "bg-border text-muted",
 };
 
@@ -54,6 +58,7 @@ export default async function WorkflowRequestsPage() {
               <th className="px-1.5 py-4 text-start">العنوان</th>
               <th className="px-1.5 py-4 text-start">النوع</th>
               <th className="px-1.5 py-4 text-start">مقدّم الطلب</th>
+              <th className="px-1.5 py-4 text-start">الأولوية</th>
               <th className="px-1.5 py-4 text-start">الخطوة الحالية</th>
               <th className="px-1.5 py-4 text-start">الحالة</th>
             </tr>
@@ -68,6 +73,7 @@ export default async function WorkflowRequestsPage() {
                 </td>
                 <td className="px-1.5 py-4 text-muted">{req.template?.name ?? "—"}</td>
                 <td className="px-1.5 py-4 text-muted">{req.requester?.full_name ?? "—"}</td>
+                <td className="px-1.5 py-4 text-muted">{PRIORITY_LABEL[req.priority as Priority] ?? req.priority}</td>
                 <td className="px-1.5 py-4 text-muted">{req.status === "pending" ? req.current_step_position : "—"}</td>
                 <td className="px-1.5 py-4">
                   <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE[req.status]}`}>
@@ -79,7 +85,7 @@ export default async function WorkflowRequestsPage() {
             ))}
             {(requests ?? []).length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-muted">
+                <td colSpan={6} className="px-4 py-6 text-center text-muted">
                   لا توجد طلبات
                 </td>
               </tr>
