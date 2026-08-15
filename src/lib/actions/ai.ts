@@ -10,6 +10,13 @@ const MANAGE_ROLES = ["super_admin", "department_manager"];
 
 type ReassignPayload = { task_id: string; new_assignee_id: string; reason: string | null };
 type CreateSubtasksPayload = { task_id: string; subtasks: { title: string; assigned_to: string }[] };
+type CreateTaskPayload = {
+  title: string;
+  description: string | null;
+  assigned_to: string;
+  priority: string;
+  due_date: string | null;
+};
 
 /**
  * The AI never mutates tasks itself (see src/lib/ai/tools.ts) - it only
@@ -58,6 +65,19 @@ export async function confirmAiAction(actionId: string): Promise<AiActionState> 
     );
     if (error) return { error: error.message || "تعذر إنشاء المهام الفرعية" };
     revalidatePath(`/dashboard/tasks/${payload.task_id}`);
+  } else if (action.action_type === "create_task") {
+    const payload = action.payload as CreateTaskPayload;
+    const { error } = await supabase.from("tasks").insert({
+      organization_id: profile.organization_id,
+      title: payload.title,
+      description: payload.description ?? null,
+      assigned_to: payload.assigned_to,
+      created_by: profile.id,
+      priority: payload.priority ?? "medium",
+      due_date: payload.due_date ?? null,
+    });
+    if (error) return { error: error.message || "تعذر إنشاء المهمة" };
+    revalidatePath("/dashboard/tasks");
   } else {
     return { error: "نوع إجراء غير معروف" };
   }

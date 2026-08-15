@@ -151,6 +151,35 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
   },
   {
+    name: "get_pending_requests_summary",
+    description: "عدد الطلبات (إجازة/شراء/صيانة...) المعلَّقة حاليًا ضمن ما تراه صلاحياتك، مصنَّفة حسب النوع.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_pending_approvals_count",
+    description: "عدد الطلبات وسلاسل العمل التلقائية التي بانتظار موافقتك أنت تحديدًا الآن.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_notifications_summary",
+    description: "عدد إشعاراتك غير المقروءة حاليًا.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_active_automations_summary",
+    description: "عدد قواعد الأتمتة وسلاسل العمل التلقائية الفعّالة حاليًا في المؤسسة.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_employee_kpi_summary",
+    description: "آخر تقييم أداء معتمَد لموظف: النتيجة الإجمالية وتفصيل الإنجاز/الالتزام بالوقت/الجودة/تقييم المدير.",
+    input_schema: {
+      type: "object",
+      properties: { user_id: { type: "string", description: "UUID الموظف" } },
+      required: ["user_id"],
+    },
+  },
+  {
     name: "suggest_reassign_task",
     description:
       "اقترح نقل مهمة من موظف إلى آخر. لا يُنفَّذ الاقتراح تلقائيًا؛ يظهر للمستخدم كبطاقة يجب أن يضغط فيها [تأكيد] بنفسه.",
@@ -188,11 +217,27 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ["task_id", "subtasks"],
     },
   },
+  {
+    name: "suggest_create_task",
+    description:
+      "اقترح إنشاء مهمة جديدة لموظف. لا يُنفَّذ تلقائيًا؛ يظهر للمستخدم كبطاقة يجب أن يضغط فيها [تأكيد] بنفسه.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "عنوان المهمة" },
+        assigned_to: { type: "string", description: "UUID الموظف المسنَد إليه" },
+        description: { type: "string", description: "وصف إضافي (اختياري)" },
+        priority: { type: "string", description: "low | medium | high | urgent (افتراضي medium)" },
+        due_date: { type: "string", description: "تاريخ الاستحقاق بصيغة YYYY-MM-DD (اختياري)" },
+      },
+      required: ["title", "assigned_to"],
+    },
+  },
 ];
 
 export type SuggestedActionDraft = {
-  action_type: "reassign_task" | "create_subtasks";
-  target_type: "task";
+  action_type: "reassign_task" | "create_subtasks" | "create_task";
+  target_type: "task" | "user";
   target_id: string;
   summary: string;
   payload: Record<string, unknown>;
@@ -337,6 +382,60 @@ export async function runTool(
       return { kind: "data", data };
     }
 
+    case "get_pending_requests_summary": {
+      const { data, error } = await supabase
+        .from("workflow_requests")
+        .select("id, template:workflow_templates(name)")
+        .eq("status", "pending");
+      if (error) return { kind: "error", message: error.message };
+      const rows = (data ?? []) as unknown as { id: string; template: { name: string } | null }[];
+      const byType: Record<string, number> = {};
+      for (const r of rows) {
+        const key = r.template?.name ?? "غير معروف";
+        byType[key] = (byType[key] ?? 0) + 1;
+      }
+      return { kind: "data", data: { total: rows.length, by_type: byType } };
+    }
+    case "get_pending_approvals_count": {
+      const [{ count: requestsCount, error: e1 }, { count: flowCount, error: e2 }] = await Promise.all([
+        supabase.from("workflow_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("workflow_flow_approvals").select("*", { count: "exact", head: true }).eq("status", "pending"),
+      ]);
+      if (e1) return { kind: "error", message: e1.message };
+      if (e2) return { kind: "error", message: e2.message };
+      return { kind: "data", data: { pending_requests: requestsCount ?? 0, pending_flow_approvals: flowCount ?? 0 } };
+    }
+    case "get_notifications_summary": {
+      const { count, error } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("is_read", false);
+      if (error) return { kind: "error", message: error.message };
+      return { kind: "data", data: { unread_count: count ?? 0 } };
+    }
+    case "get_active_automations_summary": {
+      const [{ count: rulesCount, error: e1 }, { count: flowsCount, error: e2 }] = await Promise.all([
+        supabase.from("automation_rules").select("*", { count: "exact", head: true }).eq("is_active", true),
+        supabase.from("workflow_flows").select("*", { count: "exact", head: true }).eq("status", "published").eq("is_active", true),
+      ]);
+      if (e1) return { kind: "error", message: e1.message };
+      if (e2) return { kind: "error", message: e2.message };
+      return { kind: "data", data: { active_automation_rules: rulesCount ?? 0, active_workflow_flows: flowsCount ?? 0 } };
+    }
+    case "get_employee_kpi_summary": {
+      const userId = input.user_id as string;
+      const { data, error } = await supabase
+        .from("employee_kpi_evaluations")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("status", "finalized")
+        .order("period_end", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) return { kind: "error", message: error.message };
+      return { kind: "data", data: data ?? { message: "لا يوجد تقييم أداء معتمَد لهذا الموظف بعد" } };
+    }
+
     case "suggest_reassign_task": {
       if (!MANAGE_ROLES.includes(ctx.profile.role)) {
         return { kind: "error", message: "هذا الإجراء يتطلب صلاحية مدير - لا يمكن اقتراحه لحسابك." };
@@ -378,6 +477,37 @@ export async function runTool(
           target_id: taskId,
           summary: `تقسيم المهمة "${task.title}" إلى ${subtasks.length} مهام فرعية`,
           payload: { task_id: taskId, subtasks },
+        },
+      };
+    }
+
+    case "suggest_create_task": {
+      if (!MANAGE_ROLES.includes(ctx.profile.role)) {
+        return { kind: "error", message: "هذا الإجراء يتطلب صلاحية مدير - لا يمكن اقتراحه لحسابك." };
+      }
+      const title = (input.title as string)?.trim();
+      const assignedTo = input.assigned_to as string;
+      if (!title) return { kind: "error", message: "عنوان المهمة مطلوب." };
+      if (!assignedTo) return { kind: "error", message: "حدد الموظف المسنَد إليه." };
+
+      const { data: assignee, error } = await supabase
+        .from("users")
+        .select("id, full_name")
+        .eq("id", assignedTo)
+        .single();
+      if (error || !assignee) return { kind: "error", message: "الموظف غير موجود أو لا يمكنك الوصول إليه." };
+
+      const dueDate = (input.due_date as string) || null;
+      const priority = (input.priority as string) || "medium";
+
+      return {
+        kind: "suggestion",
+        draft: {
+          action_type: "create_task",
+          target_type: "user",
+          target_id: assignedTo,
+          summary: `إنشاء مهمة "${title}" لـ ${assignee.full_name}${dueDate ? ` (تستحق ${dueDate})` : ""}`,
+          payload: { title, description: (input.description as string) || null, assigned_to: assignedTo, priority, due_date: dueDate },
         },
       };
     }
