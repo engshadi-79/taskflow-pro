@@ -1,0 +1,317 @@
+# PROJECT(3).md — الحالة الفعلية الحالية (خط الأساس لخطة MONJEZ 3.0)
+
+هذا الملف **ليس خطة**، بل تصوير دقيق لما هو موجود فعليًا في الكود اليوم،
+قبل البدء بأي مرحلة من `MONJEZ_3_0_CLAUDE_CODE_PROMPTS_v2.md` (P01–P20).
+بُني من فحص شامل للكود الفعلي (جداول SQL، سياسات RLS، Server Actions،
+صفحات الواجهة) لا من الذاكرة أو الافتراض. الهدف: معرفة ما يجب إعادة
+استخدامه/توسيعه (Audit → Reuse → Extend) قبل كتابة أي كود جديد لكل مرحلة،
+تفاديًا لإعادة بناء ما يعمل أصلًا.
+
+يوثّق `PROJECT.md` (بدون رقم) تاريخ وقرارات MONJEZ 2.0 و"V2" (P01–P11)
+السابقة — يبقى كما هو كسجل تاريخي. هذا الملف الجديد هو المرجع الحي لحالة
+"3.0" فقط، ويُحدَّث بعد كل مرحلة تُنجَز منها.
+
+---
+
+## ملخص الحالة مقابل كل مرحلة
+
+| # | المرحلة | الحالة | الفجوة الأساسية |
+|---|---|---|---|
+| P01 | Foundation & Architecture 3.0 | ❌ غير موجود | لا Domain Events/Permission Service/Audit Service مركزي/Idempotency/Rate Limiting عام |
+| P02 | Security & RBAC | 🟡 جزئي | RLS ثلاثي الأدوار ناضج وموجود في 132 سياسة، لكن لا نظام صلاحيات دقيق (permission strings/groups/scope) |
+| P03 | Employee Workspace | 🟡 جزئي | لوحة الموظف موجودة وغنية بالبيانات، لكن ضمن نفس `page.tsx` لا مسار مستقل |
+| P04 | Manager Workspace | 🟡 جزئي | نفس الملاحظة أعلاه — موجودة وغنية، تحتاج تنظيمًا لا بناءً من الصفر |
+| P05 | Request Center | 🟢 موجود (كمحرك عام) | لا مرفقات ولا SLA على الطلب، ولا حقول مخصّصة لكل نوع طلب |
+| P06 | Workflow Builder | ❌ غير موجود بصريًا | المحرك (خطوات/شروط/إجراءات) موجود وفعّال، لكن التهيئة عبر نماذج لا Canvas مرئي |
+| P07 | Approval Center | ❌ غير موجود | لا صندوق وارد موافقات مستقل ولا Bulk Approval ولا تفويض؛ آلية السلسلة نفسها موجودة في المحرك |
+| P08 | KPI & Performance | 🟡 جزئي | مقاييس فردية غنية (إنجاز/التزام/SLA/حمل) لكن لا Score مركّب موزون |
+| P09 | AI Agent | 🟢 موجود | 17 أداة قراءة + أداتا اقتراح إجراء مع تأكيد بشري إلزامي وسجل تدقيق كامل |
+| P10 | AI Knowledge Center | 🟡 جزئي | بحث نصي (tsvector) فعّال، لا بحث دلالي (Embeddings/pgvector) |
+| P11 | Automation Center | 🟢 موجود | محرك Trigger→Condition→Action فعّال بسجل تنفيذ؛ ينقصه معرض قوالب و Retry تلقائي |
+| P12 | Notification Center | 🟡 جزئي | بنية تحتية قوية (جرس + بث إداري + جدولة/تكرار)، صفر تفضيلات شخصية (قنوات/DND/ملخص) |
+| P13 | Executive Decision Center | ❌ غير موجود | تقارير ورسوم بيانية غنية، لا طبقة "ماذا حدث/لماذا/ما الإجراء" |
+| P14 | Global Search | 🟡 جزئي | Command Palette حقيقي عبر Ctrl+K موجود، يغطي مهام/موظفين/أقسام فقط |
+| P15 | Email & Scheduled Reports | ❌ غير موجود (البريد) | صفر تكامل بريد إلكتروني؛ 8 مهام cron موجودة لكن كلها داخل النظام فقط |
+| P16 | SaaS Multi-Tenant | 🟡 جزئي | البنية متعددة المؤسسات فعليًا (RLS)، لكن التسجيل الذاتي لا ينشئ مؤسسة جديدة عمليًا |
+| P17 | Plans & Billing | ❌ غير موجود | `plan_type` عمود غير مستخدم إطلاقًا في أي منطق |
+| P18 | API & Webhooks | ❌ غير موجود | مسارا API فقط (`ai/chat`, `reports/export`)، لا مفاتيح API ولا Webhooks |
+| P19 | Enterprise Integrations | ❌ غير موجود | فقط تسجيل الدخول عبر Google، لا مزامنة تقويم/بريد/ملفات |
+| P20 | Mobile | 🟡 جزئي | PWA حقيقي (Shell Caching متعمد وضيق)، لا دعم Offline للمهام ولا Capacitor |
+
+---
+
+## 1. نموذج الصلاحيات (P02)
+
+- الدور مسطّح فقط: `Role = "super_admin" | "department_manager" | "employee"`
+  ([src/lib/types/roles.ts](src/lib/types/roles.ts)). لا جدول/نظام صلاحيات
+  دقيقة (permission strings) أو مجموعات صلاحيات في أي مكان.
+- دوال RLS مركزية تُستخدم في 132 سياسة عبر كل الجداول: `current_user_role()`،
+  `current_org_id()`، `current_department_id()` ([supabase/rls.sql](supabase/rls.sql))
+  — `current_org_id()` أُعيد تعريفها لاحقًا لتشترط `is_active` أيضًا
+  ([supabase/google_signup.sql](supabase/google_signup.sql)).
+- فحوصات دور مباشرة متكررة (`profile.role !== "..."`) في عشرات الملفات
+  (`admin-notifications.ts`, `workflow.ts`, `sla.ts`, `automation.ts`...)
+  بلا تجريد مشترك، عدا `requireRole()` في
+  [src/lib/actions/guards.ts](src/lib/actions/guards.ts) المخصص فقط
+  للإجراءات التي تستخدم عميل service-role.
+- لا مفهوم Scope (organization/department/team/self) مستقل عن السياسة
+  المكتوبة يدويًا في كل جدول.
+
+**الخلاصة:** RLS كخط دفاع أساسي ناضج وموجود بالفعل ويُستخدم في كل مكان —
+هذا يجب أن يبقى كما هو (القاعدة الثابتة تمنع استبدال RLS). ما ينقص P02 هو
+طبقة Permission Service **فوق** RLS، لا بديلًا عنه.
+
+## 2/3. لوحة الموظف ولوحة المدير (P03/P04)
+
+`src/app/dashboard/page.tsx` (666 سطرًا) يتفرّع كليًا حسب
+`profile.role === "employee"`:
+
+- **الموظف:** عدّادات (إجمالي/مستحقة اليوم/قادمة 7 أيام/متأخرة)، نسبة الحمل
+  الوظيفي (`employee_workload`)، إحصاءات شخصية (`report_employee_stats`)،
+  ودجت الملاحظات، ملخص المهام العاجلة، قائمة المهام الكاملة.
+- **المدير/الإدارة:** بطاقة أسبوعية + KPIs (مهام جديدة، إشعارات غير مقروءة،
+  أعضاء نشطون، نسبة إنجاز)، توزيع حسب القسم/الأولوية، اتجاه أسبوعي، لوحة
+  حمل العمل، مؤشر التزام SLA، قائمة مشاريع مصغّرة، أفضل الأداء، تغذية نشاط،
+  وشريط فلاتر (فترة/قسم [لـ super_admin فقط]/مشروع/موظف).
+
+**الخلاصة:** لوحتان غنيتان بالبيانات فعليًا وليستا بطاقات فارغة — العمل هنا
+تنظيم/فصل لا بناء من الصفر، وربما فصل كل دور لمسار مستقل إن أراد ذلك P03/P04.
+
+## 3. مركز الطلبات (P05)
+
+- محرك عام واحد لا جداول منفصلة لكل نوع طلب: `workflow_requests` +
+  `workflow_templates` + `workflow_steps` + `workflow_actions`
+  ([supabase/workflow_engine.sql](supabase/workflow_engine.sql), 319 سطرًا).
+  "نوع الطلب" = صف في `workflow_templates`، لا جدول مستقل.
+- دورة الحياة: `status` ∈ `pending/approved/rejected/cancelled`،
+  `current_step_position`، `is_escalated`، إعادة تعيين المسار عبر
+  `current_step_override_user_id`. كل إجراء يُسجَّل في `workflow_actions`
+  (`submit/approve/reject/return/escalate/reassign/cancel`).
+- المُوافِقون يُحلّون عبر `approver_type` ∈
+  `department_manager/super_admin/specific_user`
+  (`can_act_on_workflow_request()`).
+- **لا** عمود مرفقات، **لا** SLA/تاريخ استحقاق على الطلب نفسه، **لا** حقول
+  مخصّصة لكل نوع (كل شيء `title`+`details` نصي عام).
+- الواجهة: [src/app/dashboard/workflow-requests/page.tsx](src/app/dashboard/workflow-requests/page.tsx)
+  (جدول مسطّح) + `[id]/page.tsx` للتفاصيل/الإجراء.
+
+**الخلاصة:** سلسلة موافقات متعددة الخطوات + تصعيد/إعادة تعيين تعمل فعليًا
+من طرف لطرف. الناقص: مرفقات، SLA على الطلب، حقول مخصّصة لكل نوع.
+
+## 4. باني سير العمل (P06)
+
+- `workflow_templates`/`workflow_steps` تُهيَّأ عبر نموذج نصي بسيط
+  ([src/app/dashboard/workflow-templates/page.tsx](src/app/dashboard/workflow-templates/page.tsx))
+  — قائمة خطوات مرتّبة (`position`, `approver_type`, `specific_user_id`
+  اختياري)، **لا Canvas/Node-Graph مرئي إطلاقًا**.
+- محرك منفصل تمامًا للأتمتة:
+  [supabase/automation_engine.sql](supabase/automation_engine.sql) (314 سطرًا)
+  — `trigger_event` ∈ `task_created/task_status_changed/task_overdue/
+  sla_near_breach/project_completed`، شروط JSON مسطّحة (مساواة فقط، لا
+  منطق مركّب)، 9 أنواع إجراءات ثابتة (`notify_*`, `change_status`,
+  `change_priority`, `create_followup_task`, `reassign`).
+  سجل تنفيذ عبر `automation_executions` (منع تكرار عبر
+  `unique(rule_id, entity_id)`).
+
+**الخلاصة:** المحرّكان (سير العمل + الأتمتة) فعّالان ومُستخدَمان، لكن كلاهما
+بلا أي واجهة بصرية (Drag & Drop Canvas) — هذا بالكامل عمل جديد في P06، فوق
+محرك خلفي جاهز لا يُعاد بناؤه.
+
+## 5. مركز الموافقات (P07)
+
+- لا صندوق وارد موافقات مستقل — الموافقة تتم من صفحة تفاصيل الطلب نفسها.
+  صفحة القائمة تعرض كل الطلبات (الخاصة بي + القابلة لإجرائي + الكل إن كنت
+  إداريًا) في جدول واحد، لا فلتر "بانتظار موافقتي" مخصّص.
+- لا Bulk Approval، لا تفويض مسبق (Delegation) — يوجد فقط تصعيد/إعادة تعيين
+  بعد الإرسال. السلاسل متعددة الخطوات (`workflow_steps.position`) مدعومة
+  فعليًا في المحرك.
+
+**الخلاصة:** آليات الموافقة (تعدد خطوات، تصعيد، إعادة تعيين) موجودة في
+الخلفية بالكامل؛ الناقص هو واجهة صندوق وارد مخصّصة + إجراء جماعي — عمل
+واجهة بالكامل تقريبًا فوق خلفية جاهزة.
+
+## 6. الأداء والمؤشرات (P08)
+
+- `report_employee_stats()`: عدد المكتمل، نسبة الالتزام بالوقت، متوسط ساعات
+  الإنجاز ([supabase/report_employee_stats.sql](supabase/report_employee_stats.sql)).
+- `sla_report()`: نسبة الالتزام، عدد الخروقات ([supabase/sla_engine.sql](supabase/sla_engine.sql)).
+- `employee_workload()`: حمل مرجّح بالأولوية → نسبة → حالة
+  منخفض/عادي/مرتفع/حرج ([supabase/workload.sql](supabase/workload.sql)).
+- تقارير إضافية: أداء القسم/الموظف/المشروع/الأولوية، المتأخر حسب القسم
+  ([supabase/advanced_reports.sql](supabase/advanced_reports.sql))، سلاسل
+  زمنية يومية، متوسط الساعات حسب القسم
+  ([supabase/reports_extended.sql](supabase/reports_extended.sql))، نسبة
+  رفض المراجعة ([supabase/review_rejection_rate.sql](supabase/review_rejection_rate.sql)).
+- **لا وجود إطلاقًا** لأي Score مركّب موزون (لا "جودة" ولا "تقييم مدير" في
+  أي مكان).
+
+**الخلاصة:** مقاييس فردية غنية وجاهزة لإعادة الاستخدام كمدخلات؛ الناقص هو
+حساب Score مركّب موزون بالكامل — بُعد جديد بالكامل.
+
+## 7. وكيل الذكاء الاصطناعي (P09)
+
+- `ai_interactions` (سجل تدقيق كامل: prompt/response/tool_calls/tokens) +
+  `ai_suggested_actions` (`status`: `pending/confirmed/rejected`)
+  ([supabase/ai_assistant.sql](supabase/ai_assistant.sql)).
+- 17 أداة قراءة فقط تعمل ضمن صلاحيات المستخدم عبر RLS (أداء الأقسام/
+  الموظفين/المشاريع/الأولويات، المتأخر، الحمل الوظيفي، SLA، المهام
+  الحرجة، ملخصات موظف/مشروع/اجتماع، بحث المعرفة، قوائم الأقسام/المشاريع/
+  الموظفين) — [src/lib/ai/tools.ts](src/lib/ai/tools.ts).
+- أداتا اقتراح فعل فقط (`suggest_reassign_task`, `suggest_create_subtasks`)
+  — الذكاء الاصطناعي **لا يكتب مباشرة أبدًا**؛ التنفيذ الفعلي فقط بعد تأكيد
+  بشري عبر `confirmAiAction`/`rejectAiAction`
+  ([src/lib/actions/ai.ts](src/lib/actions/ai.ts))، بإعادة فحص الدور
+  (`MANAGE_ROLES`) قبل التنفيذ.
+- المسار: [src/app/api/ai/chat/route.ts](src/app/api/ai/chat/route.ts)؛
+  المزوّد الفعلي Google Gemini، لا Anthropic.
+
+**الخلاصة:** نموذج "اقتراح → تأكيد بشري → تنفيذ → تدقيق" مطبَّق بالكامل
+ويطابق تمامًا قاعدة P09 الأمنية الثابتة. الفجوة فقط في اتساع مجموعة الأدوات
+لا في المعمارية.
+
+## 8. مركز المعرفة الذكي (P10)
+
+- `knowledge_articles` (تصنيف: سياسة/إجراء/نموذج/دليل/تعليمة/قرار، حالة:
+  مسودة/منشور/مؤرشف) + `knowledge_attachments`
+  ([supabase/knowledge_base.sql](supabase/knowledge_base.sql)).
+- البحث عمود `tsvector` مولَّد (`to_tsvector('simple', ...)`) +
+  `search_knowledge_articles()` عبر `websearch_to_tsquery`/`ts_rank` — بحث
+  نصي كلاسيكي، **لا عمود Embedding/Vector إطلاقًا**، ولا قاموس عربي مخصّص
+  (يستخدم `'simple'` صراحة).
+
+**الخلاصة:** CRUD + دورة نشر كاملة + بحث نصي فعّال موجود؛ البحث الدلالي
+(pgvector + خط أنابيب تضمين) غائب تمامًا — يحتاج امتدادًا جديدًا لا إعادة
+بناء.
+
+## 9. مركز الأتمتة (P11)
+
+- `automation_rules` (حدث/شروط JSON/نوع إجراء/معاملات/فعّال) +
+  `automation_executions` (سجل تدقيق ومنع تكرار)
+  ([supabase/automation_engine.sql](supabase/automation_engine.sql)).
+- التفعيل عبر Triggers مباشرة على `tasks`/`projects`
+  (`dispatch_task_automations`, `dispatch_project_automations`) + مهمة
+  cron كل 15 دقيقة لحالة `sla_near_breach`
+  (`run_sla_near_breach_automations`).
+- لا إعادة محاولة تلقائية (Retry) عند الفشل — الخطأ يُسجَّل فقط.
+- الواجهة: [automation-rules/page.tsx](src/app/dashboard/automation-rules/page.tsx)
+  (super_admin فقط)، تعرض القواعد + آخر 500 تنفيذ.
+
+**الخلاصة:** مركز أتمتة فعّال فعليًا بمنطق Trigger→Condition→Action وسجل
+تنفيذ حقيقي. الناقص: معرض قوالب جاهزة + Retry تلقائي.
+
+## 10. مركز الإشعارات (P12)
+
+- الأساس: جدول `notifications` بسيط (`user_id, task_id, type, message,
+  is_read`) + `NotificationBell` عبر Supabase Realtime.
+- الإشعارات الإدارية (ميزة كاملة أُنجزت هذه الجلسة، خارج ترقيم V2):
+  [supabase/admin_notifications.sql](supabase/admin_notifications.sql) +
+  [supabase/admin_notifications_phase2.sql](supabase/admin_notifications_phase2.sql)
+  (589 سطرًا): جدولة، تكرار دوري (`admin_notification_series`)، قوالب،
+  مهمتا cron (`process-scheduled-admin-notifications` كل 5 دقائق،
+  `process-recurring-admin-notification-series` كل 15 دقيقة).
+- **لا يوجد إطلاقًا** نظام تفضيلات شخصي: لا اختيار قناة (In-App/Browser/
+  Email) لكل نوع، لا Quiet Hours، لا DND، لا ملخص يومي/أسبوعي — تأكَّد
+  بالفحص الكامل، صفر نتائج.
+
+**الخلاصة:** بنية تحتية للإشعارات قوية وحقيقية (جرس + بث إداري + جدولة/
+تكرار + 8 مهام cron منتجة للإشعارات عبر النظام كله)؛ طبقة "تفضيلات لكل
+مستخدم" غائبة بالكامل — هذا تحديدًا محتوى P12 الجديد.
+
+## 11. مركز القرار التنفيذي (P13)
+
+- [src/app/dashboard/reports/page.tsx](src/app/dashboard/reports/page.tsx)
+  (599 سطرًا): رسوم بيانية ومؤشرات فقط (أداء قسم/موظف/مشروع، توزيع
+  الأولوية، المتأخر حسب القسم، سلسلة يومية، متوسط ساعات حسب القسم، توزيع
+  الحالة، نسبة رفض المراجعة).
+- لا طبقة سردية "ماذا حدث/لماذا/أين المشكلة/ما الإجراء المقترح" في أي مكان.
+
+**الخلاصة:** طبقة BI/رسوم بيانية غنية موجودة فعلًا تصلح كمصدر بيانات؛ طبقة
+القرار/التوصية بالكامل جديدة.
+
+## 12. البحث الموحّد (P14)
+
+- [src/components/dashboard/command-palette.tsx](src/components/dashboard/command-palette.tsx):
+  لوحة أوامر حقيقية عبر Ctrl+K تبحث في آنٍ واحد في المهام (العنوان)،
+  المستخدمين (الاسم/المسمى الوظيفي)، الأقسام (الاسم)، بالإضافة للتنقل بين
+  الصفحات الثابتة، مع بادئات نطاق (`t:`/`e:`/`d:`/`p:`)، وسجل عمليات بحث/
+  عناصر أخيرة (localStorage)، وتنقّل بلوحة المفاتيح.
+- **لا يغطي** المستندات/مقالات المعرفة، الاجتماعات، أو المشاريع.
+
+**الخلاصة:** تجربة بحث موحّد حقيقية (لا مجرد صناديق بحث منفصلة لكل صفحة)
+موجودة فعلًا؛ الفجوة في اتساع الكيانات المغطاة فقط.
+
+## 13. البريد والتقارير المجدولة (P15)
+
+- **صفر** تكامل بريد إلكتروني صادر في أي مكان (تحقّق شامل: لا Resend، لا
+  SendGrid، لا SMTP، لا Nodemailer، لا Mailgun).
+- 8 مهام cron موجودة فعليًا، كلها داخل النظام فقط (لا خطوة بريد ضمن أيٍّ
+  منها): بث الإشعارات الإدارية المجدولة/الدورية، تصعيد قرب خرق SLA، تذكير
+  الاجتماعات، تذكير تاريخ الاستحقاق، تحديد المهام المتأخرة، توليد المهام
+  المتكررة، خرق SLA.
+- [src/app/api/reports/export/route.ts](src/app/api/reports/export/route.ts)
+  موجود للتصدير عند الطلب فقط، لا جدولة ولا إرسال بريد.
+
+**الخلاصة:** بنية cron ناضجة (8 مهام تعمل فعليًا) يمكن البناء عليها لتوليد
+تقارير مجدولة؛ خطوة "البريد الإلكتروني" غائبة بالكامل وتحتاج مزوّد بريد من
+الصفر.
+
+## 14. SaaS متعدد المؤسسات (P16)
+
+- البنية متعددة المؤسسات فعليًا: `organization_id` في كل جدول رئيسي و132
+  سياسة RLS مبنية عليه.
+- التسجيل الذاتي عبر Google **لا** ينشئ مؤسسة جديدة لكل مسجّل — ينضم
+  المسجّل الجديد لأقدم مؤسسة مسجّلة ويبقى `is_active = false` حتى يوافق
+  super_admin؛ إنشاء مؤسسة جديدة فعليًا يحدث فقط في حالة واحدة (صفر
+  مؤسسات مسجّلة إطلاقًا) — وهي حالة نظرية، فالنظام يُستخدم فعليًا من مؤسسة
+  واحدة فقط حتى الآن رغم أن المخطط يدعم التعدد بنيويًا.
+- إعدادات/هوية المؤسسة: [supabase/organization_settings.sql](supabase/organization_settings.sql)
+  (شعار، منطقة زمنية، أيام/ساعات عمل، عطل رسمية، قيم افتراضية للمهام/SLA).
+- **لا** تتبع استخدام (Usage Tracking)، **لا** Feature Flags في أي مكان.
+
+**الخلاصة:** الأساس البنيوي (عزل عبر RLS + إعدادات مؤسسة) قوي وموجود؛
+الإنشاء الذاتي الحقيقي متعدد المؤسسات + تتبع الاستخدام + Feature Flags كلها
+عمل جديد.
+
+## 15. الخطط والفوترة (P17)
+
+- `organizations.plan_type` عمود موجود (`'free'|'paid'`) لكنه **غير
+  مُستخدَم إطلاقًا** في أي منطق تحقّق أو تقييد — يُضبط فقط عند الإدراج.
+- لا تكامل فوترة (Stripe أو غيره) في أي مكان.
+
+**الخلاصة:** عمود فارغ الأثر فقط — P17 بالكامل عمل جديد.
+
+## 16. الـ API والـ Webhooks (P18)
+
+- مساران فقط: `/api/ai/chat`، `/api/reports/export`.
+- لا جدول مفاتيح API، لا Webhooks، لا أي سطح API عام.
+
+**الخلاصة:** عمل جديد بالكامل.
+
+## 17. التكاملات المؤسسية (P19)
+
+- التكامل الوحيد هو تسجيل الدخول عبر Google (هوية فقط، لا مزامنة تقويم/
+  بريد/ملفات).
+- لا تكامل Microsoft/Slack/Teams في أي مكان.
+
+**الخلاصة:** عمل جديد بالكامل (ويُفضَّل تأجيله لما بعد استقرار API، كما
+تنص الخطة نفسها).
+
+## 18. الجوال (P20)
+
+- PWA حقيقي: `public/manifest.json` + `public/sw.js` +
+  `service-worker-register.tsx`. الكاش يقتصر عمدًا على أصول Next الثابتة
+  وأيقونات PWA فقط — أي تنقّل بين الصفحات أو استدعاء `/api/*`/Server Action
+  يذهب للشبكة دائمًا (بيانات كل مستخدم محكومة بـ RLS، لا يجوز تخزينها
+  محليًا أو تقديمها Offline، بحسب تعليق صريح في الكود).
+- لا قائمة انتظار Offline لأي تعديل، لا إعداد Capacitor في أي مكان.
+
+**الخلاصة:** غلاف PWA قابل للتثبيت موجود؛ دعم Offline الحقيقي للمهام وأي
+غلاف Native (Capacitor) كلاهما عمل جديد بالكامل.
+
+---
+
+## التالي
+
+عند قول المستخدم "اكمل" أو "ابدأ": **P01 — Foundation & Architecture 3.0**،
+حسب البروتوكول في `MONJEZ_3_0_CLAUDE_CODE_PROMPTS_v2.md` (Audit → Reuse →
+Extend، مرحلة واحدة فقط، توقف كامل بعدها بانتظار أمر صريح للتالية).
