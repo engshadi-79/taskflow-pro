@@ -24,7 +24,7 @@ import {
   InboxIcon,
   UsersIcon,
 } from "@/components/shared/icons";
-import { PRIORITY_LABEL, type Priority, type Task } from "@/lib/types/task";
+import { PRIORITY_LABEL, STATUS_LABEL, type Priority, type Task, type TaskStatus } from "@/lib/types/task";
 import { PROJECT_STATUS_LABEL } from "@/lib/types/project";
 import { WORKFLOW_STATUS_LABEL, type WorkflowRequestStatus } from "@/lib/types/workflow";
 import { timeAgo } from "@/lib/format-time-ago";
@@ -36,7 +36,13 @@ import { parsePeriod, periodRange, PERIOD_LABEL, type ReportPeriod } from "@/lib
  * inline `let query = query.eq(...)` reassignments make implicitly. */
 function withDashboardFilters(
   query: any, // eslint-disable-line @typescript-eslint/no-explicit-any
-  opts: { employeeId: string | null; employeeIds: string[] | null; projectId: string | null }
+  opts: {
+    employeeId: string | null;
+    employeeIds: string[] | null;
+    projectId: string | null;
+    status?: string | null;
+    priority?: string | null;
+  }
 ) {
   let q = query;
   if (opts.employeeId) q = q.eq("assigned_to", opts.employeeId);
@@ -44,6 +50,12 @@ function withDashboardFilters(
     q = q.in("assigned_to", opts.employeeIds.length ? opts.employeeIds : ["00000000-0000-0000-0000-000000000000"]);
   }
   if (opts.projectId) q = q.eq("project_id", opts.projectId);
+  // composes as a real AND with any status a query already hard-codes
+  // (e.g. completedCount already filters status=completed) - selecting a
+  // different status here correctly zeroes that KPI out, the same way an
+  // incompatible employee+project combination already does
+  if (opts.status) q = q.eq("status", opts.status);
+  if (opts.priority) q = q.eq("priority", opts.priority);
   return q;
 }
 
@@ -73,6 +85,8 @@ export default async function DashboardPage({
     department_id?: string;
     project_id?: string;
     employee_id?: string;
+    status?: string;
+    priority?: string;
   }>;
 }) {
   const profile = await getCurrentProfile();
@@ -317,6 +331,8 @@ export default async function DashboardPage({
     profile.role === "department_manager" ? profile.department_id : params.department_id || null;
   const employeeIdFilter = params.employee_id || null;
   const projectIdFilter = params.project_id || null;
+  const statusFilter = params.status || null;
+  const priorityFilter = params.priority || null;
 
   // only super_admin's department pick needs resolving to member ids - a
   // department_manager is already scoped by RLS with no extra query needed
@@ -325,7 +341,13 @@ export default async function DashboardPage({
     const { data } = await supabase.from("users").select("id").eq("department_id", params.department_id);
     departmentEmployeeIds = (data ?? []).map((u) => u.id);
   }
-  const filterOpts = { employeeId: employeeIdFilter, employeeIds: departmentEmployeeIds, projectId: projectIdFilter };
+  const filterOpts = {
+    employeeId: employeeIdFilter,
+    employeeIds: departmentEmployeeIds,
+    projectId: projectIdFilter,
+    status: statusFilter,
+    priority: priorityFilter,
+  };
 
   const [
     { count: employeeCount },
@@ -334,6 +356,10 @@ export default async function DashboardPage({
     { count: completedCount },
     { count: totalCount },
     { count: pendingCount },
+    { count: activeCount },
+    { count: teamOverdueCount },
+    { count: pendingReviewCount },
+    { count: pendingApprovalsCount },
     { count: unreadCount },
     { count: completedThisWeek },
     { count: completedLastWeek },
@@ -348,6 +374,8 @@ export default async function DashboardPage({
     { data: slaRows },
     { data: projectRows },
     { count: projectCount },
+    { data: pendingApprovalsRaw },
+    { data: atRiskProjectsRaw },
     { data: departmentsForFilter },
     { data: projectsForFilter },
     { data: employeesForFilter },
@@ -371,6 +399,25 @@ export default async function DashboardPage({
         .in("status", ["new", "in_progress", "pending_review"]),
       filterOpts
     ),
+    withDashboardFilters(
+      supabase.from("tasks").select("*", { count: "exact", head: true }).in("status", ["new", "in_progress"]),
+      filterOpts
+    ),
+    // "overdue" is a real status value, not derived from due_date at read
+    // time - maintained by the mark_overdue_tasks() cron job
+    withDashboardFilters(
+      supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "overdue"),
+      filterOpts
+    ),
+    withDashboardFilters(
+      supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "pending_review"),
+      filterOpts
+    ),
+    supabase
+      .from("workflow_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending")
+      .neq("requested_by", profile.id),
     supabase
       .from("notifications")
       .select("*", { count: "exact", head: true })
@@ -425,6 +472,28 @@ export default async function DashboardPage({
       .order("created_at", { ascending: false })
       .limit(5),
     supabase.from("projects").select("*", { count: "exact", head: true }),
+    // leans on workflow_requests_select RLS instead of re-deriving
+    // can_act_on_workflow_request()'s logic in JS: that policy already
+    // returns "my own requests OR ones I can currently act on OR (if
+    // super_admin) everything" - excluding my own submissions here leaves
+    // exactly "pending requests I can act on"
+    supabase
+      .from("workflow_requests")
+      .select("id, title, created_at, template:workflow_templates(name)")
+      .eq("status", "pending")
+      .neq("requested_by", profile.id)
+      .order("created_at", { ascending: true })
+      .limit(5),
+    // "at risk" here means concretely overdue, not a fabricated risk score:
+    // an active project whose due date has already passed
+    supabase
+      .from("projects")
+      .select("id, name, due_date")
+      .eq("status", "active")
+      .not("due_date", "is", null)
+      .lt("due_date", todayIso)
+      .order("due_date", { ascending: true })
+      .limit(5),
     profile.role === "super_admin"
       ? supabase.from("departments").select("id, name").order("name")
       : Promise.resolve({ data: [] }),
@@ -481,6 +550,9 @@ export default async function DashboardPage({
     slaRows as { total_count: number; breached_count: number; compliance_rate: number }[] | null
   )?.[0] ?? { total_count: 0, breached_count: 0, compliance_rate: 100 };
   const projects = (projectRows as { id: string; name: string; status: string }[] | null) ?? [];
+  const pendingApprovals =
+    (pendingApprovalsRaw as { id: string; title: string; template: { name: string } | null }[] | null) ?? [];
+  const atRiskProjects = (atRiskProjectsRaw as { id: string; name: string; due_date: string }[] | null) ?? [];
 
   return (
     <div className="space-y-4.5">
@@ -535,6 +607,26 @@ export default async function DashboardPage({
                 <option key={e.id} value={e.id}>{e.full_name}</option>
               ))}
             </select>
+            <select
+              name="status"
+              defaultValue={params.status ?? ""}
+              className="rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground outline-none focus:border-accent-500"
+            >
+              <option value="">كل الحالات</option>
+              {(Object.keys(STATUS_LABEL) as TaskStatus[]).map((s) => (
+                <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+              ))}
+            </select>
+            <select
+              name="priority"
+              defaultValue={params.priority ?? ""}
+              className="rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground outline-none focus:border-accent-500"
+            >
+              <option value="">كل الأولويات</option>
+              {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
+                <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>
+              ))}
+            </select>
             <button type="submit" className="rounded-full bg-accent-500 px-3 py-1 text-[12px] font-bold text-white hover:bg-accent-600">
               تصفية
             </button>
@@ -577,6 +669,37 @@ export default async function DashboardPage({
           value={`${completionRate}٪`}
           progress={completionRate}
           foot={`${completedCount ?? 0} من ${totalCount ?? 0} مهمة`}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          value={activeCount ?? 0}
+          label="مهام نشطة"
+          tone="blue"
+          icon={<CheckSquareIcon className="h-[22px] w-[22px]" />}
+          href="/dashboard/kanban"
+        />
+        <StatCard
+          value={pendingReviewCount ?? 0}
+          label="بانتظار المراجعة"
+          tone="amber"
+          icon={<InboxIcon className="h-[22px] w-[22px]" />}
+          href="/dashboard/kanban"
+        />
+        <StatCard
+          value={teamOverdueCount ?? 0}
+          label="مهام متأخرة"
+          tone="red"
+          icon={<BellIcon className="h-[22px] w-[22px]" />}
+          href="/dashboard/kanban"
+        />
+        <StatCard
+          value={pendingApprovalsCount ?? 0}
+          label="طلبات تحتاج موافقة"
+          tone="indigo"
+          icon={<UsersIcon className="h-[22px] w-[22px]" />}
+          href="/dashboard/workflow-requests"
         />
       </div>
 
@@ -659,6 +782,31 @@ export default async function DashboardPage({
             key: p.id,
             label: p.name,
             value: PROJECT_STATUS_LABEL[p.status as keyof typeof PROJECT_STATUS_LABEL] ?? p.status,
+          }))}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4.5 sm:grid-cols-2">
+        <MiniListPanel
+          title="طلبات تحتاج موافقة"
+          caption={`${pendingApprovalsCount ?? 0} طلب بانتظارك`}
+          href="/dashboard/workflow-requests"
+          emptyLabel="لا توجد طلبات بانتظار موافقتك"
+          rows={pendingApprovals.map((r) => ({
+            key: r.id,
+            label: r.template?.name ? `${r.title} (${r.template.name})` : r.title,
+            value: "قيد المعالجة",
+          }))}
+        />
+        <MiniListPanel
+          title="مشاريع متعثرة"
+          caption="مشاريع نشطة تجاوزت موعدها"
+          href="/dashboard/projects"
+          emptyLabel="لا توجد مشاريع متعثرة"
+          rows={atRiskProjects.map((p) => ({
+            key: p.id,
+            label: p.name,
+            value: `متأخر منذ ${Math.max(1, Math.round((new Date(todayIso).getTime() - new Date(p.due_date).getTime()) / 86400000))} يوم`,
           }))}
         />
       </div>
