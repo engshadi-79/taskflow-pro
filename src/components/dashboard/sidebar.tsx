@@ -185,6 +185,12 @@ const AUTOMATION_RULES: NavItem = {
   icon: "board",
   tone: "teal",
 };
+const WORKFLOW_BUILDER: NavItem = {
+  href: "/dashboard/workflow-builder",
+  label: "باني سير العمل",
+  icon: "board",
+  tone: "violet",
+};
 const PROFILE: NavItem = {
   href: "/dashboard/profile",
   label: "الملف الشخصي",
@@ -232,6 +238,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         WORKFLOW_REQUESTS,
         WORKFLOW_TEMPLATES,
         AUTOMATION_RULES,
+        WORKFLOW_BUILDER,
       ],
     },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS, ADMIN_NOTIFICATIONS, ORG_SETTINGS] },
