@@ -33,9 +33,23 @@ export type AutomationExecution = {
   rule_id: string;
   entity_type: "task" | "project";
   entity_id: string;
-  result: "success" | "error";
+  result: "success" | "error" | "retry_pending" | "failed";
   detail: string | null;
+  attempt_count: number;
+  next_retry_at: string | null;
   executed_at: string;
+};
+
+export type AutomationRuleTemplate = {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  trigger_event: AutomationTrigger;
+  conditions: Record<string, string> | null;
+  action_type: AutomationAction;
+  action_params: Record<string, string> | null;
+  created_at: string;
 };
 
 export const TRIGGER_LABEL: Record<AutomationTrigger, string> = {

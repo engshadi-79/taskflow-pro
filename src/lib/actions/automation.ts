@@ -91,3 +91,26 @@ export async function deleteAutomationRule(id: string): Promise<AutomationFormSt
   revalidatePath("/dashboard/automation-rules");
   return error ? { error: "تعذر حذف القاعدة" } : {};
 }
+
+/**
+ * Instantiates a template into a real, editable rule via
+ * use_automation_rule_template() - a SECURITY DEFINER function that re-checks
+ * super_admin + re-derives the org itself, same as every other
+ * privilege-sensitive RPC in this project. The client-side can.manageAutomationRules
+ * check here is just a fast UI guard, not the real authorization boundary.
+ */
+export async function applyAutomationRuleTemplate(templateId: string, name?: string): Promise<AutomationFormState> {
+  const profile = await getCurrentProfile();
+  if (!profile || !can.manageAutomationRules(profile)) {
+    return { error: "غير مصرح لك بإدارة الأتمتة" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("use_automation_rule_template", {
+    p_template_id: templateId,
+    p_name: name || null,
+  });
+
+  revalidatePath("/dashboard/automation-rules");
+  return error ? { error: "تعذر استخدام القالب" } : {};
+}

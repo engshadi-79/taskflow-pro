@@ -5,6 +5,7 @@ import {
   createAutomationRule,
   toggleAutomationRuleActive,
   deleteAutomationRule,
+  applyAutomationRuleTemplate,
   type AutomationFormState,
 } from "@/lib/actions/automation";
 import { PageHeader } from "@/components/shared/page-header";
@@ -16,6 +17,7 @@ import {
   type AutomationAction,
   type AutomationExecution,
   type AutomationRule,
+  type AutomationRuleTemplate,
   type AutomationTrigger,
 } from "@/lib/types/automation";
 
@@ -31,10 +33,12 @@ export function AutomationRulesManager({
   rules,
   executions,
   employees,
+  templates,
 }: {
   rules: AutomationRule[];
   executions: AutomationExecution[];
   employees: EmployeeOption[];
+  templates: AutomationRuleTemplate[];
 }) {
   const [createState, createAction, creating] = useActionState(createAutomationRule, initialState);
   const [actionType, setActionType] = useState<AutomationAction>("notify_assignee");
@@ -53,6 +57,17 @@ export function AutomationRulesManager({
         icon={<BoardIcon className="h-6 w-6" />}
         count={`${rules.length} قاعدة`}
       />
+
+      {templates.length > 0 && (
+        <div className="rounded-[18px] border border-border bg-surface p-4">
+          <h3 className="mb-3 text-sm font-extrabold text-foreground">قوالب جاهزة</h3>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {templates.map((t) => (
+              <TemplateCard key={t.id} template={t} />
+            ))}
+          </div>
+        </div>
+      )}
 
       <form
         action={createAction}
@@ -200,7 +215,8 @@ export function AutomationRulesManager({
 function RuleCard({ rule, executions }: { rule: AutomationRule; executions: AutomationExecution[] }) {
   const [busy, setBusy] = useState(false);
   const successCount = executions.filter((e) => e.result === "success").length;
-  const errorCount = executions.filter((e) => e.result === "error").length;
+  const retryCount = executions.filter((e) => e.result === "retry_pending").length;
+  const failedCount = executions.filter((e) => e.result === "error" || e.result === "failed").length;
 
   return (
     <div className="rounded-[18px] border border-border bg-surface p-4">
@@ -216,7 +232,9 @@ function RuleCard({ rule, executions }: { rule: AutomationRule; executions: Auto
         </div>
         <div className="flex items-center gap-2.5">
           <span className="text-[11.5px] text-muted">
-            نجح {successCount} · فشل {errorCount}
+            نجح {successCount}
+            {retryCount > 0 && ` · قيد إعادة المحاولة ${retryCount}`}
+            {failedCount > 0 && ` · فشل نهائيًا ${failedCount}`}
           </span>
           <button
             type="button"
@@ -247,6 +265,38 @@ function RuleCard({ rule, executions }: { rule: AutomationRule; executions: Auto
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function TemplateCard({ template }: { template: AutomationRuleTemplate }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div className="flex flex-col gap-2 rounded-[14px] border border-border bg-background p-3.5">
+      <h4 className="text-[13px] font-extrabold text-foreground">{template.name}</h4>
+      {template.description && <p className="text-[12px] text-muted">{template.description}</p>}
+      <p className="text-[11.5px] text-faint">
+        {TRIGGER_LABEL[template.trigger_event]}
+        {" ← "}
+        {ACTION_LABEL[template.action_type]}
+      </p>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          const result = await applyAutomationRuleTemplate(template.id);
+          if (result.error) setError(result.error);
+          setBusy(false);
+        }}
+        className="mt-1 self-start rounded-full bg-accent-500 px-3.5 py-1.5 text-[12px] font-extrabold text-white hover:bg-accent-600 disabled:opacity-60"
+      >
+        {busy ? "جارٍ الإضافة..." : "استخدام هذا القالب"}
+      </button>
+      {error && <p className="text-[11.5px] text-red-600">{error}</p>}
     </div>
   );
 }
