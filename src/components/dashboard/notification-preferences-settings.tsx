@@ -43,31 +43,33 @@ export function NotificationPreferencesSettings() {
         <p className="text-[12px] text-muted">جارِ التحميل...</p>
       ) : (
         <>
-          <fieldset className="space-y-2">
+          <fieldset>
             <legend className="mb-1.5 text-[12.5px] font-bold text-foreground">أنواع الإشعارات المفعّلة</legend>
-            {NOTIFICATION_CATEGORIES.map((cat) => {
-              const isMuted = cat.types.every((t) => prefs.muted_types.includes(t));
-              return (
-                <label
-                  key={cat.key}
-                  className="flex cursor-pointer items-center justify-between gap-3 rounded-[10px] border border-border px-3.5 py-2.5 text-[13px] font-bold text-foreground hover:bg-background"
-                >
-                  {cat.label}
-                  <input
-                    type="checkbox"
-                    checked={!isMuted}
-                    disabled={saving}
-                    onChange={(e) => {
-                      const muteNow = !e.target.checked;
-                      const set = new Set(prefs.muted_types);
-                      cat.types.forEach((t) => (muteNow ? set.add(t) : set.delete(t)));
-                      save({ ...prefs, muted_types: [...set] });
-                    }}
-                    className="h-4 w-4 accent-accent-600"
-                  />
-                </label>
-              );
-            })}
+            <div className="max-h-[220px] space-y-2 overflow-y-auto pe-1">
+              {NOTIFICATION_CATEGORIES.map((cat) => {
+                const isMuted = cat.types.every((t) => prefs.muted_types.includes(t));
+                return (
+                  <label
+                    key={cat.key}
+                    className="flex cursor-pointer items-center justify-between gap-3 rounded-[10px] border border-border px-3.5 py-2.5 text-[13px] font-bold text-foreground hover:bg-background"
+                  >
+                    {cat.label}
+                    <input
+                      type="checkbox"
+                      checked={!isMuted}
+                      disabled={saving}
+                      onChange={(e) => {
+                        const muteNow = !e.target.checked;
+                        const set = new Set(prefs.muted_types);
+                        cat.types.forEach((t) => (muteNow ? set.add(t) : set.delete(t)));
+                        save({ ...prefs, muted_types: [...set] });
+                      }}
+                      className="h-4 w-4 accent-accent-600"
+                    />
+                  </label>
+                );
+              })}
+            </div>
           </fieldset>
 
           <div className="mt-4 space-y-2">
