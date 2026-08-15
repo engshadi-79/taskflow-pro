@@ -26,6 +26,7 @@ import {
 } from "@/components/shared/icons";
 import { PRIORITY_LABEL, type Priority, type Task } from "@/lib/types/task";
 import { PROJECT_STATUS_LABEL } from "@/lib/types/project";
+import { WORKFLOW_STATUS_LABEL, type WorkflowRequestStatus } from "@/lib/types/workflow";
 import { timeAgo } from "@/lib/format-time-ago";
 import { parsePeriod, periodRange, PERIOD_LABEL, type ReportPeriod } from "@/lib/report-periods";
 
@@ -88,8 +89,15 @@ export default async function DashboardPage({
     const todayIso = nowDate.toISOString().slice(0, 10);
     const weekAheadIso = new Date(nowDate.getTime() + 7 * 86400000).toISOString().slice(0, 10);
 
-    const [{ data: tasks }, { data: ownDept }, { data: workloadRows }, { data: statsRows }, { data: notesRaw }] =
-      await Promise.all([
+    const [
+      { data: tasks },
+      { data: ownDept },
+      { data: workloadRows },
+      { data: statsRows },
+      { data: notesRaw },
+      { data: myRequestsRaw },
+      { data: myMeetingsRaw },
+    ] = await Promise.all([
         supabase
           .from("tasks")
           .select("*")
@@ -108,6 +116,21 @@ export default async function DashboardPage({
           .from("personal_notes")
           .select("id, content, created_at")
           .order("created_at", { ascending: false }),
+        supabase
+          .from("workflow_requests")
+          .select("id, title, status, created_at, template:workflow_templates(name)")
+          .eq("requested_by", profile.id)
+          .order("created_at", { ascending: false })
+          .limit(5),
+        supabase
+          .from("meeting_attendees")
+          .select("meeting:meetings!inner(id, title, meeting_date, meeting_time, status)")
+          .eq("user_id", profile.id)
+          .gte("meetings.meeting_date", todayIso)
+          .neq("meetings.status", "cancelled")
+          .order("meeting_date", { referencedTable: "meetings", ascending: true })
+          .order("meeting_time", { referencedTable: "meetings", ascending: true, nullsFirst: true })
+          .limit(5),
       ]);
 
     const myTasks = tasks ?? [];
@@ -130,6 +153,15 @@ export default async function DashboardPage({
       .sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""))
       .slice(0, 5)
       .map((t) => ({ id: t.id, title: t.title, due_date: t.due_date }));
+
+    const myRequests =
+      (myRequestsRaw as
+        | { id: string; title: string; status: WorkflowRequestStatus; template: { name: string } | null }[]
+        | null) ?? [];
+    const myMeetings =
+      (myMeetingsRaw as
+        | { meeting: { id: string; title: string; meeting_date: string; meeting_time: string | null } }[]
+        | null)?.map((r) => r.meeting) ?? [];
 
     const myWorkload = (
       workloadRows as { load_percent: number; load_status: string; open_count: number }[] | null
@@ -236,6 +268,33 @@ export default async function DashboardPage({
         <div className="grid grid-cols-1 gap-4.5 sm:grid-cols-2">
           <MyNotesWidget notes={(notesRaw as { id: string; content: string; created_at: string }[] | null) ?? []} />
           <MyTasksSummaryWidget overdueCount={overdue} dueTodayCount={dueToday} tasks={urgentTasks} />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4.5 sm:grid-cols-2">
+          <MiniListPanel
+            title="طلباتي"
+            caption="آخر 5 طلبات قدّمتها"
+            href="/dashboard/workflow-requests"
+            emptyLabel="لا توجد طلبات مقدَّمة"
+            rows={myRequests.map((r) => ({
+              key: r.id,
+              label: r.template?.name ? `${r.title} (${r.template.name})` : r.title,
+              value: WORKFLOW_STATUS_LABEL[r.status] ?? r.status,
+            }))}
+          />
+          <MiniListPanel
+            title="اجتماعاتي"
+            caption="الاجتماعات القادمة"
+            href="/dashboard/meetings"
+            emptyLabel="لا توجد اجتماعات قادمة"
+            rows={myMeetings.map((m) => ({
+              key: m.id,
+              label: m.title,
+              value: m.meeting_time
+                ? `${new Date(m.meeting_date).toLocaleDateString("ar")} - ${m.meeting_time.slice(0, 5)}`
+                : new Date(m.meeting_date).toLocaleDateString("ar"),
+            }))}
+          />
         </div>
 
         <EmployeeTaskList tasks={myTasks} />
