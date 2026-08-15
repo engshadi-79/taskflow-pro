@@ -45,7 +45,7 @@ export function NotificationPreferencesSettings() {
         <>
           <fieldset>
             <legend className="mb-1.5 text-[12.5px] font-bold text-foreground">أنواع الإشعارات المفعّلة</legend>
-            <div className="max-h-[220px] space-y-2 overflow-y-auto pe-1">
+            <div className="max-h-[100px] space-y-2 overflow-y-auto pe-1">
               {NOTIFICATION_CATEGORIES.map((cat) => {
                 const isMuted = cat.types.every((t) => prefs.muted_types.includes(t));
                 return (
