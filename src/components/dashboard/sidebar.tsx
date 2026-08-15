@@ -158,6 +158,12 @@ const TIME_TRACKING: NavItem = {
   icon: "clock",
   tone: "amber",
 };
+const PERFORMANCE: NavItem = {
+  href: "/dashboard/performance",
+  label: "الأداء والمؤشرات",
+  icon: "chart",
+  tone: "pink",
+};
 const SLA_REPORT: NavItem = {
   href: "/dashboard/sla-report",
   label: "تقرير SLA",
@@ -246,6 +252,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         SLA_POLICIES,
         WORKFLOW_REQUESTS,
         APPROVALS,
+        PERFORMANCE,
         WORKFLOW_TEMPLATES,
         AUTOMATION_RULES,
         WORKFLOW_BUILDER,
@@ -271,13 +278,14 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         SLA_REPORT,
         WORKFLOW_REQUESTS,
         APPROVALS,
+        PERFORMANCE,
       ],
     },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS, ADMIN_NOTIFICATIONS] },
   ],
   employee: [
     { label: "التنقل", items: [{ ...DASHBOARD, label: "مهامي" }] },
-    { label: "إدارة العمل", items: [KANBAN, CALENDAR, MEETINGS, KNOWLEDGE, PROJECTS, WORKFLOW_REQUESTS] },
+    { label: "إدارة العمل", items: [KANBAN, CALENDAR, MEETINGS, KNOWLEDGE, PROJECTS, WORKFLOW_REQUESTS, PERFORMANCE] },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },
   ],
 };
