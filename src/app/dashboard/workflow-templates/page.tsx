@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
+import { can } from "@/lib/foundation/permissions";
 import { WorkflowTemplatesManager } from "@/components/dashboard/workflow-templates-manager";
 import type { WorkflowStep, WorkflowTemplate } from "@/lib/types/workflow";
 
@@ -11,7 +12,7 @@ export default async function WorkflowTemplatesPage() {
     redirect("/login");
   }
 
-  if (profile.role !== "super_admin") {
+  if (!can.manageWorkflowTemplates(profile)) {
     redirect("/dashboard");
   }
 

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/data/profile";
+import { can } from "@/lib/foundation/permissions";
 import type { ApproverType, WorkflowActionType } from "@/lib/types/workflow";
 
 export type WorkflowFormState = { error?: string };
@@ -15,7 +16,7 @@ export async function createWorkflowTemplate(
   formData: FormData
 ): Promise<WorkflowFormState> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || !can.manageWorkflowTemplates(profile)) {
     return { error: "غير مصرح لك بإدارة أنواع الطلبات" };
   }
 
@@ -38,7 +39,7 @@ export async function createWorkflowTemplate(
 
 export async function toggleWorkflowTemplateActive(id: string, isActive: boolean): Promise<WorkflowFormState> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || !can.manageWorkflowTemplates(profile)) {
     return { error: "غير مصرح لك بإدارة أنواع الطلبات" };
   }
 
@@ -54,7 +55,7 @@ export async function addWorkflowStep(
   formData: FormData
 ): Promise<WorkflowFormState> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || !can.manageWorkflowTemplates(profile)) {
     return { error: "غير مصرح لك بإدارة أنواع الطلبات" };
   }
 
@@ -87,7 +88,7 @@ export async function addWorkflowStep(
 
 export async function deleteWorkflowStep(id: string): Promise<WorkflowFormState> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || !can.manageWorkflowTemplates(profile)) {
     return { error: "غير مصرح لك بإدارة أنواع الطلبات" };
   }
 

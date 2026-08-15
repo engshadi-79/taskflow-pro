@@ -16,4 +16,7 @@ export type Profile = {
   is_active: boolean;
   created_at: string;
   dashboard_shortcuts: { id: string; href: string; label: string; iconKey: string }[] | null;
+  /** Effective permission keys (role default + user overrides), computed
+   * server-side by get_user_permissions() - see src/lib/foundation/permissions.ts. */
+  permissionKeys: string[];
 };

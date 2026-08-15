@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { getCurrentOrganization } from "@/lib/data/organization";
 import { createClient } from "@/lib/supabase/server";
+import { can } from "@/lib/foundation/permissions";
 import { SlaPoliciesManager } from "@/components/dashboard/sla-policies-manager";
 import type { SlaPolicy } from "@/lib/types/sla";
 
@@ -12,7 +13,7 @@ export default async function SlaPoliciesPage() {
     redirect("/login");
   }
 
-  if (profile.role !== "super_admin") {
+  if (!can.manageSlaPolicies(profile)) {
     redirect("/dashboard");
   }
 

@@ -12,13 +12,18 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     return null;
   }
 
-  const { data: profile } = await supabase
-    .from("users")
-    .select(
-      "id, organization_id, full_name, email, phone, role, department_id, job_title, avatar_url, is_active, created_at, dashboard_shortcuts"
-    )
-    .eq("id", user.id)
-    .single<Profile>();
+  const [{ data: profile }, { data: permissionKeys }] = await Promise.all([
+    supabase
+      .from("users")
+      .select(
+        "id, organization_id, full_name, email, phone, role, department_id, job_title, avatar_url, is_active, created_at, dashboard_shortcuts"
+      )
+      .eq("id", user.id)
+      .single<Omit<Profile, "permissionKeys">>(),
+    supabase.rpc("get_user_permissions", { p_user_id: user.id }),
+  ]);
 
-  return profile;
+  if (!profile) return null;
+
+  return { ...profile, permissionKeys: permissionKeys ?? [] };
 }

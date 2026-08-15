@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/data/profile";
+import { can } from "@/lib/foundation/permissions";
 import type { Priority } from "@/lib/types/task";
 
 export type SlaFormState = { error?: string };
@@ -22,7 +23,7 @@ export async function createSlaPolicy(
   formData: FormData
 ): Promise<SlaFormState> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || !can.manageSlaPolicies(profile)) {
     return { error: "غير مصرح لك بإدارة سياسات SLA" };
   }
 
@@ -57,7 +58,7 @@ export async function updateSlaPolicy(
   formData: FormData
 ): Promise<SlaFormState> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || !can.manageSlaPolicies(profile)) {
     return { error: "غير مصرح لك بإدارة سياسات SLA" };
   }
 
@@ -90,7 +91,7 @@ export async function updateSlaPolicy(
 
 export async function toggleSlaPolicyActive(id: string, isActive: boolean): Promise<SlaFormState> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || !can.manageSlaPolicies(profile)) {
     return { error: "غير مصرح لك بإدارة سياسات SLA" };
   }
 
@@ -107,7 +108,7 @@ export async function toggleSlaPolicyActive(id: string, isActive: boolean): Prom
 
 export async function deleteSlaPolicy(id: string): Promise<SlaFormState> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || !can.manageSlaPolicies(profile)) {
     return { error: "غير مصرح لك بإدارة سياسات SLA" };
   }
 

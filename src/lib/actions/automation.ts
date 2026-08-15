@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/data/profile";
+import { can } from "@/lib/foundation/permissions";
 import type { AutomationAction, AutomationTrigger } from "@/lib/types/automation";
 
 export type AutomationFormState = { error?: string };
@@ -12,7 +13,7 @@ export async function createAutomationRule(
   formData: FormData
 ): Promise<AutomationFormState> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || !can.manageAutomationRules(profile)) {
     return { error: "غير مصرح لك بإدارة الأتمتة" };
   }
 
@@ -67,7 +68,7 @@ export async function createAutomationRule(
 
 export async function toggleAutomationRuleActive(id: string, isActive: boolean): Promise<AutomationFormState> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || !can.manageAutomationRules(profile)) {
     return { error: "غير مصرح لك بإدارة الأتمتة" };
   }
 
@@ -80,7 +81,7 @@ export async function toggleAutomationRuleActive(id: string, isActive: boolean):
 
 export async function deleteAutomationRule(id: string): Promise<AutomationFormState> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || !can.manageAutomationRules(profile)) {
     return { error: "غير مصرح لك بإدارة الأتمتة" };
   }
 

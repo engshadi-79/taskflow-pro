@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
+import { can } from "@/lib/foundation/permissions";
 import { AutomationRulesManager } from "@/components/dashboard/automation-rules-manager";
 import type { AutomationExecution, AutomationRule } from "@/lib/types/automation";
 
@@ -11,7 +12,7 @@ export default async function AutomationRulesPage() {
     redirect("/login");
   }
 
-  if (profile.role !== "super_admin") {
+  if (!can.manageAutomationRules(profile)) {
     redirect("/dashboard");
   }
 
