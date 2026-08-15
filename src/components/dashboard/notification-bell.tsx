@@ -117,6 +117,11 @@ const TYPE_META: Record<string, Meta> = {
     tint: "bg-orange-600",
     icon: <AlertIcon className="h-[17px] w-[17px]" />,
   },
+  digest_summary: {
+    label: "ملخص يومي",
+    tint: "bg-accent-600",
+    icon: <ClockIcon className="h-[17px] w-[17px]" />,
+  },
 };
 
 const FALLBACK: Meta = {
@@ -220,14 +225,18 @@ export function NotificationBell({
               prev ? [row, ...prev].slice(0, PANEL_LIMIT) : prev
             );
 
-            // raise an OS toast alongside the in-app badge. The hook decides
-            // whether it actually fires, based on permission, the user's
-            // preference and whether this tab is focused.
-            notifyRef.current(metaFor(row.type).label, {
-              body: row.message,
-              tag: row.id,
-              url: urlFor(row),
-            });
+            // raise an OS toast alongside the in-app badge, unless the DB
+            // trigger already flagged this row as DND/digest-suppressed -
+            // it still lands in the badge/list above either way, just
+            // without an OS toast. The hook makes its own further call too,
+            // based on permission, the user's preference and tab focus.
+            if (!row.suppress_realtime) {
+              notifyRef.current(metaFor(row.type).label, {
+                body: row.message,
+                tag: row.id,
+                url: urlFor(row),
+              });
+            }
           }
         )
         .subscribe();

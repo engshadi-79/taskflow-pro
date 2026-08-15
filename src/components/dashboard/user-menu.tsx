@@ -10,6 +10,7 @@ import {
 import { Modal } from "@/components/shared/modal";
 import { Avatar } from "@/components/shared/avatar";
 import { useSystemNotifications } from "@/lib/hooks/use-system-notifications";
+import { NotificationPreferencesSettings } from "@/components/dashboard/notification-preferences-settings";
 import {
   ChevronDownIcon,
   GearIcon,
@@ -426,8 +427,10 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
       <SystemNotificationSettings />
 
       <p className="mt-3 text-[11.5px] leading-5 text-muted">
-        تُحفظ هذه التفضيلات في هذا المتصفح فقط، ولا تتغيّر لبقية المستخدمين.
+        تُحفظ تفضيلات المظهر وإشعارات النظام أعلاه في هذا المتصفح فقط.
       </p>
+
+      <NotificationPreferencesSettings />
 
       <button
         type="button"
