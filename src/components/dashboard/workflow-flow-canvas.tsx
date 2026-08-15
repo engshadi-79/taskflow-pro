@@ -383,7 +383,7 @@ export function WorkflowFlowCanvas({
             )}
           </div>
 
-          {flow.status === "published" && flow.is_active && (
+          {flow.status === "published" && (
             <div className="rounded-[14px] border border-border bg-surface p-3">
               <h3 className="mb-2 text-[12.5px] font-extrabold text-foreground">تشغيل اختبار</h3>
               <input
