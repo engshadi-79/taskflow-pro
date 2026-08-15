@@ -82,6 +82,11 @@ export function AdminNotificationForm({
   const [recurrencePattern, setRecurrencePattern] = useState("daily");
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]);
 
+  // one value per form mount, submitted unchanged even if "تأكيد الإرسال"
+  // is double-clicked - lets the server tell a genuine double-submit apart
+  // from a deliberate second, separate send of the same content
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
+
   const [templateId, setTemplateId] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -154,6 +159,7 @@ export function AdminNotificationForm({
   return (
     <form action={formAction} onSubmit={handleSubmit} className="space-y-5 rounded-[18px] border border-border bg-surface p-6">
       <input type="hidden" name="send_mode" value={sendMode} />
+      <input type="hidden" name="idempotency_key" value={idempotencyKey} />
 
       {templates.length > 0 && (
         <div>

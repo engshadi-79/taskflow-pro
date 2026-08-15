@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/data/profile";
+import { can } from "@/lib/foundation/permissions";
+import { logActivity } from "@/lib/foundation/audit";
+import { emit } from "@/lib/foundation/events";
 
 export type OrgSettingsFormState = { error?: string };
 export type LogoUploadState = { error?: string; url?: string };
@@ -15,7 +18,7 @@ const VALID_PRIORITIES = ["low", "medium", "high", "urgent"];
 
 async function requireSuperAdmin() {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "super_admin") return null;
+  if (!profile || !can.manageOrganization(profile)) return null;
   return profile;
 }
 
@@ -57,6 +60,15 @@ export async function updateOrganizationSettings(
     .eq("id", profile.organization_id);
 
   if (error) return { error: error.message || "تعذر حفظ الإعدادات" };
+
+  await logActivity(supabase, {
+    organizationId: profile.organization_id,
+    userId: profile.id,
+    actionType: "organization_settings_updated",
+    entityType: "organization",
+    entityId: profile.organization_id,
+  });
+  await emit("organization_settings.updated", { organizationId: profile.organization_id, userId: profile.id });
 
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard", "layout");

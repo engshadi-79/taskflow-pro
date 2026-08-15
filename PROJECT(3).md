@@ -17,7 +17,7 @@
 
 | # | المرحلة | الحالة | الفجوة الأساسية |
 |---|---|---|---|
-| P01 | Foundation & Architecture 3.0 | ❌ غير موجود | لا Domain Events/Permission Service/Audit Service مركزي/Idempotency/Rate Limiting عام |
+| P01 | Foundation & Architecture 3.0 | ✅ مكتمل (انظر تفصيل أدناه) | Feature Flags أُجِّل عمدًا لعدم وجود حاجة فعلية بعد |
 | P02 | Security & RBAC | 🟡 جزئي | RLS ثلاثي الأدوار ناضج وموجود في 132 سياسة، لكن لا نظام صلاحيات دقيق (permission strings/groups/scope) |
 | P03 | Employee Workspace | 🟡 جزئي | لوحة الموظف موجودة وغنية بالبيانات، لكن ضمن نفس `page.tsx` لا مسار مستقل |
 | P04 | Manager Workspace | 🟡 جزئي | نفس الملاحظة أعلاه — موجودة وغنية، تحتاج تنظيمًا لا بناءً من الصفر |
@@ -37,6 +37,75 @@
 | P18 | API & Webhooks | ❌ غير موجود | مسارا API فقط (`ai/chat`, `reports/export`)، لا مفاتيح API ولا Webhooks |
 | P19 | Enterprise Integrations | ❌ غير موجود | فقط تسجيل الدخول عبر Google، لا مزامنة تقويم/بريد/ملفات |
 | P20 | Mobile | 🟡 جزئي | PWA حقيقي (Shell Caching متعمد وضيق)، لا دعم Offline للمهام ولا Capacitor |
+
+---
+
+## P01 — Foundation & Architecture 3.0 (مكتمل)
+
+بُنيت 6 خدمات مشتركة تحت `src/lib/foundation/` تخدم كل الدومينات المذكورة
+في الخطة (لا خدمة واحدة لكل دومين)، مع تفعيلها فعليًا في ملفين حقيقيين
+(`admin-notifications.ts` بالكامل، و`organization-settings.ts` جزئيًا) لا
+كملفات غير مُستخدَمة، ثم تُوسَّع لبقية الدومينات تدريجيًا مع كل مرحلة لاحقة
+تلمسها (لا هجرة شاملة لكل الكود دفعة واحدة — قرار نطاق واعٍ لا نقص).
+
+- **Domain Events** — [src/lib/foundation/events.ts](src/lib/foundation/events.ts):
+  ناقل أحداث داخل العملية فقط (`on`/`emit`)، لا يُكرّر أو يستبدل آلية
+  الفصل الموجودة أصلًا عبر SQL Triggers + pg_cron (محرك الأتمتة، كشف خرق
+  SLA) — تلك تبقى كما هي. يُصدر حاليًا حدثين حقيقيين
+  (`admin_notification.sent`, `organization_settings.updated`) من نقطتي
+  اتصال فعليتين. **لا مشترك مسجَّل بعد** — هذا متوقَّع ومقصود: البنية
+  التحتية جاهزة للمراحل القادمة (P07 الموافقات، P12 تفضيلات الإشعارات،
+  P18 الـ Webhooks) لتشترك فيها لاحقًا دون أن يعرف الكود الذي يُصدر
+  الحدث اليوم أي شيء عن ذلك المستهلك المستقبلي.
+- **Centralized Error Handling** — [src/lib/foundation/errors.ts](src/lib/foundation/errors.ts):
+  تسلسل `AppError`/`ValidationError`/`PermissionError`/`NotFoundError`/
+  `RateLimitError` + `toActionError()` تحوّل أي استثناء لشكل `{ error }`
+  الموحّد الذي ترجعه كل Server Action أصلًا.
+- **Validation Layer موحّدة** — [src/lib/foundation/validation.ts](src/lib/foundation/validation.ts)
+  (Zod، تم تثبيته حديثًا): `parseFormData(schema, formData, arrayFields)`
+  تحوّل FormData لكائن مُتحقَّق منه بنداء واحد، بديلًا عن سلاسل
+  `if (!x) return { error }` اليدوية المتكررة.
+- **Permission Service مركزي** — [src/lib/foundation/permissions.ts](src/lib/foundation/permissions.ts):
+  واجهة تسمية للقدرات (`can.manageOrganization`, `can.sendAdminNotification`,
+  `can.sendAdminNotificationOrgWide`, ...) فوق نموذج الأدوار الثلاثة
+  الحالي — عندما تُبنى P02 الحقيقية (صلاحيات دقيقة/مجموعات/Scope)، تُستبدل
+  أجساد هذه الدوال فقط، دون أن تتغير أي نقطة استدعاء.
+- **Audit Service مركزي** — [src/lib/foundation/audit.ts](src/lib/foundation/audit.ts):
+  `logActivity()` تكتب في جدول `activity_log` **الموجود أصلًا** (عام منذ
+  `schema.sql`، لكنه لم يكن يُكتب إليه إلا من Trigger واحد لنشاط المهام)
+  — الآن أي Server Action لأي دومين يمكنها تسجيل حدث تدقيق مباشرة، وقد
+  تحقّقتُ أن سياسة `activity_log_insert` الحالية (`organization_id =
+  current_org_id() and user_id = auth.uid()`) تسمح بذلك دون أي تعديل RLS.
+- **Idempotency** — [src/lib/foundation/idempotency.ts](src/lib/foundation/idempotency.ts)
+  + جدول جديد `idempotency_keys` ([supabase/foundation_3_0.sql](supabase/foundation_3_0.sql)):
+  `claimIdempotencyKey()` تمنع تكرار تنفيذ عملية حسّاسة عند إرسال مزدوج
+  (نقرتين على "تأكيد الإرسال"). مُفعّلة على إرسال الإشعار الإداري الفوري
+  (مفتاح فريد لكل تحميل للنموذج، مُمرَّر كحقل مخفي).
+- **Rate Limiting** — [src/lib/foundation/rate-limit.ts](src/lib/foundation/rate-limit.ts)
+  + جدول جديد `rate_limit_hits` (نفس الملف): `enforceRateLimit()` تعميم
+  للنمط الذي استخدمه `/api/ai/chat` يدويًا ضد `ai_interactions` سابقًا،
+  الآن جدول عام واحد لأي عملية حسّاسة. مُفعّل على الإرسال الفوري (10
+  إشعارات/5 دقائق لكل مستخدم) — **قيد جديد لم يكن موجودًا من قبل**، يستحق
+  الانتباه إن احتاج مدير قسم لإرسال أكثر من ذلك فعليًا.
+- **Feature Flags** — **أُجِّل عمدًا**، لا حاجة فعلية واضحة الآن (تطبيقًا
+  لقاعدة "لا يُنفَّذ إلا عند حاجة واضحة"). يُبنى عند أول طلب فعلي له.
+
+**ملفات SQL جديدة:** [supabase/foundation_3_0.sql](supabase/foundation_3_0.sql)
+(`idempotency_keys`, `rate_limit_hits`، مع مهمتي تنظيف cron كل ساعة لكل
+منهما لمنع نمو غير محدود).
+
+**الاختبارات المنطقية المُجراة** (بدون جلسة متصفح فعلية، عبر مراجعة الكود
+والتحقق من سياسات RLS المطابقة):
+- موظف عادي يستدعي `sendAdminNotification` → `can.sendAdminNotification`
+  ترجع false → `PermissionError` → نفس رسالة الخطأ السابقة تمامًا.
+- department_manager يحاول `target_type=all` → `can.sendAdminNotificationOrgWide`
+  ترجع false → مرفوض على مستوى JS **و** على مستوى دالة SQL
+  `send_admin_notification()` المُستقلّة أصلًا (دفاع مزدوج لم يُمسّ).
+  إرسال مزدوج بنفس `idempotency_key` → المحاولة الثانية تفشل بـ
+  `unique_violation` → تُعامَل كنجاح صامت (توجيه للقائمة دون تكرار البث).
+- تجاوز 10 إرسالات/5 دقائق → `RateLimitError` برسالة عربية واضحة.
+- `tsc --noEmit` / `eslint` / `next build` كلها نظيفة، والمسارات كلها
+  ديناميكية كما كانت.
 
 ---
 
@@ -312,6 +381,6 @@
 
 ## التالي
 
-عند قول المستخدم "اكمل" أو "ابدأ": **P01 — Foundation & Architecture 3.0**،
-حسب البروتوكول في `MONJEZ_3_0_CLAUDE_CODE_PROMPTS_v2.md` (Audit → Reuse →
-Extend، مرحلة واحدة فقط، توقف كامل بعدها بانتظار أمر صريح للتالية).
+عند قول المستخدم "اكمل": **P02 — Security & RBAC**، حسب البروتوكول في
+`MONJEZ_3_0_CLAUDE_CODE_PROMPTS_v2.md` (Audit → Reuse → Extend، مرحلة
+واحدة فقط، توقف كامل بعدها بانتظار أمر صريح للتالية).
