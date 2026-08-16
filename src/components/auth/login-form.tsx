@@ -44,9 +44,13 @@ function GoogleLogo() {
   );
 }
 
+type GoogleMode = "join" | "create";
+
 export function LoginForm({ orgLogoUrl }: { orgLogoUrl: string | null }) {
   const [state, formAction, pending] = useActionState(signIn, initialState);
   const [googlePending, setGooglePending] = useState(false);
+  const [googleMode, setGoogleMode] = useState<GoogleMode>("join");
+  const [newOrgName, setNewOrgName] = useState("");
   // Avoids useSearchParams(), which would force this otherwise-static page
   // into a Suspense boundary just to show one conditional banner.
   const googleError = useSyncExternalStore(
@@ -55,12 +59,23 @@ export function LoginForm({ orgLogoUrl }: { orgLogoUrl: string | null }) {
     getGoogleErrorServerSnapshot
   );
 
+  const creatingWithoutName = googleMode === "create" && !newOrgName.trim();
+
   async function handleGoogle() {
+    if (creatingWithoutName) return;
     setGooglePending(true);
     const supabase = createClient();
+    // new_org rides through Google's OAuth roundtrip inside redirectTo
+    // itself (Supabase preserves any extra query params on it) and comes
+    // back on /auth/callback, which calls claim_new_organization() with it -
+    // see saas_multi_tenant_v3.sql for why this is safe even if replayed.
+    const redirectTo =
+      googleMode === "create"
+        ? `${window.location.origin}/auth/callback?new_org=${encodeURIComponent(newOrgName.trim())}`
+        : `${window.location.origin}/auth/callback`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo },
     });
     // On success the browser navigates away to Google immediately; an error
     // here means the request never left, so it's safe to reset the button.
@@ -154,18 +169,50 @@ export function LoginForm({ orgLogoUrl }: { orgLogoUrl: string | null }) {
           <div className="h-px flex-1 bg-border" />
         </div>
 
+        <div className="mt-4 flex rounded-[10px] border border-border bg-background p-1 text-xs font-bold">
+          <button
+            type="button"
+            onClick={() => setGoogleMode("join")}
+            className={`flex-1 rounded-[7px] py-1.5 transition-colors ${
+              googleMode === "join" ? "bg-surface text-foreground shadow-sm" : "text-muted"
+            }`}
+          >
+            الانضمام إلى مؤسستي
+          </button>
+          <button
+            type="button"
+            onClick={() => setGoogleMode("create")}
+            className={`flex-1 rounded-[7px] py-1.5 transition-colors ${
+              googleMode === "create" ? "bg-surface text-foreground shadow-sm" : "text-muted"
+            }`}
+          >
+            إنشاء مؤسسة جديدة
+          </button>
+        </div>
+
+        {googleMode === "create" && (
+          <input
+            value={newOrgName}
+            onChange={(e) => setNewOrgName(e.target.value)}
+            placeholder="اسم المؤسسة الجديدة"
+            className="mt-3 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
+          />
+        )}
+
         <button
           type="button"
           onClick={handleGoogle}
-          disabled={googlePending}
-          className="mt-4 flex w-full items-center justify-center gap-2.5 rounded-[10px] border border-border bg-surface px-3 py-2.5 text-sm font-bold text-foreground transition-colors hover:bg-background disabled:opacity-60"
+          disabled={googlePending || creatingWithoutName}
+          className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-[10px] border border-border bg-surface px-3 py-2.5 text-sm font-bold text-foreground transition-colors hover:bg-background disabled:opacity-60"
         >
           <GoogleLogo />
           {googlePending ? "جارٍ التحويل..." : "المتابعة عبر Google"}
         </button>
 
         <p className="mt-5 text-center text-xs leading-5 text-faint">
-          حساب جديد عبر Google ينشئ مؤسسة جديدة تلقائيًا وتصبح مديرها العام
+          {googleMode === "create"
+            ? "ستُصبح المدير العام لمؤسسة جديدة فور تسجيل الدخول"
+            : "حساب Google غير مسجَّل سابقًا ينضم كموظف بانتظار موافقة المدير العام"}
         </p>
       </div>
     </main>

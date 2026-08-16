@@ -10,11 +10,19 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const newOrgName = searchParams.get("new_org");
 
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      if (newOrgName) {
+        // Best-effort: claim_new_organization() (see saas_multi_tenant_v3.sql)
+        // only ever acts when the just-signed-in account is still a pending
+        // self-signup - a replayed/stale link or an existing account with
+        // this param on it is a safe no-op, not an escalation.
+        await supabase.rpc("claim_new_organization", { p_org_name: newOrgName });
+      }
       return NextResponse.redirect(`${origin}/dashboard`);
     }
   }
