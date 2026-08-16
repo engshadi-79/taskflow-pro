@@ -220,7 +220,7 @@ export function UserMenu({
           subtitle="أنواع الإشعارات، عدم الإزعاج، والملخص اليومي"
           onClose={closeDialog}
         >
-          <NotificationPreferencesSettings />
+          <NotificationPreferencesSettings role={role} />
         </SidePanel>
       )}
       {dialog === "about" && (

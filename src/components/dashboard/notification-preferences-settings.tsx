@@ -6,8 +6,9 @@ import {
   updateNotificationPreferences,
 } from "@/lib/actions/notification-preferences";
 import { NOTIFICATION_CATEGORIES, type UserNotificationPreferences } from "@/lib/types/notification";
+import type { Role } from "@/lib/types/roles";
 
-export function NotificationPreferencesSettings() {
+export function NotificationPreferencesSettings({ role }: { role: Role }) {
   const [prefs, setPrefs] = useState<UserNotificationPreferences | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -121,10 +122,52 @@ export function NotificationPreferencesSettings() {
                 type="checkbox"
                 checked={prefs.digest_mode === "daily"}
                 disabled={saving}
-                onChange={(e) => save({ ...prefs, digest_mode: e.target.checked ? "daily" : "off" })}
+                onChange={(e) =>
+                  save({
+                    ...prefs,
+                    digest_mode: e.target.checked ? "daily" : "off",
+                    email_digest_enabled: e.target.checked ? prefs.email_digest_enabled : false,
+                  })
+                }
                 className="h-4 w-4 shrink-0 accent-accent-600"
               />
             </label>
+
+            {prefs.digest_mode === "daily" && (
+              <label className="flex cursor-pointer items-center justify-between gap-3 rounded-[10px] border border-border px-3.5 py-2.5 text-[13px] font-bold text-foreground hover:bg-background ms-4">
+                <span>
+                  أرسل لي الملخص اليومي بالبريد أيضًا
+                  <span className="mt-0.5 block text-[11px] font-medium text-muted">
+                    بالإضافة إلى ظهوره في الجرس داخل التطبيق
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={prefs.email_digest_enabled}
+                  disabled={saving}
+                  onChange={(e) => save({ ...prefs, email_digest_enabled: e.target.checked })}
+                  className="h-4 w-4 shrink-0 accent-accent-600"
+                />
+              </label>
+            )}
+
+            {(role === "super_admin" || role === "department_manager") && (
+              <label className="flex cursor-pointer items-center justify-between gap-3 rounded-[10px] border border-border px-3.5 py-2.5 text-[13px] font-bold text-foreground hover:bg-background">
+                <span>
+                  تقرير أداء أسبوعي بالبريد
+                  <span className="mt-0.5 block text-[11px] font-medium text-muted">
+                    ملخص أسبوعي لأداء {role === "department_manager" ? "قسمك" : "المؤسسة"} كل يوم اثنين
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={prefs.weekly_report_email_enabled}
+                  disabled={saving}
+                  onChange={(e) => save({ ...prefs, weekly_report_email_enabled: e.target.checked })}
+                  className="h-4 w-4 shrink-0 accent-accent-600"
+                />
+              </label>
+            )}
           </div>
 
           {saved && (

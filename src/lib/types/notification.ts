@@ -22,6 +22,8 @@ export type UserNotificationPreferences = {
   dnd_end_time: string;
   dnd_timezone: string;
   digest_mode: "off" | "daily";
+  email_digest_enabled: boolean;
+  weekly_report_email_enabled: boolean;
 };
 
 export type NotificationCategory = {

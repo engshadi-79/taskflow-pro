@@ -1,0 +1,6 @@
+{
+  "crons": [
+    { "path": "/api/cron/daily-digest-emails", "schedule": "10 6 * * *" },
+    { "path": "/api/cron/weekly-report-emails", "schedule": "0 7 * * 1" }
+  ]
+}
