@@ -293,8 +293,12 @@ function ActiveToggle({ id, isActive }: { id: string; isActive: boolean }) {
       onClick={async () => {
         setPending(true);
         const next = !active;
-        await toggleEmployeeActive(id, next);
-        setActive(next);
+        const result = await toggleEmployeeActive(id, next);
+        if (result?.error) {
+          alert(result.error);
+        } else {
+          setActive(next);
+        }
         setPending(false);
       }}
       className={`rounded-full px-3 py-1 text-xs font-medium disabled:opacity-60 ${
@@ -341,8 +345,9 @@ function ApproveRejectButtons({ id, name }: { id: string; name: string }) {
         disabled={pending}
         onClick={async () => {
           setPending(true);
-          await toggleEmployeeActive(id, true);
+          const result = await toggleEmployeeActive(id, true);
           setPending(false);
+          if (result?.error) alert(result.error);
         }}
         className="font-bold text-green-600 hover:underline disabled:opacity-60"
       >

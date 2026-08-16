@@ -6,6 +6,39 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireRole } from "@/lib/actions/guards";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { BIO_MAX_LENGTH } from "@/lib/profile-constants";
+import { seatLimitFor } from "@/lib/plans";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+/**
+ * Adding a seat = creating a new employee, or activating one who wasn't
+ * (approving a pending self-signup). Deactivating never needs this check -
+ * it only ever frees a seat. Returns null when there's room (or the plan
+ * has no cap), otherwise the Arabic error to surface as-is.
+ */
+async function seatLimitError(
+  supabase: SupabaseClient,
+  organizationId: string
+): Promise<string | null> {
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("plan_type")
+    .eq("id", organizationId)
+    .single();
+
+  const limit = seatLimitFor((org?.plan_type as "free" | "paid") ?? "free");
+  if (limit === null) return null;
+
+  const { count } = await supabase
+    .from("users")
+    .select("*", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .eq("is_active", true);
+
+  if ((count ?? 0) >= limit) {
+    return `وصلت مؤسستك للحد الأقصى (${limit}) لعدد الموظفين النشطين ضمن الخطة المجانية. ارفع طلب ترقية من إعدادات المؤسسة لإضافة المزيد.`;
+  }
+  return null;
+}
 
 export type UserFormState = { error?: string };
 
@@ -179,6 +212,10 @@ export async function createEmployee(
     return { error: "دور غير صالح" };
   }
 
+  const supabaseForLimitCheck = await createClient();
+  const limitError = await seatLimitError(supabaseForLimitCheck, profile.organization_id);
+  if (limitError) return { error: limitError };
+
   const adminClient = createAdminClient();
   const { error } = await adminClient.auth.admin.createUser({
     email,
@@ -263,14 +300,22 @@ export async function updateEmployee(
   return {};
 }
 
-export async function toggleEmployeeActive(id: string, isActive: boolean) {
-  await requireRole(["super_admin"]);
+export async function toggleEmployeeActive(id: string, isActive: boolean): Promise<UserFormState> {
+  const profile = await requireRole(["super_admin"]);
 
   const supabase = await createClient();
-  await supabase.from("users").update({ is_active: isActive }).eq("id", id);
+
+  if (isActive) {
+    const limitError = await seatLimitError(supabase, profile.organization_id);
+    if (limitError) return { error: limitError };
+  }
+
+  const { error } = await supabase.from("users").update({ is_active: isActive }).eq("id", id);
+  if (error) return { error: "تعذر تحديث حالة الموظف" };
 
   revalidatePath("/dashboard/employees");
   revalidatePath(`/dashboard/profile/${id}`);
+  return {};
 }
 
 export async function deleteEmployee(id: string): Promise<UserFormState> {

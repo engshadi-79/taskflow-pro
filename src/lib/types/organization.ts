@@ -1,9 +1,11 @@
 import type { Priority } from "@/lib/types/task";
 
+export type PlanType = "free" | "paid";
+
 export type Organization = {
   id: string;
   name: string;
-  plan_type: "free" | "paid";
+  plan_type: PlanType;
   logo_url: string | null;
   timezone: string;
   work_days: number[];

@@ -8,6 +8,7 @@ import { GearIcon, LockIcon } from "@/components/shared/icons";
 import { OrganizationLogoUpload } from "@/components/dashboard/organization-logo-upload";
 import { OrganizationSettingsForm } from "@/components/dashboard/organization-settings-form";
 import { OrganizationHolidaysManager } from "@/components/dashboard/organization-holidays-manager";
+import { PlanBillingSection } from "@/components/dashboard/plan-billing-section";
 import type { OrganizationHoliday } from "@/lib/types/organization";
 
 export default async function OrganizationSettingsPage() {
@@ -16,9 +17,21 @@ export default async function OrganizationSettingsPage() {
   if (profile.role !== "super_admin") redirect("/dashboard");
 
   const supabase = await createClient();
-  const [organization, { data: holidaysRaw }] = await Promise.all([
+  const [organization, { data: holidaysRaw }, { count: seatCount }, { data: pendingRequest }] = await Promise.all([
     getCurrentOrganization(),
     supabase.from("organization_holidays").select("*").order("holiday_date").returns<OrganizationHoliday[]>(),
+    supabase
+      .from("users")
+      .select("*", { count: "exact", head: true })
+      .eq("organization_id", profile.organization_id)
+      .eq("is_active", true),
+    supabase
+      .from("plan_upgrade_requests")
+      .select("id")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   if (!organization) redirect("/dashboard");
@@ -44,6 +57,12 @@ export default async function OrganizationSettingsPage() {
         <span className="mb-3 block text-sm font-medium text-foreground">شعار المؤسسة</span>
         <OrganizationLogoUpload logoUrl={organization.logo_url} orgName={organization.name} />
       </div>
+
+      <PlanBillingSection
+        organization={organization}
+        seatCount={seatCount ?? 0}
+        hasPendingRequest={!!pendingRequest}
+      />
 
       <OrganizationSettingsForm organization={organization} />
 

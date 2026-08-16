@@ -109,8 +109,12 @@ export function ProfileEditForm({
                 onClick={async () => {
                   setTogglePending(true);
                   const next = !active;
-                  await toggleEmployeeActive(employee.id, next);
-                  setActive(next);
+                  const result = await toggleEmployeeActive(employee.id, next);
+                  if (result?.error) {
+                    alert(result.error);
+                  } else {
+                    setActive(next);
+                  }
                   setTogglePending(false);
                 }}
                 className={`rounded-full px-4 py-2 text-sm font-bold disabled:opacity-60 ${
