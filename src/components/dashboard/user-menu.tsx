@@ -8,10 +8,12 @@ import {
   type ChangePasswordState,
 } from "@/lib/actions/auth";
 import { Modal } from "@/components/shared/modal";
+import { SidePanel } from "@/components/shared/side-panel";
 import { Avatar } from "@/components/shared/avatar";
 import { useSystemNotifications } from "@/lib/hooks/use-system-notifications";
 import { NotificationPreferencesSettings } from "@/components/dashboard/notification-preferences-settings";
 import {
+  BellIcon,
   ChevronDownIcon,
   GearIcon,
   InfoIcon,
@@ -65,7 +67,7 @@ export function UserMenu({
   avatarUrl?: string | null;
 }) {
   const [open, setOpen] = useState(false);
-  const [dialog, setDialog] = useState<"password" | "settings" | "about" | null>(
+  const [dialog, setDialog] = useState<"password" | "settings" | "notifications" | "about" | null>(
     null
   );
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -179,6 +181,13 @@ export function UserMenu({
                 إعدادات الحساب
               </MenuButton>
               <MenuButton
+                onClick={() => pick("notifications")}
+                tint="bg-accent-50 text-accent-600"
+                icon={<BellIcon className="h-[17px] w-[17px]" />}
+              >
+                تفضيلات الإشعارات
+              </MenuButton>
+              <MenuButton
                 onClick={() => pick("about")}
                 tint="bg-purple-50 text-purple-500"
                 icon={<InfoIcon className="h-[17px] w-[17px]" />}
@@ -205,6 +214,15 @@ export function UserMenu({
 
       {dialog === "password" && <ChangePasswordDialog onClose={closeDialog} />}
       {dialog === "settings" && <SettingsDialog onClose={closeDialog} />}
+      {dialog === "notifications" && (
+        <SidePanel
+          title="تفضيلات الإشعارات"
+          subtitle="أنواع الإشعارات، عدم الإزعاج، والملخص اليومي"
+          onClose={closeDialog}
+        >
+          <NotificationPreferencesSettings />
+        </SidePanel>
+      )}
       {dialog === "about" && (
         <AboutDialog role={role} fullName={fullName} onClose={closeDialog} />
       )}
@@ -427,10 +445,8 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
       <SystemNotificationSettings />
 
       <p className="mt-3 text-[11.5px] leading-5 text-muted">
-        تُحفظ تفضيلات المظهر وإشعارات النظام أعلاه في هذا المتصفح فقط.
+        تُحفظ هذه التفضيلات في هذا المتصفح فقط، ولا تتغيّر لبقية المستخدمين.
       </p>
-
-      <NotificationPreferencesSettings />
 
       <button
         type="button"

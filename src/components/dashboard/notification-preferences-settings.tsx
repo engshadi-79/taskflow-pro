@@ -33,10 +33,9 @@ export function NotificationPreferencesSettings() {
   }
 
   return (
-    <section className="mt-6 border-t border-border pt-5">
-      <h3 className="mb-1 text-sm font-bold text-foreground">تفضيلات إشعارات التطبيق</h3>
+    <section>
       <p className="mb-3 text-[11.5px] leading-5 text-muted">
-        تُحفظ على حسابك وتنطبق على كل أجهزتك، بخلاف الإعدادات أعلاه.
+        تُحفظ على حسابك وتنطبق على كل أجهزتك.
       </p>
 
       {!prefs ? (
