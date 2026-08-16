@@ -146,6 +146,12 @@ const REPORTS: NavItem = {
   icon: "chart",
   tone: "green",
 };
+const DECISIONS: NavItem = {
+  href: "/dashboard/decisions",
+  label: "مركز القرار",
+  icon: "alert",
+  tone: "indigo",
+};
 const WORKLOAD: NavItem = {
   href: "/dashboard/workload",
   label: "الحمل الوظيفي",
@@ -246,6 +252,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         TEAM,
         DEPARTMENTS,
         REPORTS,
+        DECISIONS,
         WORKLOAD,
         TIME_TRACKING,
         SLA_REPORT,
@@ -273,6 +280,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         PROJECTS,
         TEAM,
         REPORTS,
+        DECISIONS,
         WORKLOAD,
         TIME_TRACKING,
         SLA_REPORT,
