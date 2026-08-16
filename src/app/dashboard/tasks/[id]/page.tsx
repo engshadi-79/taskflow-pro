@@ -14,6 +14,8 @@ import { DeleteTaskButton } from "@/components/dashboard/delete-task-button";
 import { SubmitForReviewButton } from "@/components/dashboard/submit-for-review-button";
 import { ReviewSection } from "@/components/dashboard/review-section";
 import { TaskTimeline, type TaskTimelineEntry } from "@/components/dashboard/task-timeline";
+import { AddToCalendar } from "@/components/shared/add-to-calendar";
+import type { EventTiming } from "@/lib/calendar-export";
 import { updateTask } from "@/lib/actions/tasks";
 import {
   PRIORITY_LABEL,
@@ -191,6 +193,16 @@ export default async function TaskDetailPage({
     otherTasks = taskData ?? [];
   }
 
+  // No due_date = nothing to add to a calendar at all.
+  const dueTiming: EventTiming | null = task.due_date
+    ? task.due_time
+      ? (() => {
+          const start = new Date(`${task.due_date}T${task.due_time}`);
+          return { start, end: new Date(start.getTime() + 60 * 60 * 1000) };
+        })()
+      : { allDay: true, date: new Date(`${task.due_date}T00:00:00`) }
+    : null;
+
   return (
     <div className="max-w-3xl space-y-8">
       {parentTask && (
@@ -225,6 +237,10 @@ export default async function TaskDetailPage({
           <DeleteTaskButton id={task.id} parentTaskId={task.parent_task_id ?? undefined} />
         )}
       </div>
+
+      {dueTiming && (
+        <AddToCalendar id={task.id} title={`استحقاق: ${task.title}`} timing={dueTiming} />
+      )}
 
       {canManage ? (
         <TaskForm

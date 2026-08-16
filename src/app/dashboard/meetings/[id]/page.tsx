@@ -7,6 +7,8 @@ import { MeetingAgenda } from "@/components/dashboard/meeting-agenda";
 import { MeetingMinutes } from "@/components/dashboard/meeting-minutes";
 import { MeetingAttachments } from "@/components/dashboard/meeting-attachments";
 import { CalendarIcon } from "@/components/shared/icons";
+import { AddToCalendar } from "@/components/shared/add-to-calendar";
+import type { EventTiming } from "@/lib/calendar-export";
 import { updateMeetingStatus } from "@/lib/actions/meetings";
 import {
   MEETING_STATUS_LABEL,
@@ -82,6 +84,16 @@ export default async function MeetingDetailPage({
   const attendeeIds = new Set((attendees ?? []).map((a) => a.user?.id).filter(Boolean));
   const nonAttendees = (employees ?? []).filter((e) => !attendeeIds.has(e.id));
 
+  // No time recorded = treat as an all-day event; otherwise default to a
+  // 1-hour block, since meetings have no end_time column.
+  const meetingTiming: EventTiming = meeting.meeting_time
+    ? (() => {
+        const start = new Date(`${meeting.meeting_date}T${meeting.meeting_time}`);
+        const end = new Date(start.getTime() + 60 * 60 * 1000);
+        return { start, end };
+      })()
+    : { allDay: true, date: new Date(`${meeting.meeting_date}T00:00:00`) };
+
   const attachmentsWithUrls = await Promise.all(
     (attachments ?? []).map(async (a) => {
       const { data } = await supabase.storage.from("task-attachments").createSignedUrl(a.file_url, 60 * 60);
@@ -107,6 +119,14 @@ export default async function MeetingDetailPage({
             {extra.project_name ? ` · مشروع: ${extra.project_name}` : ""}
             {extra.organizer_name ? ` · المنظِّم: ${extra.organizer_name}` : ""}
           </p>
+          <div className="mt-2">
+            <AddToCalendar
+              id={meeting.id}
+              title={meeting.title}
+              location={meeting.location ?? undefined}
+              timing={meetingTiming}
+            />
+          </div>
         </div>
         {canManage ? (
           <StatusSelect meetingId={meeting.id} status={meeting.status} />
