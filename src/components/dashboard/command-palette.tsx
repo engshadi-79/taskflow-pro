@@ -4,16 +4,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
+  BriefcaseIcon,
+  CalendarIcon,
   CheckSquareIcon,
   ClockIcon,
   FolderIcon,
   GridIcon,
+  NoteIcon,
   SearchIcon,
   UserIcon,
 } from "@/components/shared/icons";
 import type { Role } from "@/lib/types/roles";
+import { KNOWLEDGE_CATEGORY_LABEL, type KnowledgeCategory } from "@/lib/types/knowledge";
 
-type Kind = "page" | "task" | "employee" | "department" | "recent";
+type Kind = "page" | "task" | "employee" | "department" | "project" | "meeting" | "article" | "recent";
 
 type Item = {
   id: string;
@@ -36,6 +40,9 @@ const PREFIXES: Record<string, Kind> = {
   e: "employee",
   d: "department",
   p: "page",
+  pr: "project",
+  m: "meeting",
+  k: "article",
 };
 
 const KIND_META: Record<Kind, { label: string; tint: string; icon: React.ReactNode }> = {
@@ -59,6 +66,21 @@ const KIND_META: Record<Kind, { label: string; tint: string; icon: React.ReactNo
     tint: "bg-orange-50 text-orange-600",
     icon: <FolderIcon className="h-[17px] w-[17px]" />,
   },
+  project: {
+    label: "مشروع",
+    tint: "bg-purple-50 text-purple-500",
+    icon: <BriefcaseIcon className="h-[17px] w-[17px]" />,
+  },
+  meeting: {
+    label: "اجتماع",
+    tint: "bg-pink-50 text-pink-500",
+    icon: <CalendarIcon className="h-[17px] w-[17px]" />,
+  },
+  article: {
+    label: "معرفة",
+    tint: "bg-green-50 text-green-600",
+    icon: <NoteIcon className="h-[17px] w-[17px]" />,
+  },
   recent: {
     label: "سابق",
     tint: "bg-background text-muted",
@@ -77,6 +99,9 @@ const PAGES: PageEntry[] = [
   { label: "لوحة كانبان", href: "/dashboard/kanban", roles: ALL_ROLES },
   { label: "الفريق", href: "/dashboard/employees", roles: ["super_admin", "department_manager"] },
   { label: "الأقسام", href: "/dashboard/departments", roles: ["super_admin"] },
+  { label: "المشاريع", href: "/dashboard/projects", roles: ALL_ROLES },
+  { label: "الاجتماعات", href: "/dashboard/meetings", roles: ALL_ROLES },
+  { label: "قاعدة المعرفة", href: "/dashboard/knowledge", roles: ALL_ROLES },
   { label: "التقارير", href: "/dashboard/reports", roles: ["super_admin", "department_manager"] },
   { label: "الإشعارات", href: "/dashboard/notifications", roles: ALL_ROLES },
   { label: "الملف الشخصي", href: "/dashboard/profile", roles: ALL_ROLES },
@@ -97,11 +122,12 @@ function clamp(index: number, length: number) {
   return length ? Math.min(index, length - 1) : 0;
 }
 
-/** Splits a leading `t:` / `e:` / `d:` / `p:` scope off the query. */
+/** Splits a leading scope prefix (see PREFIXES) off the query, e.g. `pr:`. */
 function parseQuery(raw: string) {
-  const match = /^([tedp]):\s*(.*)$/i.exec(raw.trim());
-  if (match) {
-    return { scope: PREFIXES[match[1].toLowerCase()], term: match[2].trim() };
+  const match = /^([a-z]+):\s*(.*)$/i.exec(raw.trim());
+  const scope = match ? PREFIXES[match[1].toLowerCase()] : undefined;
+  if (match && scope) {
+    return { scope, term: match[2].trim() };
   }
   return { scope: null as Kind | null, term: raw.trim() };
 }
@@ -190,7 +216,7 @@ export function CommandPalette({ role }: { role: Role }) {
       const pattern = `%${term}%`;
       const wanted = (k: Kind) => !scope || scope === k;
 
-      const [tasks, employees, departments] = await Promise.all([
+      const [tasks, employees, departments, projects, meetings, articles] = await Promise.all([
         wanted("task")
           ? supabase.from("tasks").select("id, title").ilike("title", pattern).limit(PER_GROUP)
           : Promise.resolve({ data: null }),
@@ -203,6 +229,20 @@ export function CommandPalette({ role }: { role: Role }) {
           : Promise.resolve({ data: null }),
         wanted("department")
           ? supabase.from("departments").select("id, name").ilike("name", pattern).limit(PER_GROUP)
+          : Promise.resolve({ data: null }),
+        wanted("project")
+          ? supabase.from("projects").select("id, name").ilike("name", pattern).limit(PER_GROUP)
+          : Promise.resolve({ data: null }),
+        wanted("meeting")
+          ? supabase.from("meetings").select("id, title").ilike("title", pattern).limit(PER_GROUP)
+          : Promise.resolve({ data: null }),
+        // Keyword-only (tsvector), not the full semantic RRF search
+        // src/lib/knowledge/search.ts does - that needs a server-side
+        // Gemini embedding call, too slow/costly to fire on every
+        // debounced keystroke. Deep semantic search stays on
+        // /dashboard/knowledge itself; the palette is a quick jump-to.
+        wanted("article")
+          ? supabase.rpc("search_knowledge_articles", { p_query: term }).limit(PER_GROUP)
           : Promise.resolve({ data: null }),
       ]);
 
@@ -236,6 +276,31 @@ export function CommandPalette({ role }: { role: Role }) {
           kind: "department",
           label: d.name,
           href: "/dashboard/departments",
+        });
+      }
+      for (const p of (projects.data ?? []) as { id: string; name: string }[]) {
+        next.push({
+          id: `proj-${p.id}`,
+          kind: "project",
+          label: p.name,
+          href: `/dashboard/projects/${p.id}`,
+        });
+      }
+      for (const m of (meetings.data ?? []) as { id: string; title: string }[]) {
+        next.push({
+          id: `meet-${m.id}`,
+          kind: "meeting",
+          label: m.title,
+          href: `/dashboard/meetings/${m.id}`,
+        });
+      }
+      for (const a of (articles.data ?? []) as { id: string; title: string; category: string }[]) {
+        next.push({
+          id: `art-${a.id}`,
+          kind: "article",
+          label: a.title,
+          hint: KNOWLEDGE_CATEGORY_LABEL[a.category as KnowledgeCategory],
+          href: `/dashboard/knowledge/${a.id}`,
         });
       }
 
@@ -375,13 +440,16 @@ export function CommandPalette({ role }: { role: Role }) {
 
     if (!term) {
       push("عمليات بحث سابقة", of("recent"));
-      push("زرتها مؤخراً", of("task", "employee", "department"));
+      push("زرتها مؤخراً", of("task", "employee", "department", "project", "meeting", "article"));
       push("الصفحات", of("page"));
     } else {
       push("الصفحات", of("page"));
       push("المهام", of("task"));
       push("الموظفون", of("employee"));
       push("الأقسام", of("department"));
+      push("المشاريع", of("project"));
+      push("الاجتماعات", of("meeting"));
+      push("قاعدة المعرفة", of("article"));
     }
     return out;
   }, [results, term]);
@@ -429,7 +497,7 @@ export function CommandPalette({ role }: { role: Role }) {
                   results[activeIndex] ? `palette-opt-${activeIndex}` : undefined
                 }
                 aria-label="بحث سريع"
-                placeholder="بحث... (t:مهمة | e:موظف | d:قسم | p:صفحة)"
+                placeholder="بحث... (t:مهمة | e:موظف | d:قسم | pr:مشروع | m:اجتماع | k:معرفة)"
                 className="min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-none placeholder:text-faint"
               />
               <button
