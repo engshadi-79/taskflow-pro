@@ -27,6 +27,25 @@ type EventPayloads = {
     organizationId: string;
     userId: string;
   };
+  // The first real consumer of this bus (P18's webhook dispatcher,
+  // src/lib/webhooks/dispatcher.ts) subscribes to exactly these three.
+  "task.created": {
+    organizationId: string;
+    taskId: string;
+    title: string;
+    assignedTo: string;
+    createdBy: string;
+  };
+  "task.status_changed": {
+    organizationId: string;
+    taskId: string;
+    oldStatus: string;
+    newStatus: string;
+  };
+  "task.completed": {
+    organizationId: string;
+    taskId: string;
+  };
 };
 
 export type DomainEvent = keyof EventPayloads;

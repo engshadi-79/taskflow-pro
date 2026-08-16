@@ -2,8 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/data/profile";
+import { emit } from "@/lib/foundation/events";
+// Side-effect import: registers the webhook dispatcher's on() subscriptions
+// (see src/lib/webhooks/dispatcher.ts) before any emit() below can fire -
+// this is the one file that emits task.* events, so this is where that
+// subscriber needs to be loaded.
+import "@/lib/webhooks/dispatcher";
 import type { Priority, RecurrencePattern, TaskStatus } from "@/lib/types/task";
 
 export type TaskFormState = { error?: string };
@@ -128,6 +135,20 @@ export async function createTask(
   if (error || !data) {
     return { error: "تعذر إنشاء المهمة" };
   }
+
+  // after(): webhook delivery (see src/lib/webhooks/dispatcher.ts) can take
+  // up to 8s per endpoint - awaiting it here would make every task creation
+  // as slow as the flakiest subscriber's webhook. after() runs it once the
+  // response (here, the redirect below) is already on its way to the user.
+  after(() =>
+    emit("task.created", {
+      organizationId: profile.organization_id,
+      taskId: data.id,
+      title: fields.title,
+      assignedTo: fields.assignedTo,
+      createdBy: profile.id,
+    })
+  );
 
   revalidatePath("/dashboard/tasks");
   redirect(`/dashboard/tasks/${data.id}`);
@@ -326,6 +347,20 @@ export async function moveTaskStatus(
   const { error } = await supabase.from("tasks").update({ status: newStatus }).eq("id", taskId);
   if (error) return { error: error.message || "تعذر تحديث حالة المهمة" };
 
+  if (newStatus !== task.status) {
+    after(() =>
+      emit("task.status_changed", {
+        organizationId: profile.organization_id,
+        taskId,
+        oldStatus: task.status,
+        newStatus,
+      })
+    );
+    if (newStatus === "completed") {
+      after(() => emit("task.completed", { organizationId: profile.organization_id, taskId }));
+    }
+  }
+
   revalidatePath("/dashboard/kanban");
   revalidatePath("/dashboard/tasks");
   revalidatePath(`/dashboard/tasks/${taskId}`);
@@ -357,6 +392,15 @@ export async function submitForReview(taskId: string): Promise<TaskFormState> {
     .eq("id", taskId);
 
   if (error) return { error: error.message || "تعذر تحديث حالة المهمة" };
+
+  after(() =>
+    emit("task.status_changed", {
+      organizationId: profile.organization_id,
+      taskId,
+      oldStatus: task.status,
+      newStatus: "pending_review",
+    })
+  );
 
   revalidatePath(`/dashboard/tasks/${taskId}`);
   revalidatePath("/dashboard");
@@ -396,6 +440,18 @@ export async function reviewTask(
     .eq("id", taskId);
 
   if (error) return { error: error.message || "تعذر تحديث حالة المهمة" };
+
+  after(() =>
+    emit("task.status_changed", {
+      organizationId: profile.organization_id,
+      taskId,
+      oldStatus: task.status,
+      newStatus: nextStatus,
+    })
+  );
+  if (nextStatus === "completed") {
+    after(() => emit("task.completed", { organizationId: profile.organization_id, taskId }));
+  }
 
   const trimmedNotes = notes.trim();
 

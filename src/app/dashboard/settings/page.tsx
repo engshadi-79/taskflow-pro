@@ -4,7 +4,7 @@ import { getCurrentProfile } from "@/lib/data/profile";
 import { getCurrentOrganization } from "@/lib/data/organization";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
-import { GearIcon, LockIcon } from "@/components/shared/icons";
+import { GearIcon, KeyIcon, LockIcon } from "@/components/shared/icons";
 import { OrganizationLogoUpload } from "@/components/dashboard/organization-logo-upload";
 import { OrganizationSettingsForm } from "@/components/dashboard/organization-settings-form";
 import { OrganizationHolidaysManager } from "@/components/dashboard/organization-holidays-manager";
@@ -50,6 +50,13 @@ export default async function OrganizationSettingsPage() {
         >
           <LockIcon className="h-4 w-4" />
           مصفوفة الصلاحيات
+        </Link>
+        <Link
+          href="/dashboard/settings/developer"
+          className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-extrabold text-accent-700 transition-transform hover:scale-[1.03]"
+        >
+          <KeyIcon className="h-4 w-4" />
+          API والـ Webhooks
         </Link>
       </PageHeader>
 
