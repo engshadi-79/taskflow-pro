@@ -1,11 +1,10 @@
-import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/dashboard/notification-bell";
 import { UserMenu } from "@/components/dashboard/user-menu";
 import { CommandPalette } from "@/components/dashboard/command-palette";
 import { RecentActivityButton } from "@/components/dashboard/recent-activity-button";
 import { ChatQuickAccessButton } from "@/components/dashboard/chat-quick-access-button";
-import { HelpIcon } from "@/components/shared/icons";
+import { HelpQuickAccessButton } from "@/components/dashboard/help-quick-access-button";
 import type { Role } from "@/lib/types/roles";
 
 export function Topbar({
@@ -45,13 +44,7 @@ export function Topbar({
         <CommandPalette role={role} />
         <NotificationBell userId={userId} initialUnreadCount={unreadCount} />
         <ChatQuickAccessButton />
-        <Link
-          href="/dashboard/help"
-          aria-label="مركز المساعدة"
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-50 text-accent-600 transition-colors hover:brightness-95"
-        >
-          <HelpIcon className="h-[19px] w-[19px]" />
-        </Link>
+        <HelpQuickAccessButton />
         <ThemeToggle />
 
         <div className="mx-1 hidden h-8 w-px bg-border sm:block" />
