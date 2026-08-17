@@ -4,9 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { sendChatMessage, deleteChatMessage, markConversationRead } from "@/lib/actions/chat";
 import { Avatar } from "@/components/shared/avatar";
-import { PaperclipIcon, SendIcon, UsersIcon } from "@/components/shared/icons";
+import { EmojiIcon, ImageIcon, MicIcon, PaperclipIcon, SendIcon, UsersIcon } from "@/components/shared/icons";
 import { timeAgo } from "@/lib/format-time-ago";
 import type { ChatMessage, ConversationParticipant } from "@/lib/types/chat";
+
+const EMOJIS = [
+  "😀", "😂", "😊", "😍", "😘", "😉", "😎", "🤔",
+  "😢", "😭", "😡", "👍", "👎", "👏", "🙏", "❤️",
+  "🔥", "🎉", "✅", "❌", "⚠️", "📌", "💡", "🕐",
+  "📅", "✔️", "😅", "🙌", "🤝", "👀", "💯", "🚀",
+];
 
 /**
  * The message thread itself - shared between the full /dashboard/chat page
@@ -37,7 +44,16 @@ export function ChatThread({
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const emojiWrapRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   const loadMessages = useCallback(async () => {
@@ -102,13 +118,18 @@ export function ChatThread({
     };
   }, [conversationId, currentUserId, loadMessages]);
 
+  function clearSelectedFile() {
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  }
+
   async function handleSend() {
-    const file = fileInputRef.current?.files?.[0] ?? null;
-    if (!text.trim() && !file) return;
+    if (!text.trim() && !selectedFile) return;
 
     setSending(true);
     setError(null);
-    const result = await sendChatMessage(conversationId, text, file);
+    const result = await sendChatMessage(conversationId, text, selectedFile);
     setSending(false);
 
     if (result.error && !result.id) {
@@ -117,8 +138,55 @@ export function ChatThread({
     }
     if (result.error) setError(result.error); // message sent, attachment failed
     setText("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    clearSelectedFile();
     loadMessages();
+  }
+
+  async function startRecording() {
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      recordedChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(recordedChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
+        setSelectedFile(new File([blob], `رسالة-صوتية-${Date.now()}.${ext}`, { type: blob.type }));
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+      setRecordSeconds(0);
+      recordTimerRef.current = setInterval(() => setRecordSeconds((s) => s + 1), 1000);
+    } catch {
+      setError("تعذر الوصول إلى الميكروفون");
+    }
+  }
+
+  function stopRecording() {
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+    if (recordTimerRef.current) {
+      clearInterval(recordTimerRef.current);
+      recordTimerRef.current = null;
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
+
+  function insertEmoji(emoji: string) {
+    setText((t) => t + emoji);
   }
 
   async function handleDelete(messageId: string) {
@@ -221,37 +289,128 @@ export function ChatThread({
 
       {error && <p className="px-4 pb-1 text-[12px] text-red-600">{error}</p>}
 
-      <div className="flex items-center gap-2 border-t border-border p-3">
-        <input ref={fileInputRef} type="file" className="hidden" id={`chat-file-${conversationId}`} />
-        <label
-          htmlFor={`chat-file-${conversationId}`}
-          className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted hover:bg-background"
-          title="إرفاق ملف"
-        >
-          <PaperclipIcon className="h-[18px] w-[18px]" />
-        </label>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-          placeholder="اكتب رسالة..."
-          className="min-w-0 flex-1 rounded-full border border-border bg-background px-4 py-2 text-[13px] text-foreground outline-none focus:border-accent-500"
-        />
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={sending}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-500 text-white hover:bg-accent-600 disabled:opacity-60"
-          aria-label="إرسال"
-        >
-          <SendIcon className="h-[16px] w-[16px]" />
-        </button>
+      <div className="border-t border-border p-3">
+        {selectedFile && (
+          <div className="mb-2 flex items-center justify-between gap-2 rounded-[10px] bg-background px-3 py-2 text-[12px]">
+            <span className="truncate font-bold text-foreground">
+              {selectedFile.type.startsWith("audio/") ? "🎤 رسالة صوتية" : `📎 ${selectedFile.name}`}
+            </span>
+            <button type="button" onClick={clearSelectedFile} className="shrink-0 font-bold text-brand-red-500 hover:underline">
+              إزالة
+            </button>
+          </div>
+        )}
+        {isRecording && (
+          <p className="mb-2 text-[12px] font-bold text-brand-red-500">🔴 جارٍ التسجيل... {recordSeconds}s</p>
+        )}
+        <div className="flex items-center gap-1.5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted hover:bg-background"
+            title="إرفاق ملف"
+          >
+            <PaperclipIcon className="h-[18px] w-[18px]" />
+          </button>
+
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+          />
+          <button
+            type="button"
+            onClick={() => imageInputRef.current?.click()}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted hover:bg-background"
+            title="إرسال صورة"
+          >
+            <ImageIcon className="h-[18px] w-[18px]" />
+          </button>
+
+          <button
+            type="button"
+            onClick={isRecording ? stopRecording : startRecording}
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+              isRecording ? "bg-brand-red-500 text-white" : "text-muted hover:bg-background"
+            }`}
+            title={isRecording ? "إيقاف التسجيل" : "تسجيل رسالة صوتية"}
+          >
+            <MicIcon className="h-[18px] w-[18px]" />
+          </button>
+
+          <div ref={emojiWrapRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setShowEmoji((v) => !v)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted hover:bg-background"
+              title="إيموجي"
+            >
+              <EmojiIcon className="h-[18px] w-[18px]" />
+            </button>
+            {showEmoji && <EmojiPicker onPick={insertEmoji} onClose={() => setShowEmoji(false)} />}
+          </div>
+
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="اكتب رسالة..."
+            className="min-w-0 flex-1 rounded-full border border-border bg-background px-4 py-2 text-[13px] text-foreground outline-none focus:border-accent-500"
+          />
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={sending}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-500 text-white hover:bg-accent-600 disabled:opacity-60"
+            aria-label="إرسال"
+          >
+            <SendIcon className="h-[16px] w-[16px]" />
+          </button>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function EmojiPicker({ onPick, onClose }: { onPick: (emoji: string) => void; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute bottom-full start-0 z-10 mb-2 grid w-[224px] grid-cols-8 gap-0.5 rounded-[12px] border border-border bg-surface p-2 shadow-xl"
+    >
+      {EMOJIS.map((emoji) => (
+        <button
+          key={emoji}
+          type="button"
+          onClick={() => onPick(emoji)}
+          className="flex h-7 w-7 items-center justify-center rounded text-[15px] hover:bg-background"
+        >
+          {emoji}
+        </button>
+      ))}
     </div>
   );
 }
@@ -280,12 +439,15 @@ function ChatAttachmentPreview({
   }, [attachment.file_url]);
 
   const isImage = attachment.file_type?.startsWith("image/");
+  const isAudio = attachment.file_type?.startsWith("audio/");
 
   return (
     <div className="mt-2">
       {url && isImage ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={url} alt={attachment.file_name} className="max-h-56 max-w-full rounded-[10px] object-cover" />
+      ) : url && isAudio ? (
+        <audio controls src={url} className="h-9 max-w-full" />
       ) : (
         <a
           href={url ?? "#"}

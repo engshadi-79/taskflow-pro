@@ -311,3 +311,29 @@ export const NoteIcon = (p: IconProps) => (
     <path d="M8 12h8M8 16h5" />
   </Svg>
 );
+
+export const ImageIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <circle cx="8.5" cy="9.5" r="1.5" />
+    <path d="M21 15.5l-5-5-4 4-3-3-6 6" />
+  </Svg>
+);
+
+export const MicIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="9" y="3" width="6" height="11" rx="3" />
+    <path d="M5 11a7 7 0 0 0 14 0" />
+    <path d="M12 18v3" />
+    <path d="M8.5 21h7" />
+  </Svg>
+);
+
+export const EmojiIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M8.5 10.2h.01" />
+    <path d="M15.5 10.2h.01" />
+    <path d="M8.5 14.5c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8" />
+  </Svg>
+);

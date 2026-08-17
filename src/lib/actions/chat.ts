@@ -20,6 +20,14 @@ const ALLOWED_ATTACHMENT_TYPES = [
   "text/plain",
   "text/csv",
   "application/zip",
+  // voice messages recorded via MediaRecorder - browsers vary in which of
+  // these they actually produce (Chrome/Firefox default to audio/webm,
+  // Safari to audio/mp4), so all four are allowed rather than picking one
+  "audio/webm",
+  "audio/ogg",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/wav",
 ];
 
 export async function startDirectConversation(otherUserId: string): Promise<ChatActionState> {
