@@ -33,6 +33,9 @@ export type Task = {
   milestone_id: string | null;
   parent_task_id: string | null;
   estimated_hours: number | null;
+  is_archived: boolean;
+  archived_at: string | null;
+  archived_by: string | null;
   created_at: string;
   updated_at: string;
 };

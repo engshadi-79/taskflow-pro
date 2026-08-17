@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { moveTaskStatus } from "@/lib/actions/tasks";
+import { moveTaskStatus, archiveTask } from "@/lib/actions/tasks";
 import { CalendarIcon, InboxIcon } from "@/components/shared/icons";
 import { Avatar } from "@/components/shared/avatar";
 import {
@@ -87,6 +87,17 @@ export function KanbanBoard({
     setItems((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
 
     const result = await moveTaskStatus(taskId, status);
+    if (result?.error) {
+      setItems(previous);
+      setError(result.error);
+    }
+  }
+
+  async function handleArchive(taskId: string) {
+    if (!confirm("أرشفة هذه المهمة؟ ستختفي من لوحة كانبان.")) return;
+    const previous = items;
+    setItems((prev) => prev.filter((t) => t.id !== taskId));
+    const result = await archiveTask(taskId);
     if (result?.error) {
       setItems(previous);
       setError(result.error);
@@ -186,6 +197,15 @@ export function KanbanBoard({
                         </span>
                       )}
                     </div>
+                    {col.status === "completed" && canManage && (
+                      <button
+                        type="button"
+                        onClick={() => handleArchive(task.id)}
+                        className="mt-3 w-full rounded-[8px] border border-border py-1.5 text-[11px] font-bold text-muted transition-colors hover:border-accent-500 hover:text-accent-600"
+                      >
+                        أرشفة
+                      </button>
+                    )}
                   </div>
                 );
               })}

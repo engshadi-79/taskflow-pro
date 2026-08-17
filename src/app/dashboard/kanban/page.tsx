@@ -14,12 +14,25 @@ export default async function KanbanPage() {
   }
 
   const supabase = await createClient();
-  const { data: tasks } = await supabase
+  const { data: filteredTasks, error: tasksError } = await supabase
     .from("tasks")
     .select("*, assignee:users!tasks_assigned_to_fkey(id, full_name, avatar_url)")
     .neq("status", "cancelled")
+    .eq("is_archived", false)
     .order("created_at", { ascending: false })
     .returns<TaskWithAssignee[]>();
+
+  // task_archiving.sql not applied yet on this database - fall back to the
+  // unfiltered query rather than breaking the whole board.
+  let tasks = filteredTasks;
+  if (tasksError?.code === "42703") {
+    ({ data: tasks } = await supabase
+      .from("tasks")
+      .select("*, assignee:users!tasks_assigned_to_fkey(id, full_name, avatar_url)")
+      .neq("status", "cancelled")
+      .order("created_at", { ascending: false })
+      .returns<TaskWithAssignee[]>());
+  }
 
   const canManage = profile.role === "super_admin" || profile.role === "department_manager";
 

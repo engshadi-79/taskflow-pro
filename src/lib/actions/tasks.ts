@@ -367,6 +367,31 @@ export async function moveTaskStatus(
   return {};
 }
 
+/** Manual only - hides a completed task from the Kanban board without touching its status, so reports/SLA/KPI stay accurate. */
+export async function archiveTask(taskId: string): Promise<TaskFormState> {
+  const profile = await getCurrentProfile();
+  if (!profile || !MANAGE_ROLES.includes(profile.role)) {
+    return { error: "غير مصرح لك بأرشفة المهام" };
+  }
+
+  const supabase = await createClient();
+  const { data: task } = await supabase.from("tasks").select("id, status").eq("id", taskId).single();
+  if (!task) return { error: "المهمة غير موجودة" };
+  if (task.status !== "completed") return { error: "يمكن أرشفة المهام المكتملة فقط" };
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({ is_archived: true, archived_at: new Date().toISOString(), archived_by: profile.id })
+    .eq("id", taskId);
+
+  if (error) return { error: "تعذر أرشفة المهمة" };
+
+  revalidatePath("/dashboard/kanban");
+  revalidatePath("/dashboard/tasks");
+  revalidatePath(`/dashboard/tasks/${taskId}`);
+  return {};
+}
+
 export async function submitForReview(taskId: string): Promise<TaskFormState> {
   const profile = await getCurrentProfile();
   if (!profile) return { error: "يجب تسجيل الدخول" };
