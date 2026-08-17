@@ -86,7 +86,7 @@ create policy comment_attachments_storage_select on storage.objects
     bucket_id = 'task-attachments'
     and (storage.foldername(name))[1] = 'comments'
     and exists (
-      select 1 from public.task_comments c where c.id = (storage.foldername(name))[2]::uuid
+      select 1 from public.task_comments c where c.id = public.try_uuid((storage.foldername(name))[2])
     )
   );
 
@@ -96,7 +96,7 @@ create policy comment_attachments_storage_insert on storage.objects
     and (storage.foldername(name))[1] = 'comments'
     and owner = auth.uid()
     and exists (
-      select 1 from public.task_comments c where c.id = (storage.foldername(name))[2]::uuid
+      select 1 from public.task_comments c where c.id = public.try_uuid((storage.foldername(name))[2])
     )
   );
 

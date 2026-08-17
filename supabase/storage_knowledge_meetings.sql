@@ -22,7 +22,7 @@ create policy knowledge_attachments_storage_select on storage.objects
     and (storage.foldername(name))[1] = 'knowledge'
     and exists (
       select 1 from public.knowledge_articles a
-      where a.id = (storage.foldername(name))[2]::uuid
+      where a.id = public.try_uuid((storage.foldername(name))[2])
     )
   );
 
@@ -33,7 +33,7 @@ create policy knowledge_attachments_storage_insert on storage.objects
     and owner = auth.uid()
     and exists (
       select 1 from public.knowledge_articles a
-      where a.id = (storage.foldername(name))[2]::uuid
+      where a.id = public.try_uuid((storage.foldername(name))[2])
     )
   );
 
@@ -50,7 +50,7 @@ create policy meeting_attachments_storage_select on storage.objects
     and (storage.foldername(name))[1] = 'meetings'
     and exists (
       select 1 from public.meetings m
-      where m.id = (storage.foldername(name))[2]::uuid
+      where m.id = public.try_uuid((storage.foldername(name))[2])
     )
   );
 
@@ -61,7 +61,7 @@ create policy meeting_attachments_storage_insert on storage.objects
     and owner = auth.uid()
     and exists (
       select 1 from public.meetings m
-      where m.id = (storage.foldername(name))[2]::uuid
+      where m.id = public.try_uuid((storage.foldername(name))[2])
     )
   );
 
