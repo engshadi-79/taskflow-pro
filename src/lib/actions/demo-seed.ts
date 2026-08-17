@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/data/profile";
 
@@ -52,9 +51,17 @@ const DEPT_MANAGER: Record<string, string> = {
  * so the user can test-drive the whole app (team, project, tasks,
  * meetings) with realistic content instead of an empty state.
  *
- * Idempotent: refuses to run twice for the same organization (checked via
- * the project name), since re-running would try to recreate the same
- * employee emails and fail halfway through.
+ * Uses the service-role admin client for every write, not just employee
+ * creation - several tables' insert policies require the inserting row's
+ * own auth.uid() to match a specific column (e.g. meetings.organizer_id),
+ * which the real logged-in super_admin running this seeder never matches
+ * for these fictional demo employees. The whole function is already gated
+ * on super_admin, matching the "only from actions that checked the role
+ * themselves" contract for this client (see src/lib/supabase/admin.ts).
+ *
+ * Every step checks for an existing row before creating one, so a partial
+ * run (e.g. interrupted by an error) can simply be re-run to fill in
+ * whatever is still missing, instead of erroring out or duplicating.
  */
 export async function seedGazaEmpowermentDemo(): Promise<DemoSeedState> {
   const profile = await getCurrentProfile();
@@ -62,24 +69,25 @@ export async function seedGazaEmpowermentDemo(): Promise<DemoSeedState> {
     return { error: "غير مصرح لك بتنفيذ هذا الإجراء" };
   }
 
-  const supabase = await createClient();
-
-  const { data: existing } = await supabase
-    .from("projects")
-    .select("id")
-    .eq("organization_id", profile.organization_id)
-    .eq("name", PROJECT_NAME)
-    .maybeSingle();
-  if (existing) {
-    return { error: "تم تنفيذ هذا السيناريو التجريبي مسبقًا في هذه المؤسسة" };
-  }
+  const db = createAdminClient();
+  const orgId = profile.organization_id;
 
   // 1) departments
   const deptIdByName = new Map<string, string>();
   for (const name of DEPARTMENTS) {
-    const { data, error } = await supabase
+    const { data: found } = await db
       .from("departments")
-      .insert({ organization_id: profile.organization_id, name })
+      .select("id")
+      .eq("organization_id", orgId)
+      .eq("name", name)
+      .maybeSingle();
+    if (found) {
+      deptIdByName.set(name, found.id);
+      continue;
+    }
+    const { data, error } = await db
+      .from("departments")
+      .insert({ organization_id: orgId, name })
       .select("id")
       .single();
     if (error || !data) return { error: `تعذر إنشاء القسم "${name}": ${error?.message ?? ""}` };
@@ -88,15 +96,24 @@ export async function seedGazaEmpowermentDemo(): Promise<DemoSeedState> {
 
   // 2) employees (real auth accounts - public.users is populated by the
   // on_auth_user_created trigger from this metadata, same as createEmployee())
-  const adminClient = createAdminClient();
   const userIdByKey = new Map<string, string>();
   for (const emp of EMPLOYEES) {
-    const { data, error } = await adminClient.auth.admin.createUser({
+    const { data: found } = await db
+      .from("users")
+      .select("id")
+      .eq("organization_id", orgId)
+      .eq("email", emp.email)
+      .maybeSingle();
+    if (found) {
+      userIdByKey.set(emp.key, found.id);
+      continue;
+    }
+    const { data, error } = await db.auth.admin.createUser({
       email: emp.email,
       password: DEMO_PASSWORD,
       email_confirm: true,
       user_metadata: {
-        organization_id: profile.organization_id,
+        organization_id: orgId,
         role: emp.role,
         full_name: emp.full_name,
         department_id: deptIdByName.get(emp.dept) ?? null,
@@ -110,7 +127,7 @@ export async function seedGazaEmpowermentDemo(): Promise<DemoSeedState> {
 
   // 3) department managers
   for (const [deptName, empKey] of Object.entries(DEPT_MANAGER)) {
-    await supabase
+    await db
       .from("departments")
       .update({ manager_id: userIdByKey.get(empKey) })
       .eq("id", deptIdByName.get(deptName));
@@ -118,25 +135,36 @@ export async function seedGazaEmpowermentDemo(): Promise<DemoSeedState> {
 
   // 4) project
   const coordinatorId = userIdByKey.get("coordinator")!;
-  const { data: project, error: projectError } = await supabase
+  let projectId: string;
+  const { data: existingProject } = await db
     .from("projects")
-    .insert({
-      organization_id: profile.organization_id,
-      department_id: deptIdByName.get("الإدارة والتنسيق"),
-      manager_id: coordinatorId,
-      name: PROJECT_NAME,
-      description:
-        "مشروع مقدَّم من المركز السعودي للثقافة والتراث، الشريك التنفيذي لمركز الملك سلمان للإغاثة والأعمال الإنسانية، لدعم التعافي الاقتصادي وبناء قدرات 1,000 مستفيد ومستفيدة من الفئات الأشد ضعفًا وذوي الإعاقة في قطاع غزة، عبر 8 مسارات تدريبية مهنية وتقنية، تزويدهم بأدوات المهنة، وربطهم بفرص دخل حقيقية ومستدامة، على مدى 12 شهرًا.",
-      priority: "urgent",
-      status: "active",
-      start_date: "2026-03-01",
-      due_date: "2027-02-28",
-      created_by: profile.id,
-    })
     .select("id")
-    .single();
-  if (projectError || !project) return { error: `تعذر إنشاء المشروع: ${projectError?.message ?? ""}` };
-  const projectId = project.id;
+    .eq("organization_id", orgId)
+    .eq("name", PROJECT_NAME)
+    .maybeSingle();
+  if (existingProject) {
+    projectId = existingProject.id;
+  } else {
+    const { data: project, error: projectError } = await db
+      .from("projects")
+      .insert({
+        organization_id: orgId,
+        department_id: deptIdByName.get("الإدارة والتنسيق"),
+        manager_id: coordinatorId,
+        name: PROJECT_NAME,
+        description:
+          "مشروع مقدَّم من المركز السعودي للثقافة والتراث، الشريك التنفيذي لمركز الملك سلمان للإغاثة والأعمال الإنسانية، لدعم التعافي الاقتصادي وبناء قدرات 1,000 مستفيد ومستفيدة من الفئات الأشد ضعفًا وذوي الإعاقة في قطاع غزة، عبر 8 مسارات تدريبية مهنية وتقنية، تزويدهم بأدوات المهنة، وربطهم بفرص دخل حقيقية ومستدامة، على مدى 12 شهرًا.",
+        priority: "urgent",
+        status: "active",
+        start_date: "2026-03-01",
+        due_date: "2027-02-28",
+        created_by: profile.id,
+      })
+      .select("id")
+      .single();
+    if (projectError || !project) return { error: `تعذر إنشاء المشروع: ${projectError?.message ?? ""}` };
+    projectId = project.id;
+  }
 
   // 5) milestones
   const milestoneSeed = [
@@ -147,7 +175,17 @@ export async function seedGazaEmpowermentDemo(): Promise<DemoSeedState> {
   ];
   const milestoneIds: string[] = [];
   for (const [i, m] of milestoneSeed.entries()) {
-    const { data, error } = await supabase
+    const { data: found } = await db
+      .from("project_milestones")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("title", m.title)
+      .maybeSingle();
+    if (found) {
+      milestoneIds.push(found.id);
+      continue;
+    }
+    const { data, error } = await db
       .from("project_milestones")
       .insert({ project_id: projectId, title: m.title, due_date: m.due_date, status: m.status, position: i })
       .select("id")
@@ -200,8 +238,16 @@ export async function seedGazaEmpowermentDemo(): Promise<DemoSeedState> {
   ];
 
   for (const t of taskSeed) {
-    const { error } = await supabase.from("tasks").insert({
-      organization_id: profile.organization_id,
+    const { data: found } = await db
+      .from("tasks")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("title", t.title)
+      .maybeSingle();
+    if (found) continue;
+
+    const { error } = await db.from("tasks").insert({
+      organization_id: orgId,
       title: t.title,
       assigned_to: userIdByKey.get(t.assignee),
       created_by: profile.id,
@@ -222,7 +268,7 @@ export async function seedGazaEmpowermentDemo(): Promise<DemoSeedState> {
       time: "10:00",
       location: "مقر المركز السعودي للثقافة والتراث - غزة",
       status: "completed" as const,
-      attendees: Object.keys(DEPT_MANAGER).length ? [...userIdByKey.values()] : [],
+      attendees: [...userIdByKey.values()],
     },
     {
       title: "اجتماع تنسيقي - متابعة سير التدريب",
@@ -251,10 +297,18 @@ export async function seedGazaEmpowermentDemo(): Promise<DemoSeedState> {
   ];
 
   for (const m of meetingSeed) {
-    const { data: meeting, error } = await supabase
+    const { data: found } = await db
+      .from("meetings")
+      .select("id")
+      .eq("organization_id", orgId)
+      .eq("title", m.title)
+      .maybeSingle();
+    if (found) continue;
+
+    const { data: meeting, error } = await db
       .from("meetings")
       .insert({
-        organization_id: profile.organization_id,
+        organization_id: orgId,
         organizer_id: coordinatorId,
         title: m.title,
         meeting_date: m.date,
@@ -268,7 +322,7 @@ export async function seedGazaEmpowermentDemo(): Promise<DemoSeedState> {
     if (error || !meeting) return { error: `تعذر إنشاء الاجتماع "${m.title}": ${error?.message ?? ""}` };
 
     if (m.attendees.length > 0) {
-      await supabase
+      await db
         .from("meeting_attendees")
         .insert(m.attendees.map((userId) => ({ meeting_id: meeting.id, user_id: userId })));
     }
