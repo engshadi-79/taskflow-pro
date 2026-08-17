@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SidebarShell } from "@/components/dashboard/sidebar-shell";
 import { Topbar } from "@/components/dashboard/topbar";
 import { AiAssistantPanel } from "@/components/dashboard/ai-assistant-panel";
+import { ChatWidget } from "@/components/dashboard/chat-widget";
 import { PresenceTracker } from "@/components/dashboard/presence-tracker";
 
 export default async function DashboardLayout({
@@ -50,6 +51,7 @@ export default async function DashboardLayout({
         recentActivityCount={recentActivity?.length ?? 0}
       />
       <main className="flex-1 overflow-y-auto p-6">{children}</main>
+      <ChatWidget />
       <AiAssistantPanel />
       <PresenceTracker
         organizationId={profile.organization_id}

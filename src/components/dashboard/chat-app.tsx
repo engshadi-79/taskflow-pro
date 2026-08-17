@@ -453,7 +453,7 @@ function ChatAttachmentLink({ attachment, light }: { attachment: ChatMessage["at
   );
 }
 
-function NewChatDialog({
+export function NewChatDialog({
   directory,
   onClose,
   onStartDirect,
