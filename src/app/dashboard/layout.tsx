@@ -51,7 +51,7 @@ export default async function DashboardLayout({
         recentActivityCount={recentActivity?.length ?? 0}
       />
       <main className="flex-1 overflow-y-auto p-6">{children}</main>
-      <ChatWidget />
+      <ChatWidget currentUserId={profile.id} />
       <AiAssistantPanel />
       <PresenceTracker
         organizationId={profile.organization_id}
