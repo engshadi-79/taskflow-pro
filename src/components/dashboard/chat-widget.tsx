@@ -41,6 +41,16 @@ export function ChatWidget({ currentUserId }: { currentUserId: string }) {
     Promise.resolve().then(() => refresh());
   }, []);
 
+  // lets the topbar's chat icon (a separate component, mounted elsewhere in
+  // the layout) open this same popup instead of navigating away
+  useEffect(() => {
+    function onToggle() {
+      setOpen((o) => !o);
+    }
+    window.addEventListener("monjez:toggle-chat-widget", onToggle);
+    return () => window.removeEventListener("monjez:toggle-chat-widget", onToggle);
+  }, []);
+
   // realtime: keep the badge/list live even while the panel is closed -
   // ChatThread owns its own separate, filtered subscription for whichever
   // conversation is open inline below.
