@@ -11,6 +11,7 @@ import {
   BriefcaseIcon,
   CalendarIcon,
   ChartIcon,
+  ChatIcon,
   CheckCircleIcon,
   CheckSquareIcon,
   ChevronDownIcon,
@@ -39,7 +40,8 @@ type IconKey =
   | "alert"
   | "gear"
   | "calendar"
-  | "check";
+  | "check"
+  | "chat";
 
 type NavItem = {
   href: string;
@@ -67,6 +69,7 @@ const ICONS: Record<IconKey, (p: { className?: string }) => React.ReactElement> 
   gear: GearIcon,
   calendar: CalendarIcon,
   check: CheckCircleIcon,
+  chat: ChatIcon,
 };
 
 // Icon colours on the dark rail, mirroring the ACAS portal's multi-hue nav.
@@ -121,6 +124,12 @@ const MEETINGS: NavItem = {
   label: "الاجتماعات",
   icon: "calendar",
   tone: "amber",
+};
+const CHAT: NavItem = {
+  href: "/dashboard/chat",
+  label: "المحادثات",
+  icon: "chat",
+  tone: "teal",
 };
 const KNOWLEDGE: NavItem = {
   href: "/dashboard/knowledge",
@@ -247,6 +256,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         KANBAN,
         CALENDAR,
         MEETINGS,
+        CHAT,
         KNOWLEDGE,
         PROJECTS,
         TEAM,
@@ -276,6 +286,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         KANBAN,
         CALENDAR,
         MEETINGS,
+        CHAT,
         KNOWLEDGE,
         PROJECTS,
         TEAM,
@@ -293,7 +304,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
   ],
   employee: [
     { label: "التنقل", items: [{ ...DASHBOARD, label: "مهامي" }] },
-    { label: "إدارة العمل", items: [KANBAN, CALENDAR, MEETINGS, KNOWLEDGE, PROJECTS, WORKFLOW_REQUESTS, PERFORMANCE] },
+    { label: "إدارة العمل", items: [KANBAN, CALENDAR, MEETINGS, CHAT, KNOWLEDGE, PROJECTS, WORKFLOW_REQUESTS, PERFORMANCE] },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },
   ],
 };

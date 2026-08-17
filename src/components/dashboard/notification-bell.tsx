@@ -122,6 +122,11 @@ const TYPE_META: Record<string, Meta> = {
     tint: "bg-accent-600",
     icon: <ClockIcon className="h-[17px] w-[17px]" />,
   },
+  chat_message: {
+    label: "رسالة جديدة",
+    tint: "bg-teal-50 text-teal-600",
+    icon: <ChatIcon className="h-[17px] w-[17px]" />,
+  },
 };
 
 const FALLBACK: Meta = {
@@ -138,12 +143,13 @@ function metaFor(type: string): Meta {
 const WORKFLOW_TYPES = ["workflow_pending_approval", "workflow_approved", "workflow_rejected"];
 
 function urlFor(
-  n: Pick<Notification, "type" | "task_id" | "meeting_id" | "article_id" | "comment_id">
+  n: Pick<Notification, "type" | "task_id" | "meeting_id" | "article_id" | "comment_id" | "conversation_id">
 ): string {
   if (n.type === "user_pending_approval") return "/dashboard/employees";
   // notifications has no request_id column, only task_id (unused here) -
   // the list page is the honest link we can give without a schema change
   if (WORKFLOW_TYPES.includes(n.type)) return "/dashboard/workflow-requests";
+  if (n.conversation_id) return `/dashboard/chat?c=${n.conversation_id}`;
   if (n.meeting_id) return `/dashboard/meetings/${n.meeting_id}`;
   if (n.article_id) return `/dashboard/knowledge/${n.article_id}`;
   // no anchor/scroll-to-comment support on the task page yet - landing on
