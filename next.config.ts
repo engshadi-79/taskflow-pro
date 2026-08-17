@@ -2,12 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   experimental: {
-    // Server Action requests are capped at 1MB by default - below both the
-    // avatar (3MB) and organization logo (2MB) upload limits, so any file
-    // past ~1MB failed with a 500 ("Body exceeded 1 MB limit") no matter
-    // how small the client-side limit said it should be.
+    // Server Action requests are capped at 1MB by default. Several features
+    // (chat/task/workflow attachments) advertise a 20MB client-side limit,
+    // so the cap must cover that - not just the smaller avatar/logo uploads -
+    // or every attachment past this value silently fails with no server-side
+    // error ever reached (Next rejects the request before the action runs).
     serverActions: {
-      bodySizeLimit: "3mb",
+      bodySizeLimit: "25mb",
     },
   },
 };

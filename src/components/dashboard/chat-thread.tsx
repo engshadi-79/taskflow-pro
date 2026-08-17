@@ -129,17 +129,23 @@ export function ChatThread({
 
     setSending(true);
     setError(null);
-    const result = await sendChatMessage(conversationId, text, selectedFile);
-    setSending(false);
-
-    if (result.error && !result.id) {
-      setError(result.error);
-      return;
+    try {
+      const result = await sendChatMessage(conversationId, text, selectedFile);
+      if (result.error && !result.id) {
+        setError(result.error);
+        return;
+      }
+      if (result.error) setError(result.error); // message sent, attachment failed
+      setText("");
+      clearSelectedFile();
+      loadMessages();
+    } catch {
+      // e.g. the request was rejected before reaching the server action
+      // (oversized body, network drop) - surface it instead of failing silently
+      setError("تعذر إرسال الرسالة، تحقق من حجم الملف واتصال الإنترنت");
+    } finally {
+      setSending(false);
     }
-    if (result.error) setError(result.error); // message sent, attachment failed
-    setText("");
-    clearSelectedFile();
-    loadMessages();
   }
 
   async function startRecording() {
