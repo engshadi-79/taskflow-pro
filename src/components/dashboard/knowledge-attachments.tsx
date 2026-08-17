@@ -13,6 +13,7 @@ type AttachmentWithUrl = {
   id: string;
   file_name: string;
   file_url: string;
+  file_type: string | null;
   uploaded_by: string | null;
   signedUrl: string | null;
 };
@@ -30,10 +31,40 @@ export function KnowledgeAttachments({
 }) {
   const [state, formAction, pending] = useActionState(uploadKnowledgeAttachment, initialState);
 
+  const images = attachments.filter((a) => a.file_type?.startsWith("image/"));
+  const files = attachments.filter((a) => !a.file_type?.startsWith("image/"));
+
   return (
     <div className="space-y-3">
+      {images.length > 0 && (
+        <div>
+          <p className="mb-2 text-[12px] font-bold text-muted">لقطات توضيحية</p>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            {images.map((a) => (
+              <div key={a.id} className="group relative overflow-hidden rounded-[10px] border border-border">
+                {a.signedUrl ? (
+                  <a href={a.signedUrl} target="_blank" rel="noopener noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={a.signedUrl} alt={a.file_name} className="h-32 w-full object-cover" />
+                  </a>
+                ) : (
+                  <div className="flex h-32 items-center justify-center bg-background text-[11px] text-faint">
+                    {a.file_name}
+                  </div>
+                )}
+                {(canDeleteAny || a.uploaded_by === currentUserId) && (
+                  <div className="absolute inset-x-0 bottom-0 flex justify-end bg-black/40 px-2 py-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <DeleteButton id={a.id} articleId={articleId} filePath={a.file_url} light />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <ul className="space-y-1.5">
-        {attachments.map((a) => (
+        {files.map((a) => (
           <li
             key={a.id}
             className="flex items-center justify-between gap-2 rounded-md bg-background px-3 py-2 text-sm"
@@ -76,11 +107,24 @@ export function KnowledgeAttachments({
         </button>
       </form>
       {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
+      <p className="text-[11px] text-faint">
+        ارفع صورة (لقطة شاشة) لتظهر كتوضيح مرئي أعلى المرفقات، أو أي ملف آخر كمستند عادي.
+      </p>
     </div>
   );
 }
 
-function DeleteButton({ id, articleId, filePath }: { id: string; articleId: string; filePath: string }) {
+function DeleteButton({
+  id,
+  articleId,
+  filePath,
+  light,
+}: {
+  id: string;
+  articleId: string;
+  filePath: string;
+  light?: boolean;
+}) {
   const [pending, setPending] = useState(false);
   return (
     <button
@@ -91,7 +135,7 @@ function DeleteButton({ id, articleId, filePath }: { id: string; articleId: stri
         await deleteKnowledgeAttachment(id, articleId, filePath);
         setPending(false);
       }}
-      className="text-xs text-red-600 hover:underline disabled:opacity-60"
+      className={`text-xs hover:underline disabled:opacity-60 ${light ? "font-bold text-white" : "text-red-600"}`}
     >
       حذف
     </button>
