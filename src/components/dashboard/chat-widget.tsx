@@ -90,7 +90,7 @@ export function ChatWidget({ currentUserId }: { currentUserId: string }) {
 
   async function handleStartDirect(otherUserId: string) {
     const result = await startDirectConversation(otherUserId);
-    if (!result.id) return;
+    if (result.error || !result.id) return { error: result.error || "تعذر بدء المحادثة" };
     setNewChatOpen(false);
     await refresh();
     selectConversation(result.id);
@@ -98,7 +98,7 @@ export function ChatWidget({ currentUserId }: { currentUserId: string }) {
 
   async function handleStartGroup(name: string, memberIds: string[]) {
     const result = await startGroupConversation(name, memberIds);
-    if (!result.id) return;
+    if (result.error || !result.id) return { error: result.error || "تعذر إنشاء المجموعة" };
     setNewChatOpen(false);
     await refresh();
     selectConversation(result.id);

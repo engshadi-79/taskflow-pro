@@ -24,7 +24,6 @@ export function ChatApp({
 }) {
   const [conversations, setConversations] = useState(initialConversations);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
-  const [error, setError] = useState<string | null>(null);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const router = useRouter();
 
@@ -39,7 +38,6 @@ export function ChatApp({
   const selectConversation = useCallback(
     (id: string) => {
       setSelectedId(id);
-      setError(null);
       setConversations((prev) => prev.map((c) => (c.conversation_id === id ? { ...c, unread_count: 0 } : c)));
       router.replace(`/dashboard/chat?c=${id}`, { scroll: false });
     },
@@ -73,8 +71,7 @@ export function ChatApp({
   async function handleStartDirect(otherUserId: string) {
     const result = await startDirectConversation(otherUserId);
     if (result.error || !result.id) {
-      setError(result.error || "تعذر بدء المحادثة");
-      return;
+      return { error: result.error || "تعذر بدء المحادثة" };
     }
     setNewChatOpen(false);
     await refreshConversations();
@@ -84,8 +81,7 @@ export function ChatApp({
   async function handleStartGroup(name: string, memberIds: string[]) {
     const result = await startGroupConversation(name, memberIds);
     if (result.error || !result.id) {
-      setError(result.error || "تعذر إنشاء المجموعة");
-      return;
+      return { error: result.error || "تعذر إنشاء المجموعة" };
     }
     setNewChatOpen(false);
     await refreshConversations();
@@ -118,7 +114,6 @@ export function ChatApp({
             <PlusIcon className="h-4 w-4" />
           </button>
         </div>
-        {error && <p className="px-4 pt-2 text-[12px] text-red-600">{error}</p>}
         <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 && (
             <p className="p-6 text-center text-[13px] text-muted">لا توجد محادثات بعد</p>
@@ -203,14 +198,15 @@ export function NewChatDialog({
 }: {
   directory: OrgMemberDirectoryEntry[];
   onClose: () => void;
-  onStartDirect: (userId: string) => void;
-  onStartGroup: (name: string, memberIds: string[]) => void;
+  onStartDirect: (userId: string) => Promise<{ error?: string } | void>;
+  onStartGroup: (name: string, memberIds: string[]) => Promise<{ error?: string } | void>;
 }) {
   const [mode, setMode] = useState<"direct" | "group">("direct");
   const [query, setQuery] = useState("");
   const [groupName, setGroupName] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const filtered = directory.filter((d) => d.full_name.includes(query.trim()));
 
@@ -282,14 +278,22 @@ export function NewChatDialog({
         })}
       </div>
 
+      {error && <p className="mt-2 text-[12px] font-bold text-red-600">{error}</p>}
+
       <button
         type="button"
-        disabled={busy || selectedIds.length === 0 || (mode === "group" && !groupName.trim())}
+        disabled={busy || selectedIds.length === 0}
         onClick={async () => {
+          if (mode === "group" && !groupName.trim()) {
+            setError("أدخل اسم المجموعة");
+            return;
+          }
+          setError(null);
           setBusy(true);
-          if (mode === "direct") await onStartDirect(selectedIds[0]);
-          else await onStartGroup(groupName, selectedIds);
+          const result =
+            mode === "direct" ? await onStartDirect(selectedIds[0]) : await onStartGroup(groupName, selectedIds);
           setBusy(false);
+          if (result?.error) setError(result.error);
         }}
         className="mt-4 w-full rounded-[10px] bg-accent-500 py-2.5 text-sm font-extrabold text-white hover:bg-accent-600 disabled:opacity-60"
       >
