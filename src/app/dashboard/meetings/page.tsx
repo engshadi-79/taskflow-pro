@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
+import { MeetingDeleteButton } from "@/components/dashboard/meeting-delete-button";
 import { CalendarIcon, PlusIcon } from "@/components/shared/icons";
 import { MEETING_STATUS_LABEL, type Meeting } from "@/lib/types/meeting";
 
@@ -71,32 +72,52 @@ export default async function MeetingsPage() {
               <th className="px-1.5 py-4 text-start">التاريخ</th>
               <th className="px-1.5 py-4 text-start">المكان</th>
               <th className="px-1.5 py-4 text-start">الحالة</th>
+              <th className="px-1.5 py-4 text-start">الإجراءات</th>
             </tr>
           </thead>
           <tbody>
-            {(meetings ?? []).map((m) => (
-              <tr key={m.id} className="border-t border-border">
-                <td className="px-1.5 py-3">
-                  <Link href={`/dashboard/meetings/${m.id}`} className="font-medium text-foreground hover:text-accent-600">
-                    {m.title}
-                  </Link>
-                </td>
-                <td className="px-1.5 py-3 text-muted">{organizerNameById.get(m.id) ?? "—"}</td>
-                <td className="px-1.5 py-3 text-muted">
-                  {m.meeting_date}
-                  {m.meeting_time ? ` — ${m.meeting_time}` : ""}
-                </td>
-                <td className="px-1.5 py-3 text-muted">{m.location ?? "—"}</td>
-                <td className="px-1.5 py-3">
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE[m.status]}`}>
-                    {MEETING_STATUS_LABEL[m.status]}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {(meetings ?? []).map((m) => {
+              const canManageThis = profile.role === "super_admin" || m.organizer_id === profile.id;
+              return (
+                <tr key={m.id} className="border-t border-border">
+                  <td className="px-1.5 py-3">
+                    <Link href={`/dashboard/meetings/${m.id}`} className="font-medium text-foreground hover:text-accent-600">
+                      {m.title}
+                    </Link>
+                  </td>
+                  <td className="px-1.5 py-3 text-muted">{organizerNameById.get(m.id) ?? "—"}</td>
+                  <td className="px-1.5 py-3 text-muted">
+                    {m.meeting_date}
+                    {m.meeting_time ? ` — ${m.meeting_time}` : ""}
+                  </td>
+                  <td className="px-1.5 py-3 text-muted">{m.location ?? "—"}</td>
+                  <td className="px-1.5 py-3">
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE[m.status]}`}>
+                      {MEETING_STATUS_LABEL[m.status]}
+                    </span>
+                  </td>
+                  <td className="px-1.5 py-3">
+                    <div className="flex items-center gap-3">
+                      {canManageThis && (
+                        <Link
+                          href={`/dashboard/meetings/${m.id}/edit`}
+                          className="text-[12.5px] font-bold text-accent-600 hover:underline"
+                        >
+                          تعديل
+                        </Link>
+                      )}
+                      {profile.role === "super_admin" && <MeetingDeleteButton meetingId={m.id} />}
+                      {!canManageThis && profile.role !== "super_admin" && (
+                        <span className="text-[12px] text-faint">—</span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
             {(meetings ?? []).length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-muted">
+                <td colSpan={6} className="px-4 py-6 text-center text-muted">
                   لا توجد اجتماعات بعد
                 </td>
               </tr>

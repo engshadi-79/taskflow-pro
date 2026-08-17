@@ -67,6 +67,37 @@ export async function createMeeting(
   redirect(`/dashboard/meetings/${data.id}`);
 }
 
+export async function updateMeeting(
+  _prevState: MeetingFormState,
+  formData: FormData
+): Promise<MeetingFormState> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { error: "يجب تسجيل الدخول" };
+
+  const id = formData.get("id") as string;
+  const title = (formData.get("title") as string)?.trim();
+  const meetingDate = formData.get("meeting_date") as string;
+  const meetingTime = (formData.get("meeting_time") as string) || null;
+  const location = (formData.get("location") as string)?.trim() || null;
+  const projectId = (formData.get("project_id") as string) || null;
+
+  if (!title) return { error: "عنوان الاجتماع مطلوب" };
+  if (!meetingDate) return { error: "تاريخ الاجتماع مطلوب" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("meetings")
+    .update({ title, meeting_date: meetingDate, meeting_time: meetingTime, location, project_id: projectId })
+    .eq("id", id);
+
+  // meetings_update RLS: super_admin or the meeting's own organizer only
+  if (error) return { error: "تعذر تحديث الاجتماع" };
+
+  revalidatePath("/dashboard/meetings");
+  revalidatePath(`/dashboard/meetings/${id}`);
+  redirect(`/dashboard/meetings/${id}`);
+}
+
 export async function updateMeetingStatus(id: string, status: MeetingStatus): Promise<MeetingFormState> {
   const supabase = await createClient();
   const { error } = await supabase.from("meetings").update({ status }).eq("id", id);
