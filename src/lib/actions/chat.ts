@@ -172,7 +172,7 @@ export async function sendChatMessage(
     const path = `chat/${conversationId}/${crypto.randomUUID()}-${safeName}`;
     const { error: uploadError } = await supabase.storage.from("task-attachments").upload(path, file);
     if (uploadError) {
-      return { id: message.id, error: "تعذر رفع الملف" };
+      return { id: message.id, error: `تعذر رفع الملف: ${uploadError.message}` };
     }
 
     const { error: attachError } = await supabase.from("chat_message_attachments").insert({
@@ -183,7 +183,7 @@ export async function sendChatMessage(
     });
     if (attachError) {
       await supabase.storage.from("task-attachments").remove([path]);
-      return { id: message.id, error: "تعذر حفظ المرفق" };
+      return { id: message.id, error: `تعذر حفظ المرفق: ${attachError.message}` };
     }
   }
 
