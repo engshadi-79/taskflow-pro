@@ -7,11 +7,17 @@ import { ArticleForm } from "@/components/dashboard/article-form";
 import { ArticleStatusActions } from "@/components/dashboard/article-status-actions";
 import { KnowledgeAttachments } from "@/components/dashboard/knowledge-attachments";
 import { HelpBreadcrumb } from "@/components/dashboard/help-breadcrumb";
-import { HelpArticleRow } from "@/components/dashboard/help-article-row";
 import { ArticleVoteWidget } from "@/components/dashboard/article-vote-widget";
 import { ArticleViewTracker } from "@/components/dashboard/article-view-tracker";
-import { TagIcon } from "@/components/shared/icons";
+import { ArticleContent } from "@/components/dashboard/article-content";
+import { CATEGORY_ICON_MAP, CATEGORY_TONE_CLASSES } from "@/lib/knowledge/category-style";
+import { ClockIcon, ExternalLinkIcon, EyeIcon, FolderIcon, HomeIcon, TagIcon } from "@/components/shared/icons";
 import { KNOWLEDGE_CATEGORY_LABEL, type KnowledgeArticle, type KnowledgeCategoryRow } from "@/lib/types/knowledge";
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
 
 export default async function ArticleDetailPage({
   params,
@@ -73,79 +79,163 @@ export default async function ArticleDetailPage({
     myVote = voteRow?.vote ?? null;
   }
 
-  return (
-    <div className="max-w-3xl space-y-6">
-      {!canManage && (
-        <HelpBreadcrumb
-          items={[
-            { label: KNOWLEDGE_CATEGORY_LABEL[article.category], href: `/dashboard/help/category/${article.category}` },
-            { label: article.title },
-          ]}
-        />
-      )}
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <Link href="/dashboard/knowledge" className="text-[12.5px] font-bold text-accent-600 hover:underline">
-            ← قاعدة المعرفة
-          </Link>
-          <h1 className="font-display text-[20px] text-foreground">{article.title}</h1>
-          <span className="mt-1 inline-block rounded-full bg-accent-50 px-2.5 py-1 text-[11px] font-extrabold text-accent-600">
-            {KNOWLEDGE_CATEGORY_LABEL[article.category]}
-          </span>
+  if (canManage) {
+    return (
+      <div className="max-w-3xl space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <Link href="/dashboard/knowledge" className="text-[12.5px] font-bold text-accent-600 hover:underline">
+              ← قاعدة المعرفة
+            </Link>
+            <h1 className="font-display text-[20px] text-foreground">{article.title}</h1>
+            <span className="mt-1 inline-block rounded-full bg-accent-50 px-2.5 py-1 text-[11px] font-extrabold text-accent-600">
+              {KNOWLEDGE_CATEGORY_LABEL[article.category]}
+            </span>
+          </div>
+          <ArticleStatusActions
+            articleId={article.id}
+            status={article.status}
+            canManage={canManage}
+            canDelete={profile.role === "super_admin"}
+          />
         </div>
-        <ArticleStatusActions
-          articleId={article.id}
-          status={article.status}
-          canManage={canManage}
-          canDelete={profile.role === "super_admin"}
-        />
-      </div>
 
-      {canManage ? (
         <ArticleForm article={article} departments={departments ?? []} projects={projects ?? []} />
-      ) : (
-        <>
-          <ArticleViewTracker articleId={article.id} />
-          <div className="space-y-5 rounded-[18px] border border-border bg-surface p-6 text-sm text-foreground">
-            <p className="whitespace-pre-wrap">{article.content || "لا يوجد محتوى"}</p>
 
-            {article.keywords.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 border-t border-border pt-4">
-                <TagIcon className="h-3.5 w-3.5 text-faint" />
+        <section className="space-y-3 rounded-[18px] border border-border bg-surface p-6">
+          <h2 className="text-sm font-extrabold text-foreground">المرفقات</h2>
+          <KnowledgeAttachments
+            articleId={article.id}
+            attachments={attachmentsWithUrls}
+            currentUserId={profile.id}
+            canDeleteAny={profile.role === "super_admin"}
+          />
+        </section>
+      </div>
+    );
+  }
+
+  const tone = categoryRow ? CATEGORY_TONE_CLASSES[categoryRow.tone] : CATEGORY_TONE_CLASSES.indigo;
+  const CategoryIcon = categoryRow ? CATEGORY_ICON_MAP[categoryRow.icon] : undefined;
+
+  return (
+    <div className="max-w-6xl space-y-4">
+      <ArticleViewTracker articleId={article.id} />
+      <HelpBreadcrumb
+        items={[
+          { label: KNOWLEDGE_CATEGORY_LABEL[article.category], href: `/dashboard/help/category/${article.category}` },
+          { label: article.title },
+        ]}
+      />
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_280px]">
+        <div className="min-w-0 space-y-4">
+          <div className="rounded-[18px] border border-border bg-surface p-6 sm:p-8">
+            <div className="mb-1 flex items-start justify-between gap-4 border-b border-border pb-5">
+              <div>
+                <h1 className="font-display text-[21px] text-foreground">{article.title}</h1>
+                <div className="mt-3 flex flex-wrap items-center gap-4 text-[12px] text-faint">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${tone.bg} ${tone.fg}`}
+                  >
+                    {KNOWLEDGE_CATEGORY_LABEL[article.category]}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <ClockIcon className="h-3.5 w-3.5" /> آخر تحديث: {formatDate(article.updated_at)}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <EyeIcon className="h-3.5 w-3.5" /> {article.view_count} مشاهدة
+                  </span>
+                </div>
+              </div>
+              {CategoryIcon && (
+                <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] ${tone.bg} ${tone.fg}`}>
+                  <CategoryIcon className="h-5 w-5" />
+                </span>
+              )}
+            </div>
+
+            <div className="pt-5">
+              <ArticleContent content={article.content} />
+            </div>
+
+            <div className="mt-6 border-t border-border pt-5">
+              <ArticleVoteWidget articleId={article.id} initialVote={myVote} />
+            </div>
+          </div>
+
+          <section className="space-y-3 rounded-[18px] border border-border bg-surface p-6">
+            <h2 className="text-sm font-extrabold text-foreground">المرفقات</h2>
+            <KnowledgeAttachments
+              articleId={article.id}
+              attachments={attachmentsWithUrls}
+              currentUserId={profile.id}
+              canDeleteAny={profile.role === "super_admin"}
+            />
+          </section>
+        </div>
+
+        <aside className="space-y-4">
+          {article.target_url && (
+            <Link
+              href={article.target_url}
+              className="flex items-center justify-center gap-2 rounded-[14px] bg-accent-500 px-4 py-3 text-[13.5px] font-extrabold text-white transition-colors hover:bg-accent-600"
+            >
+              الانتقال إلى الصفحة <ExternalLinkIcon className="h-4 w-4" />
+            </Link>
+          )}
+
+          <div className="rounded-[16px] border border-border bg-surface p-4.5">
+            <h3 className="mb-3 text-[12.5px] font-extrabold text-faint">التنقل السريع</h3>
+            <div className="flex flex-col gap-1">
+              <Link
+                href="/dashboard/help"
+                className="flex items-center gap-2 rounded-[10px] px-2.5 py-2 text-[13px] font-bold text-muted hover:bg-background hover:text-foreground"
+              >
+                <HomeIcon className="h-4 w-4" /> الصفحة الرئيسية
+              </Link>
+              <Link
+                href={`/dashboard/help/category/${article.category}`}
+                className="flex items-center gap-2 rounded-[10px] px-2.5 py-2 text-[13px] font-bold text-muted hover:bg-background hover:text-foreground"
+              >
+                <FolderIcon className="h-4 w-4" /> {KNOWLEDGE_CATEGORY_LABEL[article.category]}
+              </Link>
+            </div>
+          </div>
+
+          {related.length > 0 && (
+            <div className="rounded-[16px] border border-border bg-surface p-4.5">
+              <h3 className="mb-3 text-[12.5px] font-extrabold text-faint">مواضيع ذات صلة</h3>
+              <div className="flex flex-col gap-1">
+                {related.map((r) => (
+                  <Link
+                    key={r.id}
+                    href={`/dashboard/knowledge/${r.id}`}
+                    className="rounded-[10px] border-e-2 border-border px-2.5 py-2 text-[12.5px] font-bold text-muted hover:border-accent-500 hover:bg-background hover:text-accent-600"
+                  >
+                    {r.title}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {article.keywords.length > 0 && (
+            <div className="rounded-[16px] border border-border bg-surface p-4.5">
+              <h3 className="mb-3 flex items-center gap-1.5 text-[12.5px] font-extrabold text-faint">
+                <TagIcon className="h-3.5 w-3.5" /> كلمات مفتاحية
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
                 {article.keywords.map((kw) => (
                   <span key={kw} className="rounded-full bg-background px-2.5 py-1 text-[11.5px] font-bold text-muted">
                     {kw}
                   </span>
                 ))}
               </div>
-            )}
-
-            <ArticleVoteWidget articleId={article.id} initialVote={myVote} />
-          </div>
-
-          {related.length > 0 && (
-            <section className="space-y-3">
-              <h2 className="text-sm font-extrabold text-foreground">مواضيع ذات صلة</h2>
-              <div className="flex flex-col gap-2.5">
-                {related.map((r) => (
-                  <HelpArticleRow key={r.id} article={r} category={categoryRow ?? undefined} showCategory={false} />
-                ))}
-              </div>
-            </section>
+            </div>
           )}
-        </>
-      )}
-
-      <section className="space-y-3 rounded-[18px] border border-border bg-surface p-6">
-        <h2 className="text-sm font-extrabold text-foreground">المرفقات</h2>
-        <KnowledgeAttachments
-          articleId={article.id}
-          attachments={attachmentsWithUrls}
-          currentUserId={profile.id}
-          canDeleteAny={profile.role === "super_admin"}
-        />
-      </section>
+        </aside>
+      </div>
     </div>
   );
 }

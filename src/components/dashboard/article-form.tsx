@@ -87,6 +87,19 @@ export function ArticleForm({
         </span>
       </label>
 
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium text-foreground">رابط الصفحة المرتبطة (اختياري)</span>
+        <input
+          name="target_url"
+          defaultValue={article?.target_url ?? ""}
+          placeholder="/dashboard/tasks"
+          className={inputClass}
+        />
+        <span className="mt-1 block text-[11.5px] text-faint">
+          يُضيف زر &quot;الانتقال إلى الصفحة&quot; أعلى المقال، ليأخذ القارئ مباشرة إلى الصفحة التي يشرحها
+        </span>
+      </label>
+
       <label className="flex items-center gap-2">
         <input
           type="checkbox"

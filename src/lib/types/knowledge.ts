@@ -20,6 +20,7 @@ export type KnowledgeArticle = {
   is_featured: boolean;
   helpful_count: number;
   not_helpful_count: number;
+  target_url: string | null;
 };
 
 export type CategoryTone = "red" | "indigo" | "green" | "blue" | "amber" | "violet" | "teal";

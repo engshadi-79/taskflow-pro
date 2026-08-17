@@ -42,6 +42,7 @@ export async function createArticle(
   const projectId = (formData.get("project_id") as string) || null;
   const keywords = parseKeywords(formData.get("keywords") as string | null);
   const isFeatured = formData.get("is_featured") === "on";
+  const targetUrl = (formData.get("target_url") as string)?.trim() || null;
 
   if (!title) return { error: "عنوان المقال مطلوب" };
   if (!VALID_CATEGORIES.includes(category)) return { error: "تصنيف غير صالح" };
@@ -58,26 +59,22 @@ export async function createArticle(
     project_id: projectId,
     author_id: profile.id,
   };
-  const helpCenterCols = { keywords, is_featured: isFeatured };
 
-  let { data, error } = await supabase
-    .from("knowledge_articles")
-    .insert({ ...coreRow, ...helpCenterCols, ...(embedding ? { embedding } : {}) })
-    .select("id")
-    .single();
+  // Each migration (help_center.sql, help_center_target_url.sql) may or may
+  // not have run yet on this database, independently of the others - try
+  // column-sets from most to least rather than failing the whole article.
+  const attempts = [
+    { ...coreRow, keywords, is_featured: isFeatured, target_url: targetUrl, ...(embedding ? { embedding } : {}) },
+    { ...coreRow, keywords, is_featured: isFeatured, ...(embedding ? { embedding } : {}) },
+    { ...coreRow, ...(embedding ? { embedding } : {}) },
+    coreRow,
+  ];
 
-  // knowledge_semantic_search.sql / help_center.sql not applied yet on this
-  // database - fall back column-set by column-set rather than failing the
-  // whole article, same reasoning as the pre-existing embedding fallback.
-  if (error?.code === "42703") {
-    ({ data, error } = await supabase
-      .from("knowledge_articles")
-      .insert({ ...coreRow, ...(embedding ? { embedding } : {}) })
-      .select("id")
-      .single());
-  }
-  if (error?.code === "42703") {
-    ({ data, error } = await supabase.from("knowledge_articles").insert(coreRow).select("id").single());
+  let data: { id: string } | null = null;
+  let error: { code?: string } | null = null;
+  for (const row of attempts) {
+    ({ data, error } = await supabase.from("knowledge_articles").insert(row).select("id").single());
+    if (!error || error.code !== "42703") break;
   }
 
   if (error || !data) return { error: "تعذر إنشاء المقال" };
@@ -101,6 +98,7 @@ export async function updateArticle(
   const projectId = (formData.get("project_id") as string) || null;
   const keywords = parseKeywords(formData.get("keywords") as string | null);
   const isFeatured = formData.get("is_featured") === "on";
+  const targetUrl = (formData.get("target_url") as string)?.trim() || null;
 
   if (!title) return { error: "عنوان المقال مطلوب" };
   if (!VALID_CATEGORIES.includes(category)) return { error: "تصنيف غير صالح" };
@@ -109,22 +107,19 @@ export async function updateArticle(
 
   const supabase = await createClient();
   const coreUpdate = { title, content, category, department_id: departmentId, project_id: projectId };
-  const helpCenterCols = { keywords, is_featured: isFeatured };
-
-  let { error } = await supabase
-    .from("knowledge_articles")
-    .update({ ...coreUpdate, ...helpCenterCols, ...(embedding ? { embedding } : {}) })
-    .eq("id", id);
 
   // See createArticle - same tiered fallback if a migration hasn't run yet.
-  if (error?.code === "42703") {
-    ({ error } = await supabase
-      .from("knowledge_articles")
-      .update({ ...coreUpdate, ...(embedding ? { embedding } : {}) })
-      .eq("id", id));
-  }
-  if (error?.code === "42703") {
-    ({ error } = await supabase.from("knowledge_articles").update(coreUpdate).eq("id", id));
+  const attempts = [
+    { ...coreUpdate, keywords, is_featured: isFeatured, target_url: targetUrl, ...(embedding ? { embedding } : {}) },
+    { ...coreUpdate, keywords, is_featured: isFeatured, ...(embedding ? { embedding } : {}) },
+    { ...coreUpdate, ...(embedding ? { embedding } : {}) },
+    coreUpdate,
+  ];
+
+  let error: { code?: string } | null = null;
+  for (const row of attempts) {
+    ({ error } = await supabase.from("knowledge_articles").update(row).eq("id", id));
+    if (!error || error.code !== "42703") break;
   }
 
   if (error) return { error: "تعذر تحديث المقال" };
