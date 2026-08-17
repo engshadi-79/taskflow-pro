@@ -37,10 +37,13 @@ create policy task_attachments_storage_select on storage.objects
     )
   );
 
+-- owner (uuid) is Supabase Storage's legacy ownership column - modern
+-- uploads via the JS client populate owner_id (text) instead and leave
+-- owner null, so both are checked (see storage_fix_owner_check.sql).
 create policy task_attachments_storage_insert on storage.objects
   for insert with check (
     bucket_id = 'task-attachments'
-    and owner = auth.uid()
+    and (owner = auth.uid() or owner_id = auth.uid()::text)
     and exists (
       select 1 from public.tasks t
       where t.id = public.try_uuid((storage.foldername(name))[1])
@@ -50,5 +53,5 @@ create policy task_attachments_storage_insert on storage.objects
 create policy task_attachments_storage_delete on storage.objects
   for delete using (
     bucket_id = 'task-attachments'
-    and (owner = auth.uid() or public.current_user_role() = 'super_admin')
+    and (owner = auth.uid() or owner_id = auth.uid()::text or public.current_user_role() = 'super_admin')
   );

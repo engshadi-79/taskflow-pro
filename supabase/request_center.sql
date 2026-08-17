@@ -356,24 +356,24 @@ create policy workflow_request_attachments_storage_select on storage.objects
     bucket_id = 'workflow-request-attachments'
     and exists (
       select 1 from public.workflow_requests r
-      where r.id = (storage.foldername(name))[1]::uuid
+      where r.id = public.try_uuid((storage.foldername(name))[1])
     )
   );
 
 create policy workflow_request_attachments_storage_insert on storage.objects
   for insert with check (
     bucket_id = 'workflow-request-attachments'
-    and owner = auth.uid()
+    and (owner = auth.uid() or owner_id = auth.uid()::text)
     and exists (
       select 1 from public.workflow_requests r
-      where r.id = (storage.foldername(name))[1]::uuid
+      where r.id = public.try_uuid((storage.foldername(name))[1])
     )
   );
 
 create policy workflow_request_attachments_storage_delete on storage.objects
   for delete using (
     bucket_id = 'workflow-request-attachments'
-    and (owner = auth.uid() or public.current_user_role() = 'super_admin')
+    and (owner = auth.uid() or owner_id = auth.uid()::text or public.current_user_role() = 'super_admin')
   );
 
 -- ============================================================

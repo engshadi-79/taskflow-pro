@@ -94,7 +94,7 @@ create policy comment_attachments_storage_insert on storage.objects
   for insert with check (
     bucket_id = 'task-attachments'
     and (storage.foldername(name))[1] = 'comments'
-    and owner = auth.uid()
+    and (owner = auth.uid() or owner_id = auth.uid()::text)
     and exists (
       select 1 from public.task_comments c where c.id = public.try_uuid((storage.foldername(name))[2])
     )
@@ -104,7 +104,7 @@ create policy comment_attachments_storage_delete on storage.objects
   for delete using (
     bucket_id = 'task-attachments'
     and (storage.foldername(name))[1] = 'comments'
-    and (owner = auth.uid() or public.current_user_role() = 'super_admin')
+    and (owner = auth.uid() or owner_id = auth.uid()::text or public.current_user_role() = 'super_admin')
   );
 
 -- ============================================================

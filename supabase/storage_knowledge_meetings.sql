@@ -30,7 +30,7 @@ create policy knowledge_attachments_storage_insert on storage.objects
   for insert with check (
     bucket_id = 'task-attachments'
     and (storage.foldername(name))[1] = 'knowledge'
-    and owner = auth.uid()
+    and (owner = auth.uid() or owner_id = auth.uid()::text)
     and exists (
       select 1 from public.knowledge_articles a
       where a.id = public.try_uuid((storage.foldername(name))[2])
@@ -41,7 +41,7 @@ create policy knowledge_attachments_storage_delete on storage.objects
   for delete using (
     bucket_id = 'task-attachments'
     and (storage.foldername(name))[1] = 'knowledge'
-    and (owner = auth.uid() or public.current_user_role() = 'super_admin')
+    and (owner = auth.uid() or owner_id = auth.uid()::text or public.current_user_role() = 'super_admin')
   );
 
 create policy meeting_attachments_storage_select on storage.objects
@@ -58,7 +58,7 @@ create policy meeting_attachments_storage_insert on storage.objects
   for insert with check (
     bucket_id = 'task-attachments'
     and (storage.foldername(name))[1] = 'meetings'
-    and owner = auth.uid()
+    and (owner = auth.uid() or owner_id = auth.uid()::text)
     and exists (
       select 1 from public.meetings m
       where m.id = public.try_uuid((storage.foldername(name))[2])
@@ -69,5 +69,5 @@ create policy meeting_attachments_storage_delete on storage.objects
   for delete using (
     bucket_id = 'task-attachments'
     and (storage.foldername(name))[1] = 'meetings'
-    and (owner = auth.uid() or public.current_user_role() = 'super_admin')
+    and (owner = auth.uid() or owner_id = auth.uid()::text or public.current_user_role() = 'super_admin')
   );

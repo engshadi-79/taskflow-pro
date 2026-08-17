@@ -172,7 +172,7 @@ create policy chat_attachments_storage_insert on storage.objects
   for insert with check (
     bucket_id = 'task-attachments'
     and (storage.foldername(name))[1] = 'chat'
-    and owner = auth.uid()
+    and (owner = auth.uid() or owner_id = auth.uid()::text)
     and public.is_conversation_participant(public.try_uuid((storage.foldername(name))[2]))
   );
 
@@ -180,7 +180,7 @@ create policy chat_attachments_storage_delete on storage.objects
   for delete using (
     bucket_id = 'task-attachments'
     and (storage.foldername(name))[1] = 'chat'
-    and owner = auth.uid()
+    and (owner = auth.uid() or owner_id = auth.uid()::text)
   );
 
 -- ============================================================
