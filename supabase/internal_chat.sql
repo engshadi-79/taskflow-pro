@@ -72,27 +72,51 @@ alter table public.chat_messages enable row level security;
 alter table public.chat_message_attachments enable row level security;
 
 -- ============================================================
+-- is_conversation_participant: every policy below that needs to check
+-- "is auth.uid() a member of this conversation" calls this instead of
+-- nested-querying conversation_participants directly. A plain nested
+-- `exists (select 1 from conversation_participants where ...)` inside
+-- conversation_participants' OWN select policy is a self-referencing RLS
+-- policy - Postgres re-applies that same policy to the nested query,
+-- which nested-queries the table again, forever ("infinite recursion
+-- detected in policy for relation conversation_participants"). The same
+-- problem hits any OTHER table's policy that nested-queries
+-- conversation_participants too, since evaluating that nested query still
+-- triggers conversation_participants' own (recursive) policy.
+--
+-- A SECURITY DEFINER function breaks the cycle: it executes as its owner
+-- (the migration role, which owns these tables), and table owners are not
+-- subject to their own table's RLS unless FORCE ROW LEVEL SECURITY is set
+-- (it isn't here) - so its internal query bypasses RLS entirely instead
+-- of re-triggering it. Same reasoning as current_org_id()/
+-- current_user_role() (rls.sql) being SECURITY DEFINER rather than plain
+-- views.
+-- ============================================================
+
+create or replace function public.is_conversation_participant(p_conversation_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.conversation_participants
+    where conversation_id = p_conversation_id and user_id = auth.uid()
+  );
+$$;
+
+-- ============================================================
 -- RLS
 -- ============================================================
 
 create policy conversations_select on public.conversations
-  for select using (
-    exists (
-      select 1 from public.conversation_participants cp
-      where cp.conversation_id = id and cp.user_id = auth.uid()
-    )
-  );
+  for select using (public.is_conversation_participant(id));
 -- no insert/update policy - creation goes through create_conversation()
 -- below (SECURITY DEFINER); renaming a group goes through rename_conversation().
 
 create policy conversation_participants_select on public.conversation_participants
-  for select using (
-    exists (
-      select 1 from public.conversation_participants cp2
-      where cp2.conversation_id = conversation_participants.conversation_id
-        and cp2.user_id = auth.uid()
-    )
-  );
+  for select using (public.is_conversation_participant(conversation_id));
 
 -- Marking your own participant row as read is the one plain self-service
 -- write on this table - same "own row, no cross-user dimension" reasoning
@@ -101,20 +125,11 @@ create policy conversation_participants_update_own on public.conversation_partic
   for update using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 create policy chat_messages_select on public.chat_messages
-  for select using (
-    exists (
-      select 1 from public.conversation_participants cp
-      where cp.conversation_id = chat_messages.conversation_id and cp.user_id = auth.uid()
-    )
-  );
+  for select using (public.is_conversation_participant(conversation_id));
 
 create policy chat_messages_insert on public.chat_messages
   for insert with check (
-    sender_id = auth.uid()
-    and exists (
-      select 1 from public.conversation_participants cp
-      where cp.conversation_id = chat_messages.conversation_id and cp.user_id = auth.uid()
-    )
+    sender_id = auth.uid() and public.is_conversation_participant(conversation_id)
   );
 
 -- Edit/soft-delete your own messages only - no time window, matching
@@ -126,8 +141,7 @@ create policy chat_message_attachments_select on public.chat_message_attachments
   for select using (
     exists (
       select 1 from public.chat_messages m
-      join public.conversation_participants cp on cp.conversation_id = m.conversation_id
-      where m.id = message_id and cp.user_id = auth.uid()
+      where m.id = message_id and public.is_conversation_participant(m.conversation_id)
     )
   );
 
@@ -135,8 +149,7 @@ create policy chat_message_attachments_insert on public.chat_message_attachments
   for insert with check (
     exists (
       select 1 from public.chat_messages m
-      join public.conversation_participants cp on cp.conversation_id = m.conversation_id
-      where m.id = message_id and cp.user_id = auth.uid() and m.sender_id = auth.uid()
+      where m.id = message_id and m.sender_id = auth.uid() and public.is_conversation_participant(m.conversation_id)
     )
   );
 
@@ -152,10 +165,7 @@ create policy chat_attachments_storage_select on storage.objects
   for select using (
     bucket_id = 'task-attachments'
     and (storage.foldername(name))[1] = 'chat'
-    and exists (
-      select 1 from public.conversation_participants cp
-      where cp.conversation_id = (storage.foldername(name))[2]::uuid and cp.user_id = auth.uid()
-    )
+    and public.is_conversation_participant((storage.foldername(name))[2]::uuid)
   );
 
 create policy chat_attachments_storage_insert on storage.objects
@@ -163,10 +173,7 @@ create policy chat_attachments_storage_insert on storage.objects
     bucket_id = 'task-attachments'
     and (storage.foldername(name))[1] = 'chat'
     and owner = auth.uid()
-    and exists (
-      select 1 from public.conversation_participants cp
-      where cp.conversation_id = (storage.foldername(name))[2]::uuid and cp.user_id = auth.uid()
-    )
+    and public.is_conversation_participant((storage.foldername(name))[2]::uuid)
   );
 
 create policy chat_attachments_storage_delete on storage.objects
