@@ -15,6 +15,22 @@ export type KnowledgeArticle = {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  keywords: string[];
+  view_count: number;
+  is_featured: boolean;
+  helpful_count: number;
+  not_helpful_count: number;
+};
+
+export type CategoryTone = "red" | "indigo" | "green" | "blue" | "amber" | "violet" | "teal";
+
+export type KnowledgeCategoryRow = {
+  id: KnowledgeCategory;
+  name: string;
+  description: string;
+  icon: string;
+  tone: CategoryTone;
+  sort_order: number;
 };
 
 export type KnowledgeAttachment = {

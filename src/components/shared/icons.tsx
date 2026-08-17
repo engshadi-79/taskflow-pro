@@ -337,3 +337,50 @@ export const EmojiIcon = (p: IconProps) => (
     <path d="M8.5 14.5c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8" />
   </Svg>
 );
+
+export const StarIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="m12 3 2.6 5.9 6.4.6-4.8 4.3 1.4 6.3L12 16.9l-5.6 3.2 1.4-6.3-4.8-4.3 6.4-.6L12 3Z" />
+  </Svg>
+);
+
+export const ThumbsUpIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M7 10v10" />
+    <path d="M14.5 5.3 13.5 9h5.3a2 2 0 0 1 1.9 2.6l-2 6.5A2 2 0 0 1 16.8 19.5H4a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1h2.4a2 2 0 0 0 1.7-1L11 3a2.7 2.7 0 0 1 3.5 2.3Z" />
+  </Svg>
+);
+
+export const ThumbsDownIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M17 14V4" />
+    <path d="M9.5 18.7l1-3.7H5.2a2 2 0 0 1-1.9-2.6l2-6.5A2 2 0 0 1 7.2 4.5H20a1 1 0 0 1 1 1V13a1 1 0 0 1-1 1h-2.4a2 2 0 0 0-1.7 1L13 21a2.7 2.7 0 0 1-3.5-2.3Z" />
+  </Svg>
+);
+
+export const TagIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M20.5 13.3 12.7 21a2 2 0 0 1-2.8 0l-6.9-6.9a2 2 0 0 1 0-2.8L10.8 3.5a2 2 0 0 1 1.4-.6H19a2 2 0 0 1 2 2v6.5a2 2 0 0 1-.5 1.4Z" />
+    <circle cx="15.5" cy="8.5" r="1.4" />
+  </Svg>
+);
+
+export const HomeIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3.5 11 12 4l8.5 7" />
+    <path d="M5.5 9.8V19a1 1 0 0 0 1 1h4v-5.5h3V20h4a1 1 0 0 0 1-1V9.8" />
+  </Svg>
+);
+
+export const ChevronLeftIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="m15 6-6 6 6 6" />
+  </Svg>
+);
+
+export const BookIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M5 19.5A2.5 2.5 0 0 1 7.5 17H20" />
+    <path d="M7.5 3H20v19H7.5A2.5 2.5 0 0 1 5 19.5v-14A2.5 2.5 0 0 1 7.5 3Z" />
+  </Svg>
+);

@@ -19,6 +19,13 @@ const VALID_CATEGORIES: KnowledgeCategory[] = [
   "decision",
 ];
 
+function parseKeywords(raw: string | null): string[] {
+  return (raw ?? "")
+    .split(",")
+    .map((k) => k.trim())
+    .filter(Boolean);
+}
+
 export async function createArticle(
   _prevState: KnowledgeFormState,
   formData: FormData
@@ -33,6 +40,8 @@ export async function createArticle(
   const category = formData.get("category") as KnowledgeCategory;
   const departmentId = (formData.get("department_id") as string) || null;
   const projectId = (formData.get("project_id") as string) || null;
+  const keywords = parseKeywords(formData.get("keywords") as string | null);
+  const isFeatured = formData.get("is_featured") === "on";
 
   if (!title) return { error: "عنوان المقال مطلوب" };
   if (!VALID_CATEGORIES.includes(category)) return { error: "تصنيف غير صالح" };
@@ -40,7 +49,7 @@ export async function createArticle(
   const embedding = await generateEmbedding(`${title}\n${content}`);
 
   const supabase = await createClient();
-  const baseRow = {
+  const coreRow = {
     organization_id: profile.organization_id,
     title,
     content,
@@ -49,17 +58,26 @@ export async function createArticle(
     project_id: projectId,
     author_id: profile.id,
   };
+  const helpCenterCols = { keywords, is_featured: isFeatured };
+
   let { data, error } = await supabase
     .from("knowledge_articles")
-    .insert({ ...baseRow, ...(embedding ? { embedding } : {}) })
+    .insert({ ...coreRow, ...helpCenterCols, ...(embedding ? { embedding } : {}) })
     .select("id")
     .single();
 
-  // knowledge_semantic_search.sql not applied yet on this database - fall
-  // back to saving without the embedding rather than failing the whole
-  // article, same as if Gemini itself had been unavailable.
-  if (error?.code === "42703" && embedding) {
-    ({ data, error } = await supabase.from("knowledge_articles").insert(baseRow).select("id").single());
+  // knowledge_semantic_search.sql / help_center.sql not applied yet on this
+  // database - fall back column-set by column-set rather than failing the
+  // whole article, same reasoning as the pre-existing embedding fallback.
+  if (error?.code === "42703") {
+    ({ data, error } = await supabase
+      .from("knowledge_articles")
+      .insert({ ...coreRow, ...(embedding ? { embedding } : {}) })
+      .select("id")
+      .single());
+  }
+  if (error?.code === "42703") {
+    ({ data, error } = await supabase.from("knowledge_articles").insert(coreRow).select("id").single());
   }
 
   if (error || !data) return { error: "تعذر إنشاء المقال" };
@@ -81,6 +99,8 @@ export async function updateArticle(
   const category = formData.get("category") as KnowledgeCategory;
   const departmentId = (formData.get("department_id") as string) || null;
   const projectId = (formData.get("project_id") as string) || null;
+  const keywords = parseKeywords(formData.get("keywords") as string | null);
+  const isFeatured = formData.get("is_featured") === "on";
 
   if (!title) return { error: "عنوان المقال مطلوب" };
   if (!VALID_CATEGORIES.includes(category)) return { error: "تصنيف غير صالح" };
@@ -88,15 +108,23 @@ export async function updateArticle(
   const embedding = await generateEmbedding(`${title}\n${content}`);
 
   const supabase = await createClient();
-  const baseUpdate = { title, content, category, department_id: departmentId, project_id: projectId };
+  const coreUpdate = { title, content, category, department_id: departmentId, project_id: projectId };
+  const helpCenterCols = { keywords, is_featured: isFeatured };
+
   let { error } = await supabase
     .from("knowledge_articles")
-    .update({ ...baseUpdate, ...(embedding ? { embedding } : {}) })
+    .update({ ...coreUpdate, ...helpCenterCols, ...(embedding ? { embedding } : {}) })
     .eq("id", id);
 
-  // See createArticle - same fallback if the pgvector migration hasn't run yet.
-  if (error?.code === "42703" && embedding) {
-    ({ error } = await supabase.from("knowledge_articles").update(baseUpdate).eq("id", id));
+  // See createArticle - same tiered fallback if a migration hasn't run yet.
+  if (error?.code === "42703") {
+    ({ error } = await supabase
+      .from("knowledge_articles")
+      .update({ ...coreUpdate, ...(embedding ? { embedding } : {}) })
+      .eq("id", id));
+  }
+  if (error?.code === "42703") {
+    ({ error } = await supabase.from("knowledge_articles").update(coreUpdate).eq("id", id));
   }
 
   if (error) return { error: "تعذر تحديث المقال" };

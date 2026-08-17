@@ -72,6 +72,31 @@ export function ArticleForm({
         <textarea name="content" defaultValue={article?.content} rows={10} className={inputClass} />
       </label>
 
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium text-foreground">
+          كلمات مفتاحية (اختياري، مفصولة بفاصلة)
+        </span>
+        <input
+          name="keywords"
+          defaultValue={article?.keywords?.join(", ")}
+          placeholder="مثال: تسجيل, دخول, كلمة مرور"
+          className={inputClass}
+        />
+        <span className="mt-1 block text-[11.5px] text-faint">
+          تُستخدم في اقتراحات البحث الحي بمركز المساعدة
+        </span>
+      </label>
+
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          name="is_featured"
+          defaultChecked={article?.is_featured}
+          className="h-4 w-4 accent-accent-600"
+        />
+        <span className="text-sm font-medium text-foreground">إبراز المقال في مركز المساعدة (مواضيع مميزة)</span>
+      </label>
+
       <div className="flex items-center gap-3">
         <button
           type="submit"
