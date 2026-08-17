@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/dashboard/notification-bell";
 import { UserMenu } from "@/components/dashboard/user-menu";
 import { CommandPalette } from "@/components/dashboard/command-palette";
 import { RecentActivityButton } from "@/components/dashboard/recent-activity-button";
+import { ChatIcon, HelpIcon } from "@/components/shared/icons";
 import type { Role } from "@/lib/types/roles";
 
 export function Topbar({
@@ -41,6 +43,20 @@ export function Topbar({
         <RecentActivityButton userId={userId} initialCount={recentActivityCount} />
         <CommandPalette role={role} />
         <NotificationBell userId={userId} initialUnreadCount={unreadCount} />
+        <Link
+          href="/dashboard/chat"
+          aria-label="المحادثات"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-50 text-teal-600 transition-colors hover:brightness-95"
+        >
+          <ChatIcon className="h-[19px] w-[19px]" />
+        </Link>
+        <Link
+          href="/dashboard/help"
+          aria-label="مركز المساعدة"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-50 text-accent-600 transition-colors hover:brightness-95"
+        >
+          <HelpIcon className="h-[19px] w-[19px]" />
+        </Link>
         <ThemeToggle />
 
         <div className="mx-1 hidden h-8 w-px bg-border sm:block" />
