@@ -36,6 +36,17 @@ export default async function KanbanPage() {
 
   const canManage = profile.role === "super_admin" || profile.role === "department_manager";
 
+  let archivedTasks: TaskWithAssignee[] = [];
+  if (canManage) {
+    const { data } = await supabase
+      .from("tasks")
+      .select("*, assignee:users!tasks_assigned_to_fkey(id, full_name, avatar_url)")
+      .eq("is_archived", true)
+      .order("archived_at", { ascending: false })
+      .returns<TaskWithAssignee[]>();
+    archivedTasks = data ?? [];
+  }
+
   return (
     <div>
       <PageHeader
@@ -46,7 +57,12 @@ export default async function KanbanPage() {
         count={`${tasks?.length ?? 0} مهمة`}
       />
 
-      <KanbanBoard tasks={tasks ?? []} canManage={canManage} currentUserId={profile.id} />
+      <KanbanBoard
+        tasks={tasks ?? []}
+        archivedTasks={archivedTasks}
+        canManage={canManage}
+        currentUserId={profile.id}
+      />
     </div>
   );
 }

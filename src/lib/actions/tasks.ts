@@ -392,6 +392,27 @@ export async function archiveTask(taskId: string): Promise<TaskFormState> {
   return {};
 }
 
+/** Restores an archived task back onto the Kanban board. */
+export async function unarchiveTask(taskId: string): Promise<TaskFormState> {
+  const profile = await getCurrentProfile();
+  if (!profile || !MANAGE_ROLES.includes(profile.role)) {
+    return { error: "غير مصرح لك بإلغاء أرشفة المهام" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("tasks")
+    .update({ is_archived: false, archived_at: null, archived_by: null })
+    .eq("id", taskId);
+
+  if (error) return { error: "تعذر إلغاء أرشفة المهمة" };
+
+  revalidatePath("/dashboard/kanban");
+  revalidatePath("/dashboard/tasks");
+  revalidatePath(`/dashboard/tasks/${taskId}`);
+  return {};
+}
+
 export async function submitForReview(taskId: string): Promise<TaskFormState> {
   const profile = await getCurrentProfile();
   if (!profile) return { error: "يجب تسجيل الدخول" };

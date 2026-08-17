@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { moveTaskStatus, archiveTask } from "@/lib/actions/tasks";
-import { CalendarIcon, InboxIcon } from "@/components/shared/icons";
+import { moveTaskStatus, archiveTask, unarchiveTask } from "@/lib/actions/tasks";
+import { CalendarIcon, CloseIcon, InboxIcon } from "@/components/shared/icons";
+import { timeAgo } from "@/lib/format-time-ago";
 import { Avatar } from "@/components/shared/avatar";
 import {
   PRIORITY_LABEL,
@@ -31,14 +32,18 @@ const PRIORITY_TAG: Record<string, string> = {
 
 export function KanbanBoard({
   tasks,
+  archivedTasks = [],
   canManage,
   currentUserId,
 }: {
   tasks: TaskWithAssignee[];
+  archivedTasks?: TaskWithAssignee[];
   canManage: boolean;
   currentUserId: string;
 }) {
   const [items, setItems] = useState(tasks);
+  const [archived, setArchived] = useState(archivedTasks);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,12 +99,28 @@ export function KanbanBoard({
   }
 
   async function handleArchive(taskId: string) {
-    if (!confirm("أرشفة هذه المهمة؟ ستختفي من لوحة كانبان.")) return;
+    if (!confirm("أرشفة هذه المهمة؟ ستختفي من لوحة كانبان ويمكنك استعراضها لاحقًا من زر الأرشيف.")) return;
     const previous = items;
+    const task = items.find((t) => t.id === taskId);
     setItems((prev) => prev.filter((t) => t.id !== taskId));
+    if (task) setArchived((prev) => [{ ...task }, ...prev]);
     const result = await archiveTask(taskId);
     if (result?.error) {
       setItems(previous);
+      setArchived((prev) => prev.filter((t) => t.id !== taskId));
+      setError(result.error);
+    }
+  }
+
+  async function handleUnarchive(taskId: string) {
+    const previous = archived;
+    const task = archived.find((t) => t.id === taskId);
+    setArchived((prev) => prev.filter((t) => t.id !== taskId));
+    if (task) setItems((prev) => [{ ...task }, ...prev]);
+    const result = await unarchiveTask(taskId);
+    if (result?.error) {
+      setArchived(previous);
+      setItems((prev) => prev.filter((t) => t.id !== taskId));
       setError(result.error);
     }
   }
@@ -111,6 +132,25 @@ export function KanbanBoard({
           {error}
         </p>
       )}
+
+      {canManage && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setArchiveOpen(true)}
+            className="flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-[12.5px] font-bold text-muted transition-colors hover:border-accent-500 hover:text-accent-600"
+          >
+            <InboxIcon className="h-4 w-4" />
+            الأرشيف
+            {archived.length > 0 && (
+              <span className="rounded-full bg-background px-2 py-0.5 text-[11px] font-extrabold text-foreground">
+                {archived.length}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 items-start gap-4.5 md:grid-cols-3 xl:grid-cols-5">
         {COLUMNS.map((col) => {
           const colTasks = items.filter((t) => t.status === col.status);
@@ -222,6 +262,67 @@ export function KanbanBoard({
           );
         })}
       </div>
+
+      {archiveOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[8vh]">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setArchiveOpen(false)} aria-hidden />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="أرشيف المهام"
+            className="relative flex max-h-[76vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[18px] border border-border bg-surface shadow-2xl"
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3.5">
+              <h3 className="flex items-center gap-2 text-[14.5px] font-extrabold text-foreground">
+                <InboxIcon className="h-4.5 w-4.5" /> أرشيف المهام المكتملة
+              </h3>
+              <button
+                type="button"
+                onClick={() => setArchiveOpen(false)}
+                aria-label="إغلاق"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-background"
+              >
+                <CloseIcon className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3">
+              {archived.length === 0 ? (
+                <p className="py-10 text-center text-[13px] text-muted">لا توجد مهام مؤرشفة</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {archived.map((task) => (
+                    <div
+                      key={task.id}
+                      className="flex items-center justify-between gap-3 rounded-[12px] border border-border bg-background px-3.5 py-2.5"
+                    >
+                      <div className="min-w-0">
+                        <Link
+                          href={`/dashboard/tasks/${task.id}`}
+                          className="block truncate text-[13px] font-bold text-foreground hover:text-accent-600"
+                        >
+                          {task.title}
+                        </Link>
+                        <span className="text-[11px] text-faint">
+                          {task.assignee?.full_name ?? "—"}
+                          {task.archived_at ? ` · أُرشفت ${timeAgo(task.archived_at)}` : ""}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleUnarchive(task.id)}
+                        className="shrink-0 rounded-full border border-border px-3 py-1.5 text-[11.5px] font-bold text-muted transition-colors hover:border-accent-500 hover:text-accent-600"
+                      >
+                        إلغاء الأرشفة
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
