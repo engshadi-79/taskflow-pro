@@ -165,7 +165,11 @@ export async function sendChatMessage(
       return { id: message.id, error: "نوع الملف غير مدعوم" };
     }
 
-    const path = `chat/${conversationId}/${crypto.randomUUID()}-${file.name}`;
+    // storage object keys must stay ASCII-safe (Arabic/unicode filenames -
+    // e.g. a voice message named "رسالة-صوتية...") broke the upload; the
+    // original name is preserved separately in file_name for display
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_") || "file";
+    const path = `chat/${conversationId}/${crypto.randomUUID()}-${safeName}`;
     const { error: uploadError } = await supabase.storage.from("task-attachments").upload(path, file);
     if (uploadError) {
       return { id: message.id, error: "تعذر رفع الملف" };

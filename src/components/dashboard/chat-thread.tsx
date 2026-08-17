@@ -153,9 +153,14 @@ export function ChatThread({
       };
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(recordedChunksRef.current, { type: recorder.mimeType || "audio/webm" });
-        const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
-        setSelectedFile(new File([blob], `رسالة-صوتية-${Date.now()}.${ext}`, { type: blob.type }));
+        // strip codec info (e.g. "audio/webm;codecs=opus") - the server's
+        // attachment-type allowlist matches the bare mime type exactly
+        const mimeType = (recorder.mimeType || "audio/webm").split(";")[0];
+        const blob = new Blob(recordedChunksRef.current, { type: mimeType });
+        const ext = mimeType.includes("mp4") ? "m4a" : mimeType.includes("ogg") ? "ogg" : "webm";
+        // ASCII-only filename - it becomes a storage object path segment,
+        // and Arabic text there caused chat_attachments_storage_insert to fail
+        setSelectedFile(new File([blob], `voice-message-${Date.now()}.${ext}`, { type: mimeType }));
       };
       mediaRecorderRef.current = recorder;
       recorder.start();
