@@ -21,10 +21,13 @@ function formatDate(iso: string): string {
 
 export default async function ArticleDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ edit?: string }>;
 }) {
   const { id } = await params;
+  const { edit } = await searchParams;
   const profile = await getCurrentProfile();
   if (!profile) {
     redirect("/login");
@@ -43,6 +46,7 @@ export default async function ArticleDetailPage({
   }
 
   const canManage = profile.role === "super_admin" || article.author_id === profile.id;
+  const showEditForm = canManage && edit === "1";
 
   const [{ data: attachments }, { data: departments }, { data: projects }] = await Promise.all([
     supabase.from("knowledge_attachments").select("*").eq("article_id", id).order("uploaded_at", { ascending: false }),
@@ -57,13 +61,12 @@ export default async function ArticleDetailPage({
     })
   );
 
-  // the reading-experience extras (breadcrumb target, related articles,
-  // keyword tags, vote widget) only apply to the non-manager read view below -
-  // a manager lands straight into ArticleForm and never sees them
+  // the read view is now the default landing state for everyone, including
+  // managers - editing is an explicit opt-in via ?edit=1, not the default
   let categoryRow: KnowledgeCategoryRow | null = null;
   let related: KnowledgeArticle[] = [];
   let myVote: "up" | "down" | null = null;
-  if (!canManage) {
+  if (!showEditForm) {
     const [{ data: catRow }, relatedRows, { data: voteRow }] = await Promise.all([
       supabase.from("knowledge_categories").select("*").eq("id", article.category).maybeSingle<KnowledgeCategoryRow>(),
       getRelatedArticles(article.id, article.category, 5),
@@ -79,13 +82,13 @@ export default async function ArticleDetailPage({
     myVote = voteRow?.vote ?? null;
   }
 
-  if (canManage) {
+  if (showEditForm) {
     return (
       <div className="max-w-3xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <Link href="/dashboard/knowledge" className="text-[12.5px] font-bold text-accent-600 hover:underline">
-              ← قاعدة المعرفة
+            <Link href={`/dashboard/knowledge/${article.id}`} className="text-[12.5px] font-bold text-accent-600 hover:underline">
+              ← عرض المقالة
             </Link>
             <h1 className="font-display text-[20px] text-foreground">{article.title}</h1>
             <span className="mt-1 inline-block rounded-full bg-accent-50 px-2.5 py-1 text-[11px] font-extrabold text-accent-600">
@@ -121,12 +124,30 @@ export default async function ArticleDetailPage({
   return (
     <div className="max-w-6xl space-y-4">
       <ArticleViewTracker articleId={article.id} />
-      <HelpBreadcrumb
-        items={[
-          { label: KNOWLEDGE_CATEGORY_LABEL[article.category], href: `/dashboard/help/category/${article.category}` },
-          { label: article.title },
-        ]}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <HelpBreadcrumb
+          items={[
+            { label: KNOWLEDGE_CATEGORY_LABEL[article.category], href: `/dashboard/help/category/${article.category}` },
+            { label: article.title },
+          ]}
+        />
+        {canManage && (
+          <div className="mb-4 flex items-center gap-2.5">
+            <Link
+              href={`/dashboard/knowledge/${article.id}?edit=1`}
+              className="rounded-full border border-border bg-surface px-3.5 py-1.5 text-[12px] font-extrabold text-muted hover:border-accent-500 hover:text-accent-600"
+            >
+              تعديل المقال
+            </Link>
+            <ArticleStatusActions
+              articleId={article.id}
+              status={article.status}
+              canManage={canManage}
+              canDelete={profile.role === "super_admin"}
+            />
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_280px]">
         <div className="min-w-0 space-y-4">
