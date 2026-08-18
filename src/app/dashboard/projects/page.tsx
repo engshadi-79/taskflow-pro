@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
+import { ProjectDeleteButton } from "@/components/dashboard/project-delete-button";
 import { BriefcaseIcon, PlusIcon } from "@/components/shared/icons";
 import { PROJECT_STATUS_LABEL, type ProjectWithManager } from "@/lib/types/project";
 import { PRIORITY_LABEL } from "@/lib/types/task";
@@ -87,53 +88,72 @@ export default async function ProjectsPage() {
           {projects.map((project) => {
             const stats = statsByProject[project.id] ?? { total: 0, completed: 0 };
             const rate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+            const canManageThis =
+              profile.role === "super_admin" ||
+              project.manager_id === profile.id ||
+              (profile.role === "department_manager" && project.department_id === profile.department_id);
 
             return (
-              <Link
+              <div
                 key={project.id}
-                href={`/dashboard/projects/${project.id}`}
                 className="flex flex-col gap-3 rounded-[18px] border border-border bg-surface p-5 transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-display text-[16px] text-foreground">{project.name}</h3>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${STATUS_BADGE[project.status]}`}
-                    >
-                      {PROJECT_STATUS_LABEL[project.status]}
-                    </span>
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${PRIORITY_BADGE[project.priority]}`}
-                    >
-                      {PRIORITY_LABEL[project.priority]}
-                    </span>
+                <Link href={`/dashboard/projects/${project.id}`} className="flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-display text-[16px] text-foreground">{project.name}</h3>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${STATUS_BADGE[project.status]}`}
+                      >
+                        {PROJECT_STATUS_LABEL[project.status]}
+                      </span>
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${PRIORITY_BADGE[project.priority]}`}
+                      >
+                        {PRIORITY_LABEL[project.priority]}
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                {project.description && (
-                  <p className="line-clamp-2 text-[13px] text-muted">{project.description}</p>
+                  {project.description && (
+                    <p className="line-clamp-2 text-[13px] text-muted">{project.description}</p>
+                  )}
+
+                  <div className="mt-1">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-background">
+                      <div
+                        className="h-full rounded-full bg-accent-500"
+                        style={{ width: `${rate}%` }}
+                      />
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between text-[11.5px] text-muted">
+                      <span>{rate}٪ إنجاز</span>
+                      <span>
+                        {stats.completed}/{stats.total} مهمة
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[12px] text-muted">
+                    <span>{project.manager?.full_name ?? "بدون مدير"}</span>
+                    <span>{project.due_date ?? "—"}</span>
+                  </div>
+                </Link>
+
+                {(canManageThis || profile.role === "super_admin") && (
+                  <div className="flex items-center gap-3 border-t border-border pt-3">
+                    {canManageThis && (
+                      <Link
+                        href={`/dashboard/projects/${project.id}`}
+                        className="text-[12.5px] font-bold text-accent-600 hover:underline"
+                      >
+                        تعديل
+                      </Link>
+                    )}
+                    {profile.role === "super_admin" && <ProjectDeleteButton projectId={project.id} />}
+                  </div>
                 )}
-
-                <div className="mt-1">
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-background">
-                    <div
-                      className="h-full rounded-full bg-accent-500"
-                      style={{ width: `${rate}%` }}
-                    />
-                  </div>
-                  <div className="mt-1.5 flex items-center justify-between text-[11.5px] text-muted">
-                    <span>{rate}٪ إنجاز</span>
-                    <span>
-                      {stats.completed}/{stats.total} مهمة
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between border-t border-border pt-3 text-[12px] text-muted">
-                  <span>{project.manager?.full_name ?? "بدون مدير"}</span>
-                  <span>{project.due_date ?? "—"}</span>
-                </div>
-              </Link>
+              </div>
             );
           })}
         </div>
