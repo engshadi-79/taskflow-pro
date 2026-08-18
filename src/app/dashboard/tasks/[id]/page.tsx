@@ -15,6 +15,8 @@ import { SubmitForReviewButton } from "@/components/dashboard/submit-for-review-
 import { ReviewSection } from "@/components/dashboard/review-section";
 import { TaskTimeline, type TaskTimelineEntry } from "@/components/dashboard/task-timeline";
 import { AddToCalendar } from "@/components/shared/add-to-calendar";
+import { PageHeader, HeaderChip } from "@/components/shared/page-header";
+import { CheckSquareIcon } from "@/components/shared/icons";
 import type { EventTiming } from "@/lib/calendar-export";
 import { updateTask } from "@/lib/actions/tasks";
 import {
@@ -205,6 +207,13 @@ export default async function TaskDetailPage({
 
   return (
     <div className="max-w-3xl space-y-8">
+      <Link
+        href="/dashboard/tasks"
+        className="inline-block text-[12.5px] font-bold text-accent-600 hover:underline"
+      >
+        ← المهام
+      </Link>
+
       {parentTask && (
         <Link
           href={`/dashboard/tasks/${parentTask.id}`}
@@ -231,16 +240,26 @@ export default async function TaskDetailPage({
         </p>
       )}
 
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-[20px] text-foreground">{task.title}</h1>
+      <PageHeader
+        title={task.title}
+        subtitle={task.due_date ? `تاريخ الاستحقاق: ${task.due_date}` : undefined}
+        variant="navy"
+        icon={<CheckSquareIcon className="h-6 w-6" />}
+      >
+        <HeaderChip>{STATUS_LABEL[task.status]}</HeaderChip>
+        <HeaderChip>{PRIORITY_LABEL[task.priority]}</HeaderChip>
+      </PageHeader>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {dueTiming ? (
+          <AddToCalendar id={task.id} title={`استحقاق: ${task.title}`} timing={dueTiming} />
+        ) : (
+          <span />
+        )}
         {profile.role === "super_admin" && (
           <DeleteTaskButton id={task.id} parentTaskId={task.parent_task_id ?? undefined} />
         )}
       </div>
-
-      {dueTiming && (
-        <AddToCalendar id={task.id} title={`استحقاق: ${task.title}`} timing={dueTiming} />
-      )}
 
       {canManage ? (
         <TaskForm
@@ -251,7 +270,7 @@ export default async function TaskDetailPage({
           action={updateTask}
         />
       ) : (
-        <div className="space-y-3 rounded-lg border border-border bg-surface p-6 text-sm">
+        <div className="space-y-3 rounded-[18px] border border-border bg-surface p-6 text-sm">
           <p className="text-foreground">{task.description || "لا يوجد وصف"}</p>
           <div className="grid grid-cols-2 gap-3 text-muted sm:grid-cols-4">
             <div>

@@ -8,6 +8,7 @@ import { MeetingMinutes } from "@/components/dashboard/meeting-minutes";
 import { MeetingAttachments } from "@/components/dashboard/meeting-attachments";
 import { CalendarIcon } from "@/components/shared/icons";
 import { AddToCalendar } from "@/components/shared/add-to-calendar";
+import { PageHeader, HeaderChip } from "@/components/shared/page-header";
 import type { EventTiming } from "@/lib/calendar-export";
 import { updateMeetingStatus } from "@/lib/actions/meetings";
 import {
@@ -101,40 +102,41 @@ export default async function MeetingDetailPage({
     })
   );
 
+  const meetingSubtitle = [
+    meeting.meeting_time ? `${meeting.meeting_date} — ${meeting.meeting_time}` : meeting.meeting_date,
+    meeting.location,
+    extra.project_name ? `مشروع: ${extra.project_name}` : null,
+    extra.organizer_name ? `المنظِّم: ${extra.organizer_name}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <div className="max-w-3xl space-y-6">
+      <Link
+        href="/dashboard/meetings"
+        className="inline-block text-[12.5px] font-bold text-accent-600 hover:underline"
+      >
+        ← الاجتماعات
+      </Link>
+
+      <PageHeader
+        title={meeting.title}
+        subtitle={meetingSubtitle}
+        variant="teal"
+        icon={<CalendarIcon className="h-6 w-6" />}
+      >
+        <HeaderChip>{MEETING_STATUS_LABEL[meeting.status]}</HeaderChip>
+      </PageHeader>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <Link href="/dashboard/meetings" className="text-[12.5px] font-bold text-accent-600 hover:underline">
-            ← الاجتماعات
-          </Link>
-          <h1 className="flex items-center gap-2.5 font-display text-[20px] text-foreground">
-            <CalendarIcon className="h-5 w-5 text-accent-500" />
-            {meeting.title}
-          </h1>
-          <p className="text-[13px] text-muted">
-            {meeting.meeting_date}
-            {meeting.meeting_time ? ` — ${meeting.meeting_time}` : ""}
-            {meeting.location ? ` · ${meeting.location}` : ""}
-            {extra.project_name ? ` · مشروع: ${extra.project_name}` : ""}
-            {extra.organizer_name ? ` · المنظِّم: ${extra.organizer_name}` : ""}
-          </p>
-          <div className="mt-2">
-            <AddToCalendar
-              id={meeting.id}
-              title={meeting.title}
-              location={meeting.location ?? undefined}
-              timing={meetingTiming}
-            />
-          </div>
-        </div>
-        {canManage ? (
-          <StatusSelect meetingId={meeting.id} status={meeting.status} />
-        ) : (
-          <span className="rounded-full bg-accent-50 px-3.5 py-1.5 text-[12.5px] font-extrabold text-accent-600">
-            {MEETING_STATUS_LABEL[meeting.status]}
-          </span>
-        )}
+        <AddToCalendar
+          id={meeting.id}
+          title={meeting.title}
+          location={meeting.location ?? undefined}
+          timing={meetingTiming}
+        />
+        {canManage && <StatusSelect meetingId={meeting.id} status={meeting.status} />}
       </div>
 
       <Section title="الحضور">

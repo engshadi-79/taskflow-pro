@@ -8,7 +8,8 @@ import { ProjectMilestones } from "@/components/dashboard/project-milestones";
 import { ProjectTeam } from "@/components/dashboard/project-team";
 import { TaskList } from "@/components/dashboard/task-list";
 import { KanbanBoard } from "@/components/dashboard/kanban-board";
-import { CalendarIcon, DownloadIcon, UserIcon } from "@/components/shared/icons";
+import { BriefcaseIcon, CalendarIcon, DownloadIcon, UserIcon } from "@/components/shared/icons";
+import { PageHeader, HeaderChip } from "@/components/shared/page-header";
 import {
   PROJECT_STATUS_LABEL,
   type Project,
@@ -251,24 +252,31 @@ export default async function ProjectDetailPage({
     ),
   };
 
+  const projectSubtitle = [
+    project.department?.name ? `قسم ${project.department.name}` : null,
+    project.manager?.full_name ? `المدير: ${project.manager.full_name}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <div className="space-y-4.5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <Link href="/dashboard/projects" className="text-[12.5px] font-bold text-accent-600 hover:underline">
-            ← المشاريع
-          </Link>
-          <h1 className="font-display text-[22px] text-foreground">{project.name}</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-accent-50 px-3.5 py-1.5 text-[12.5px] font-extrabold text-accent-600">
-            {PROJECT_STATUS_LABEL[project.status]}
-          </span>
-          <span className="rounded-full bg-background px-3.5 py-1.5 text-[12.5px] font-extrabold text-muted">
-            {PRIORITY_LABEL[project.priority]}
-          </span>
-        </div>
-      </div>
+      <Link
+        href="/dashboard/projects"
+        className="inline-block text-[12.5px] font-bold text-accent-600 hover:underline"
+      >
+        ← المشاريع
+      </Link>
+
+      <PageHeader
+        title={project.name}
+        subtitle={projectSubtitle || undefined}
+        variant="violet"
+        icon={<BriefcaseIcon className="h-6 w-6" />}
+      >
+        <HeaderChip>{PROJECT_STATUS_LABEL[project.status]}</HeaderChip>
+        <HeaderChip>{PRIORITY_LABEL[project.priority]}</HeaderChip>
+      </PageHeader>
 
       <ProjectTabs panels={panels} />
     </div>
