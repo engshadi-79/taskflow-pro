@@ -1,16 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import gsap from "gsap";
-import { useGSAP } from "@gsap/react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { moveTaskStatus, archiveTask, unarchiveTask } from "@/lib/actions/tasks";
 import { CalendarIcon, CloseIcon, InboxIcon } from "@/components/shared/icons";
 import { timeAgo } from "@/lib/format-time-ago";
 import { Avatar } from "@/components/shared/avatar";
-
-gsap.registerPlugin(useGSAP);
 import {
   PRIORITY_LABEL,
   STATUS_LABEL,
@@ -50,61 +46,7 @@ export function KanbanBoard({
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [justMovedId, setJustMovedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const boardRef = useRef<HTMLDivElement>(null);
-  const modalPanelRef = useRef<HTMLDivElement>(null);
-
-  // One-time stagger-in for the board's initial paint - matches the same
-  // gsap.matchMedia()/prefers-reduced-motion pattern used on the landing
-  // page, so cards don't just pop into existence on first load.
-  useGSAP(
-    () => {
-      gsap.matchMedia().add("(prefers-reduced-motion: no-preference)", () => {
-        gsap.from(".kanban-card", {
-          opacity: 0,
-          y: 14,
-          duration: 0.4,
-          stagger: 0.03,
-          ease: "power2.out",
-        });
-      });
-    },
-    { scope: boardRef }
-  );
-
-  // Small "landing" pop on whichever card just changed column, so a move
-  // reads as a transition instead of an abrupt teleport between columns.
-  useGSAP(
-    () => {
-      if (!justMovedId) return;
-      gsap.matchMedia().add("(prefers-reduced-motion: no-preference)", () => {
-        gsap.fromTo(
-          `[data-task-id="${justMovedId}"]`,
-          { scale: 0.92, opacity: 0.6 },
-          { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(1.6)" }
-        );
-      });
-    },
-    { scope: boardRef, dependencies: [justMovedId] }
-  );
-
-  // Archive modal: a quick fade+scale-in for the panel instead of an
-  // instant appear/disappear (the backdrop uses the existing global
-  // .animate-fade-in utility, already reduced-motion-safe).
-  useGSAP(
-    () => {
-      if (!archiveOpen) return;
-      gsap.matchMedia().add("(prefers-reduced-motion: no-preference)", () => {
-        gsap.fromTo(
-          modalPanelRef.current,
-          { opacity: 0, y: 12, scale: 0.97 },
-          { opacity: 1, y: 0, scale: 1, duration: 0.25, ease: "power2.out" }
-        );
-      });
-    },
-    { dependencies: [archiveOpen] }
-  );
 
   useEffect(() => {
     const supabase = createClient();
@@ -149,8 +91,6 @@ export function KanbanBoard({
 
     const previous = items;
     setItems((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
-    setJustMovedId(taskId);
-    setTimeout(() => setJustMovedId((current) => (current === taskId ? null : current)), 400);
 
     const result = await moveTaskStatus(taskId, status);
     if (result?.error) {
@@ -187,7 +127,7 @@ export function KanbanBoard({
   }
 
   return (
-    <div ref={boardRef} className="space-y-3">
+    <div className="space-y-3">
       {error && (
         <p className="rounded-md bg-pink-50 px-4 py-2 text-sm font-medium text-pink-600">
           {error}
@@ -248,19 +188,19 @@ export function KanbanBoard({
                 </span>
               </div>
 
-              {colTasks.map((task) => {
+              {colTasks.map((task, index) => {
                 const canDrag = canManage || task.assigned_to === currentUserId;
                 return (
                   <div
                     key={task.id}
-                    data-task-id={task.id}
                     draggable={canDrag}
                     onDragStart={(e) => {
                       e.dataTransfer.setData("text/plain", task.id);
                       setDraggingId(task.id);
                     }}
                     onDragEnd={() => setDraggingId(null)}
-                    className={`kanban-card mb-2.5 rounded-[13px] border border-border border-s-[3px] bg-surface p-3.5 shadow-sm transition-all duration-200 hover:shadow-md ${col.edge} ${
+                    style={{ animationDelay: `${Math.min(index, 12) * 25}ms` }}
+                    className={`animate-pop-in mb-2.5 rounded-[13px] border border-border border-s-[3px] bg-surface p-3.5 shadow-sm transition-all duration-200 hover:shadow-md ${col.edge} ${
                       canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-90"
                     } ${draggingId === task.id ? "scale-[0.97] opacity-40" : ""}`}
                   >
@@ -335,11 +275,10 @@ export function KanbanBoard({
             aria-hidden
           />
           <div
-            ref={modalPanelRef}
             role="dialog"
             aria-modal="true"
             aria-label="أرشيف المهام"
-            className="relative flex max-h-[76vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[18px] border border-border bg-surface shadow-2xl"
+            className="animate-pop-in relative flex max-h-[76vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[18px] border border-border bg-surface shadow-2xl"
           >
             <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3.5">
               <h3 className="flex items-center gap-2 text-[14.5px] font-extrabold text-foreground">
