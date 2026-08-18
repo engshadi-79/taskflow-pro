@@ -1,9 +1,14 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { assignTrackProject, assignTrackResponsible, updateDailyCheckField } from "@/lib/actions/inventory";
-import { InventoryDailyRow, type DailyCheckValue } from "@/components/dashboard/inventory-daily-row";
+import {
+  InventoryFixedRow,
+  InventoryConsumableRow,
+  type ConsumableCheckValue,
+  type FixedCheckValue,
+} from "@/components/dashboard/inventory-daily-row";
 import { InventoryToolsManager } from "@/components/dashboard/inventory-tools-manager";
 import { InventoryProgressRing } from "@/components/dashboard/inventory-progress-ring";
 import { INVENTORY_THEME_VARS } from "@/lib/inventory-status";
@@ -26,28 +31,45 @@ function dowLabel(dateStr: string) {
   return DOW_AR[new Date(`${dateStr}T00:00:00`).getDay()];
 }
 
-function toValuesMap(tools: InventoryTool[], checks: InventoryDailyCheck[]): Record<string, DailyCheckValue> {
+function toFixedValues(tools: InventoryTool[], checks: InventoryDailyCheck[]): Record<string, FixedCheckValue> {
   const byTool = new Map(checks.map((c) => [c.tool_id, c]));
-  const map: Record<string, DailyCheckValue> = {};
+  const map: Record<string, FixedCheckValue> = {};
+  for (const tool of tools) {
+    const c = byTool.get(tool.id);
+    map[tool.id] = { found: c?.found_quantity ?? "", notes: c?.notes ?? "" };
+  }
+  return map;
+}
+
+function toConsumableValues(
+  tools: InventoryTool[],
+  checks: InventoryDailyCheck[],
+  defaultOpeningByTool: Record<string, string>
+): Record<string, ConsumableCheckValue> {
+  const byTool = new Map(checks.map((c) => [c.tool_id, c]));
+  const map: Record<string, ConsumableCheckValue> = {};
   for (const tool of tools) {
     const c = byTool.get(tool.id);
     map[tool.id] = {
-      morning: c?.morning_checked ?? false,
-      evening: c?.evening_checked ?? false,
-      actual: c?.actual_quantity ?? "",
+      opening: c?.opening_balance ?? defaultOpeningByTool[tool.id] ?? tool.total_quantity ?? "",
+      used: c?.used_quantity ?? "",
+      damaged: c?.damaged_lost_quantity ?? "",
+      notes: c?.notes ?? "",
     };
   }
   return map;
 }
 
 /** One linked track's full inventory - a mode switch between the daily
- * صباحي/مسائي/الفعلية check grid and the (super_admin-only) fixed tool
- * list, styled apart from the rest of the app in the reference design's
- * emerald/gold "official certificate" palette. */
+ * check grid (split into أدوات ثابتة vs مواد مستهلكة, each with its own
+ * columns) and the (super_admin-only) fixed/consumable tool list, styled
+ * apart from the rest of the app in the reference design's emerald/gold
+ * "official certificate" palette. */
 export function InventoryTrackPanel({
   track,
   tools,
   initialChecks,
+  defaultOpeningByTool,
   todayIso,
   isSuperAdmin,
   currentUserId,
@@ -56,15 +78,29 @@ export function InventoryTrackPanel({
   track: TrackWithResponsible;
   tools: InventoryTool[];
   initialChecks: InventoryDailyCheck[];
+  /** consumable tool_id -> opening balance carried from the most recent
+   * prior day's own computed remainder (or the tool's total_quantity if
+   * this is the very first day it's ever been checked). */
+  defaultOpeningByTool: Record<string, string>;
   todayIso: string;
   isSuperAdmin: boolean;
   currentUserId: string;
   employees: EmployeeOption[];
 }) {
+  const fixedTools = tools.filter((t) => t.item_type === "fixed");
+  const consumableTools = tools.filter((t) => t.item_type === "consumable");
+
   const [mode, setMode] = useState<"daily" | "manage">("daily");
   const [date, setDate] = useState(todayIso);
-  const [todayValues, setTodayValues] = useState(() => toValuesMap(tools, initialChecks));
-  const [historical, setHistorical] = useState<{ date: string; values: Record<string, DailyCheckValue> } | null>(null);
+  const [fixedValues, setFixedValues] = useState(() => toFixedValues(fixedTools, initialChecks));
+  const [consumableValues, setConsumableValues] = useState(() =>
+    toConsumableValues(consumableTools, initialChecks, defaultOpeningByTool)
+  );
+  const [historical, setHistorical] = useState<{
+    date: string;
+    fixed: Record<string, FixedCheckValue>;
+    consumable: Record<string, ConsumableCheckValue>;
+  } | null>(null);
   const [search, setSearch] = useState("");
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [assigning, setAssigning] = useState(false);
@@ -86,34 +122,49 @@ export function InventoryTrackPanel({
       .returns<InventoryDailyCheck[]>()
       .then(({ data }) => {
         if (cancelled) return;
-        setHistorical({ date, values: toValuesMap(tools, data ?? []) });
+        const checks = data ?? [];
+        setHistorical({
+          date,
+          fixed: toFixedValues(fixedTools, checks),
+          consumable: toConsumableValues(consumableTools, checks, {}),
+        });
       });
     return () => {
       cancelled = true;
     };
-  }, [date, todayIso, tools]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, todayIso]);
 
   const isToday = date === todayIso;
   const loadingHistorical = !isToday && historical?.date !== date;
-  const values = isToday ? todayValues : historical?.date === date ? historical.values : {};
+  const fixedShown = isToday ? fixedValues : historical?.date === date ? historical.fixed : {};
+  const consumableShown = isToday ? consumableValues : historical?.date === date ? historical.consumable : {};
   const isResponsible = track.responsible_user_id === currentUserId;
   const editable = isToday && (isSuperAdmin || isResponsible);
 
-  async function handleFieldChange(toolId: string, field: "morning" | "evening" | "actual", value: boolean | string) {
-    setTodayValues((prev) => ({ ...prev, [toolId]: { ...prev[toolId], [field]: value } }));
-    const dbField = field === "morning" ? "morning_checked" : field === "evening" ? "evening_checked" : "actual_quantity";
+  async function handleFixedChange(toolId: string, field: "found" | "notes", value: string) {
+    setFixedValues((prev) => ({ ...prev, [toolId]: { ...prev[toolId], [field]: value } }));
+    const dbField = field === "found" ? "found_quantity" : "notes";
     const result = await updateDailyCheckField(toolId, date, dbField, value);
     setRowErrors((prev) => ({ ...prev, [toolId]: result?.error ?? "" }));
   }
 
-  async function handleMarkAllMorning() {
-    const ids = tools.map((t) => t.id);
-    setTodayValues((prev) => {
-      const next = { ...prev };
-      for (const id of ids) next[id] = { ...next[id], morning: true };
-      return next;
-    });
-    await Promise.all(ids.map((id) => updateDailyCheckField(id, date, "morning_checked", true)));
+  async function handleConsumableChange(
+    toolId: string,
+    field: "opening" | "used" | "damaged" | "notes",
+    value: string
+  ) {
+    setConsumableValues((prev) => ({ ...prev, [toolId]: { ...prev[toolId], [field]: value } }));
+    const dbField =
+      field === "opening"
+        ? "opening_balance"
+        : field === "used"
+          ? "used_quantity"
+          : field === "damaged"
+            ? "damaged_lost_quantity"
+            : "notes";
+    const result = await updateDailyCheckField(toolId, date, dbField, value);
+    setRowErrors((prev) => ({ ...prev, [toolId]: result?.error ?? "" }));
   }
 
   async function handleAssignResponsible(userId: string) {
@@ -131,32 +182,36 @@ export function InventoryTrackPanel({
     setUnlinking(false);
   }
 
-  const filteredTools = search.trim()
-    ? tools.filter(
-        (t) =>
-          t.name.toLowerCase().includes(search.trim().toLowerCase()) ||
-          (t.group_label ?? "").toLowerCase().includes(search.trim().toLowerCase())
-      )
-    : tools;
+  const q = search.trim().toLowerCase();
+  const filteredFixed = q ? fixedTools.filter((t) => t.name.toLowerCase().includes(q)) : fixedTools;
+  const filteredConsumable = q ? consumableTools.filter((t) => t.name.toLowerCase().includes(q)) : consumableTools;
 
   const total = tools.length;
-  let morningCount = 0;
-  let eveningCount = 0;
-  let doneCount = 0;
-  let mismatches = 0;
-  for (const tool of tools) {
-    const v = values[tool.id];
-    if (!v) continue;
-    if (v.morning) morningCount++;
-    if (v.evening) eveningCount++;
-    if (v.actual) {
-      doneCount++;
-      const tn = tool.total_quantity !== null ? parseFloat(tool.total_quantity) : NaN;
-      const an = parseFloat(v.actual);
-      if (!isNaN(tn) && !isNaN(an) && an !== tn) mismatches++;
+  let enteredCount = 0;
+  let fixedOkCount = 0;
+  let problemCount = 0;
+  let usedTotal = 0;
+  for (const tool of fixedTools) {
+    const v = fixedShown[tool.id];
+    if (v?.found) {
+      enteredCount++;
+      const total2 = tool.total_quantity !== null ? parseFloat(tool.total_quantity) : NaN;
+      const found = parseFloat(v.found);
+      if (!isNaN(total2) && !isNaN(found)) {
+        if (found === total2) fixedOkCount++;
+        else if (found < total2) problemCount++;
+      }
     }
   }
-  const percent = total ? Math.round((doneCount / total) * 100) : 0;
+  for (const tool of consumableTools) {
+    const v = consumableShown[tool.id];
+    if (v && (v.used || v.damaged)) enteredCount++;
+    const damaged = v ? parseFloat(v.damaged) : NaN;
+    if (!isNaN(damaged) && damaged > 0) problemCount++;
+    const used = v ? parseFloat(v.used) : NaN;
+    if (!isNaN(used)) usedTotal += used;
+  }
+  const percent = total ? Math.round((enteredCount / total) * 100) : 0;
 
   return (
     <div style={INVENTORY_THEME_VARS} className="overflow-hidden rounded-[18px] border border-[var(--inv-line,#e4e0d2)] shadow-sm">
@@ -276,101 +331,123 @@ export function InventoryTrackPanel({
                 <InventoryProgressRing percent={percent} />
                 <div>
                   <div className="font-display text-[13.5px] font-extrabold">إنجاز جرد اليوم</div>
-                  <div className="mt-0.5 text-[11px] text-white/65">{doneCount} من {total} مادة مُدخَلة</div>
+                  <div className="mt-0.5 text-[11px] text-white/65">{enteredCount} من {total} مادة مُدخَلة</div>
                 </div>
               </div>
               <div className="rounded-[14px] border border-[var(--inv-line,#e4e0d2)] bg-white p-3.5 shadow-sm">
-                <div className="font-display text-[22px] font-extrabold text-[var(--inv-emerald-900)]">{morningCount}</div>
-                <div className="mt-0.5 text-[11.5px] text-[var(--muted,#6c7a70)]">فحص صباحي مُنجز</div>
-              </div>
-              <div className="rounded-[14px] border border-[var(--inv-line,#e4e0d2)] bg-white p-3.5 shadow-sm">
-                <div className="font-display text-[22px] font-extrabold text-[var(--inv-emerald-900)]">{eveningCount}</div>
-                <div className="mt-0.5 text-[11.5px] text-[var(--muted,#6c7a70)]">فحص مسائي مُنجز</div>
+                <div className="font-display text-[22px] font-extrabold text-[var(--inv-ok)]">{fixedOkCount}</div>
+                <div className="mt-0.5 text-[11.5px] text-[var(--muted,#6c7a70)]">أدوات بحالة جيدة</div>
               </div>
               <div className="rounded-[14px] border border-[var(--inv-line,#e4e0d2)] bg-white p-3.5 shadow-sm">
                 <div
                   className="font-display text-[22px] font-extrabold"
-                  style={{ color: mismatches > 0 ? "var(--inv-bad)" : "var(--inv-ok)" }}
+                  style={{ color: problemCount > 0 ? "var(--inv-bad)" : "var(--inv-ok)" }}
                 >
-                  {mismatches}
+                  {problemCount}
                 </div>
-                <div className="mt-0.5 text-[11.5px] text-[var(--muted,#6c7a70)]">فروقات بالكمية</div>
+                <div className="mt-0.5 text-[11.5px] text-[var(--muted,#6c7a70)]">نواقص / تالف</div>
+              </div>
+              <div className="rounded-[14px] border border-[var(--inv-line,#e4e0d2)] bg-white p-3.5 shadow-sm">
+                <div className="font-display text-[22px] font-extrabold text-[var(--inv-emerald-900)]">{usedTotal}</div>
+                <div className="mt-0.5 text-[11.5px] text-[var(--muted,#6c7a70)]">إجمالي المستهلك اليوم</div>
               </div>
             </div>
 
-            {/* search + bulk action */}
-            <div className="flex flex-wrap gap-2.5">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="ابحث عن مادة…"
-                className="min-w-[220px] flex-1 rounded-[11px] border border-[var(--inv-line,#e4e0d2)] bg-white px-3.5 py-2.5 text-[13.5px] text-[var(--ink,#1c2b23)] outline-none focus:border-[var(--inv-emerald-700)]"
-              />
-              {editable && (
-                <button
-                  type="button"
-                  onClick={handleMarkAllMorning}
-                  className="rounded-[11px] border border-[var(--inv-line,#e4e0d2)] bg-white px-4 py-2.5 font-display text-[13px] font-bold text-[var(--inv-emerald-900)] hover:border-[var(--inv-emerald-700)]"
-                >
-                  تحديد الكل (صباحي)
-                </button>
-              )}
-            </div>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ابحث عن مادة…"
+              className="w-full rounded-[11px] border border-[var(--inv-line,#e4e0d2)] bg-white px-3.5 py-2.5 text-[13.5px] text-[var(--ink,#1c2b23)] outline-none focus:border-[var(--inv-emerald-700)]"
+            />
 
-            {/* table */}
-            <div className="overflow-hidden overflow-x-auto rounded-[14px] border border-[var(--inv-line,#e4e0d2)] bg-white">
-              {filteredTools.length === 0 ? (
-                <p className="py-10 text-center text-[13px] text-[var(--muted,#6c7a70)]">لا نتائج مطابقة للبحث</p>
-              ) : loadingHistorical ? (
-                <p className="py-10 text-center text-[13px] text-[var(--muted,#6c7a70)]">جارٍ التحميل...</p>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-[var(--inv-emerald-900)] text-white">
-                      <th className="w-9 px-2.5 py-3 font-display text-[12px] font-bold">م</th>
-                      <th className="px-2.5 py-3 text-start font-display text-[12px] font-bold">اسم المادة</th>
-                      <th className="px-2.5 py-3 font-display text-[12px] font-bold">الكلية</th>
-                      <th className="px-2.5 py-3 font-display text-[12px] font-bold">صباحي</th>
-                      <th className="px-2.5 py-3 font-display text-[12px] font-bold">مسائي</th>
-                      <th className="px-2.5 py-3 font-display text-[12px] font-bold">الفعلية</th>
-                      <th className="px-2.5 py-3 font-display text-[12px] font-bold">الحالة</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      let lastGroup: string | null | undefined;
-                      return filteredTools.map((tool, index) => {
-                        const groupRow =
-                          tool.group_label !== lastGroup ? (
-                            <tr key={`group-${tool.id}`} className="bg-[var(--inv-idle-bg)]">
-                              <td colSpan={7} className="px-4 py-2 text-start font-display text-[11.5px] font-extrabold text-[var(--inv-emerald-800)]">
-                                {tool.group_label}
-                              </td>
-                            </tr>
-                          ) : null;
-                        lastGroup = tool.group_label;
-                        return (
-                          <Fragment key={tool.id}>
-                            {groupRow}
-                            <InventoryDailyRow
+            {loadingHistorical ? (
+              <p className="rounded-[14px] border border-[var(--inv-line,#e4e0d2)] bg-white py-10 text-center text-[13px] text-[var(--muted,#6c7a70)]">
+                جارٍ التحميل...
+              </p>
+            ) : (
+              <>
+                {filteredFixed.length > 0 && (
+                  <div>
+                    <h4 className="mb-2 font-display text-[13px] font-extrabold text-[var(--inv-emerald-900)]">
+                      الأدوات الثابتة
+                    </h4>
+                    <div className="overflow-hidden overflow-x-auto rounded-[14px] border border-[var(--inv-line,#e4e0d2)] bg-white">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-[var(--inv-emerald-900)] text-white">
+                            <th className="w-9 px-2.5 py-3 font-display text-[12px] font-bold">م</th>
+                            <th className="px-2.5 py-3 text-start font-display text-[12px] font-bold">الاسم</th>
+                            <th className="px-2.5 py-3 font-display text-[12px] font-bold">الرصيد السابق</th>
+                            <th className="px-2.5 py-3 font-display text-[12px] font-bold">الموجود فعليًا</th>
+                            <th className="px-2.5 py-3 font-display text-[12px] font-bold">الحالة</th>
+                            <th className="px-2.5 py-3 font-display text-[12px] font-bold">ملاحظات</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredFixed.map((tool, index) => (
+                            <InventoryFixedRow
+                              key={tool.id}
                               index={index}
                               tool={tool}
-                              value={values[tool.id] ?? { morning: false, evening: false, actual: "" }}
+                              value={fixedShown[tool.id] ?? { found: "", notes: "" }}
                               editable={editable}
-                              onChange={(field, value) => handleFieldChange(tool.id, field, value)}
+                              onChange={(field, value) => handleFixedChange(tool.id, field, value)}
                               error={rowErrors[tool.id]}
                             />
-                          </Fragment>
-                        );
-                      });
-                    })()}
-                  </tbody>
-                </table>
-              )}
-            </div>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {filteredConsumable.length > 0 && (
+                  <div>
+                    <h4 className="mb-2 font-display text-[13px] font-extrabold text-[var(--inv-emerald-900)]">
+                      المواد المستهلكة
+                    </h4>
+                    <div className="overflow-hidden overflow-x-auto rounded-[14px] border border-[var(--inv-line,#e4e0d2)] bg-white">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-[var(--inv-emerald-900)] text-white">
+                            <th className="w-9 px-2.5 py-3 font-display text-[12px] font-bold">م</th>
+                            <th className="px-2.5 py-3 text-start font-display text-[12px] font-bold">الاسم</th>
+                            <th className="px-2.5 py-3 font-display text-[12px] font-bold">رصيد بداية اليوم</th>
+                            <th className="px-2.5 py-3 font-display text-[12px] font-bold">المستخدم</th>
+                            <th className="px-2.5 py-3 font-display text-[12px] font-bold">تالف/مفقود</th>
+                            <th className="px-2.5 py-3 font-display text-[12px] font-bold">المتبقي</th>
+                            <th className="px-2.5 py-3 font-display text-[12px] font-bold">ملاحظات</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredConsumable.map((tool, index) => (
+                            <InventoryConsumableRow
+                              key={tool.id}
+                              index={index}
+                              tool={tool}
+                              value={consumableShown[tool.id] ?? { opening: "", used: "", damaged: "", notes: "" }}
+                              editable={editable}
+                              onChange={(field, value) => handleConsumableChange(tool.id, field, value)}
+                              error={rowErrors[tool.id]}
+                            />
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {filteredFixed.length === 0 && filteredConsumable.length === 0 && (
+                  <p className="rounded-[14px] border border-[var(--inv-line,#e4e0d2)] bg-white py-10 text-center text-[13px] text-[var(--muted,#6c7a70)]">
+                    {tools.length === 0 ? "لا توجد مواد في هذا المسار بعد" : "لا نتائج مطابقة للبحث"}
+                  </p>
+                )}
+              </>
+            )}
+
             <p className="flex items-center gap-2 rounded-[10px] border border-dashed border-[var(--inv-line,#e4e0d2)] bg-white px-3.5 py-2.5 text-[12px] text-[var(--muted,#6c7a70)]">
-              💡 حدد صباحي/مسائي عند فحص المادة فعليًا، وأدخل الكمية الفعلية المتوفرة. يُحفظ كل تغيير تلقائيًا لهذا اليوم بالذات.
+              💡 الأدوات الثابتة: أدخل الموجود فعليًا فقط. المواد المستهلكة: أدخل المستخدم والتالف/المفقود، ويُحسب المتبقي تلقائيًا ويصبح رصيد بداية الغد.
             </p>
           </>
         ) : (

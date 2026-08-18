@@ -26,6 +26,7 @@ export function InventoryTrackTabs({
   tracks,
   toolsByTrack,
   checksByTrack,
+  defaultOpeningByTool,
   todayIso,
   isSuperAdmin,
   currentUserId,
@@ -34,6 +35,7 @@ export function InventoryTrackTabs({
   tracks: TrackWithResponsible[];
   toolsByTrack: Record<string, InventoryTool[]>;
   checksByTrack: Record<string, InventoryDailyCheck[]>;
+  defaultOpeningByTool: Record<string, string>;
   todayIso: string;
   isSuperAdmin: boolean;
   currentUserId: string;
@@ -71,6 +73,7 @@ export function InventoryTrackTabs({
           track={active}
           tools={toolsByTrack[active.id] ?? []}
           initialChecks={checksByTrack[active.id] ?? []}
+          defaultOpeningByTool={defaultOpeningByTool}
           todayIso={todayIso}
           isSuperAdmin={isSuperAdmin}
           currentUserId={currentUserId}

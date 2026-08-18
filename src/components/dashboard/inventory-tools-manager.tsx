@@ -12,6 +12,7 @@ import type { InventoryTool } from "@/lib/types/inventory";
 const initialState: InventoryFormState = {};
 const inputClass =
   "rounded-lg border border-[var(--inv-line,#e4e0d2)] bg-white px-2.5 py-1.5 text-[12.5px] text-[var(--ink,#1c2b23)] outline-none focus:border-[var(--inv-emerald-700)]";
+const ITEM_TYPE_LABEL: Record<string, string> = { fixed: "ثابت", consumable: "مستهلك" };
 
 /** super_admin-only: add/edit/remove the fixed tool list itself - shown
  * only in "إدارة المواد" mode, never mixed with the daily check grid. */
@@ -23,12 +24,19 @@ export function InventoryToolsManager({ trackId, tools }: { trackId: string; too
     <div className="space-y-3">
       <form
         action={createAction}
-        className="grid grid-cols-1 gap-2.5 rounded-[14px] border border-[var(--inv-line,#e4e0d2)] bg-white p-4 sm:grid-cols-5 sm:items-end"
+        className="grid grid-cols-1 gap-2.5 rounded-[14px] border border-[var(--inv-line,#e4e0d2)] bg-white p-4 sm:grid-cols-6 sm:items-end"
       >
         <input type="hidden" name="track_id" value={trackId} />
         <label className="block sm:col-span-2">
           <span className="mb-1 block text-[11.5px] font-medium text-[var(--muted,#6c7a70)]">اسم المادة *</span>
           <input name="name" required placeholder="مثال: مقص تصفيف" className={`${inputClass} w-full`} />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[11.5px] font-medium text-[var(--muted,#6c7a70)]">النوع</span>
+          <select name="item_type" defaultValue="fixed" className={`${inputClass} w-full`}>
+            <option value="fixed">ثابت (أداة/جهاز)</option>
+            <option value="consumable">مستهلك (له رصيد يومي)</option>
+          </select>
         </label>
         <label className="block">
           <span className="mb-1 block text-[11.5px] font-medium text-[var(--muted,#6c7a70)]">الكمية الكلية</span>
@@ -45,11 +53,11 @@ export function InventoryToolsManager({ trackId, tools }: { trackId: string; too
         <button
           type="submit"
           disabled={creating}
-          className="rounded-[10px] bg-[var(--inv-gold)] px-4 py-2 text-[13px] font-extrabold text-[var(--inv-emerald-950)] hover:bg-[var(--inv-gold-light)] disabled:opacity-60 sm:col-span-5 sm:w-fit"
+          className="rounded-[10px] bg-[var(--inv-gold)] px-4 py-2 text-[13px] font-extrabold text-[var(--inv-emerald-950)] hover:bg-[var(--inv-gold-light)] disabled:opacity-60 sm:col-span-6 sm:w-fit"
         >
           {creating ? "جارٍ الإضافة..." : "+ إضافة"}
         </button>
-        {createState?.error && <p className="text-[12px] text-[var(--inv-bad)] sm:col-span-5">{createState.error}</p>}
+        {createState?.error && <p className="text-[12px] text-[var(--inv-bad)] sm:col-span-6">{createState.error}</p>}
       </form>
 
       <div className="overflow-x-auto rounded-[14px] border border-[var(--inv-line,#e4e0d2)] bg-white">
@@ -57,6 +65,7 @@ export function InventoryToolsManager({ trackId, tools }: { trackId: string; too
           <thead>
             <tr className="bg-[var(--inv-emerald-900)] text-white">
               <th className="px-3 py-2.5 text-start font-display text-[12px] font-bold">المادة</th>
+              <th className="px-3 py-2.5 text-start font-display text-[12px] font-bold">النوع</th>
               <th className="px-3 py-2.5 text-start font-display text-[12px] font-bold">التصنيف</th>
               <th className="px-3 py-2.5 text-start font-display text-[12px] font-bold">الكمية الكلية</th>
               <th className="px-3 py-2.5 text-start font-display text-[12px] font-bold">الوحدة</th>
@@ -75,7 +84,7 @@ export function InventoryToolsManager({ trackId, tools }: { trackId: string; too
             ))}
             {tools.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-8 text-center text-[var(--muted,#6c7a70)]">
+                <td colSpan={6} className="px-3 py-8 text-center text-[var(--muted,#6c7a70)]">
                   لا مواد بعد — أضف أول مادة من النموذج أعلاه.
                 </td>
               </tr>
@@ -104,10 +113,14 @@ function ToolRow({
   if (isEditing) {
     return (
       <tr className="border-t border-[var(--inv-line,#e4e0d2)]">
-        <td colSpan={5} className="px-3 py-3">
+        <td colSpan={6} className="px-3 py-3">
           <form action={formAction} className="flex flex-wrap items-end gap-2.5">
             <input type="hidden" name="id" value={tool.id} />
             <input name="name" defaultValue={tool.name} required className={inputClass} />
+            <select name="item_type" defaultValue={tool.item_type} className={inputClass}>
+              <option value="fixed">ثابت</option>
+              <option value="consumable">مستهلك</option>
+            </select>
             <input name="group_label" defaultValue={tool.group_label ?? ""} placeholder="التصنيف" className={inputClass} />
             <input name="total_quantity" defaultValue={tool.total_quantity ?? ""} placeholder="الكمية" className={inputClass} />
             <input name="unit" defaultValue={tool.unit ?? ""} placeholder="الوحدة" className={inputClass} />
@@ -135,6 +148,7 @@ function ToolRow({
   return (
     <tr className="border-t border-[var(--inv-line,#e4e0d2)] transition-colors hover:bg-black/[0.02]">
       <td className="px-3 py-2.5 text-[var(--ink,#1c2b23)]">{tool.name}</td>
+      <td className="px-3 py-2.5 text-[var(--muted,#6c7a70)]">{ITEM_TYPE_LABEL[tool.item_type]}</td>
       <td className="px-3 py-2.5 text-[var(--muted,#6c7a70)]">{tool.group_label ?? "—"}</td>
       <td className="px-3 py-2.5 text-[var(--muted,#6c7a70)]">{tool.total_quantity ?? "—"}</td>
       <td className="px-3 py-2.5 text-[var(--muted,#6c7a70)]">{tool.unit ?? "—"}</td>

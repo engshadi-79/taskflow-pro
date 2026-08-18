@@ -4,12 +4,20 @@
 -- pages. Run after schema.sql (needs current_org_id()/current_user_role()
 -- from rls.sql and set_updated_at() from schema.sql).
 --
--- total_quantity/actual_quantity are TEXT, not numeric: the real source
--- data mixes actual counts (1, 25) with unit descriptions ("لتر", "دستة")
--- and status words ("مفقودة" = missing, "نصف لفة" = half a roll) - forcing
--- a number type would either crash on import or silently drop real
--- information. صباحي/مسائي are plain verification checkboxes instead
--- (was this tool physically checked this shift), not quantity readings.
+-- total_quantity and every daily-check quantity field are TEXT, not
+-- numeric: the real source data mixes actual counts (1, 25) with unit
+-- descriptions ("لتر", "دستة") and status words ("مفقودة" = missing,
+-- "نصف لفة" = half a roll) - forcing a number type would either crash on
+-- import or silently drop real information.
+--
+-- Every tool is either "ثابت" (fixed - a device/tool you check for
+-- presence and condition, not consumption) or "مستهلك" (consumable - has
+-- a rolling daily balance). Fixed tools only ever record "الموجود فعليًا"
+-- against the tool's own total_quantity (the reference/expected count);
+-- consumables record رصيد بداية اليوم + المستخدم + التالف/المفقود, and
+-- المتبقي is computed, never stored - the next day's opening balance is
+-- derived by looking up the most recent prior day's check for that tool,
+-- not by copying a value forward into a new column.
 
 -- ============================================================
 -- inventory_tracks — one per "مسار" (training track), each with exactly
@@ -63,6 +71,11 @@ create table public.inventory_tools (
   -- optional grouping heading shown above a cluster of rows (e.g. the
   -- embroidery track's tools grouped by which sewing machine they belong to)
   group_label text,
+  -- 'fixed': total_quantity is the expected/reference count, compared
+  -- daily against found_quantity. 'consumable': total_quantity is only
+  -- the very first day's starting stock - every later day's opening
+  -- balance comes from the previous day's own computed remainder instead.
+  item_type text not null default 'fixed' check (item_type in ('fixed', 'consumable')),
   position integer not null default 0,
   created_at timestamptz not null default now()
 );
@@ -100,9 +113,13 @@ create table public.inventory_daily_checks (
   tool_id uuid not null references public.inventory_tools(id) on delete cascade,
   organization_id uuid not null references public.organizations(id) on delete cascade,
   check_date date not null,
-  morning_checked boolean not null default false,
-  evening_checked boolean not null default false,
-  actual_quantity text,
+  -- fixed tools only
+  found_quantity text,
+  -- consumables only
+  opening_balance text,
+  used_quantity text,
+  damaged_lost_quantity text,
+  notes text,
   checked_by uuid references public.users(id) on delete set null,
   updated_at timestamptz not null default now(),
   unique (tool_id, check_date)

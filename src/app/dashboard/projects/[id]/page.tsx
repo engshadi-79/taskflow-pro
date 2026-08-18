@@ -20,6 +20,7 @@ import {
   type ProjectTaskStats,
 } from "@/lib/types/project";
 import { PRIORITY_LABEL, type TaskWithAssignee } from "@/lib/types/task";
+import { computeConsumableRemaining } from "@/lib/inventory-status";
 import type { InventoryDailyCheck, InventoryTool, InventoryTrack } from "@/lib/types/inventory";
 
 export default async function ProjectDetailPage({
@@ -142,6 +143,7 @@ export default async function ProjectDetailPage({
   const todayIso = new Date().toISOString().slice(0, 10);
   const inventoryToolsByTrack = new Map<string, InventoryTool[]>();
   const inventoryChecksByTrack = new Map<string, InventoryDailyCheck[]>();
+  const defaultOpeningByTool: Record<string, string> = {};
 
   if (linkedTracks.length > 0) {
     const { data: toolsData } = await supabase
@@ -172,6 +174,35 @@ export default async function ProjectDetailPage({
       for (const track of linkedTracks) {
         const toolIds = new Set((inventoryToolsByTrack.get(track.id) ?? []).map((t) => t.id));
         inventoryChecksByTrack.set(track.id, allChecks.filter((c) => toolIds.has(c.tool_id)));
+      }
+
+      // for every consumable tool with no row yet today, its opening
+      // balance for the day is whatever the most recent prior day's own
+      // check computed as remaining - never a value copied forward into a
+      // stored column, always looked up fresh
+      const checkedToolIdsToday = new Set(allChecks.map((c) => c.tool_id));
+      const needsOpening = allTools.filter((t) => t.item_type === "consumable" && !checkedToolIdsToday.has(t.id));
+      if (needsOpening.length > 0) {
+        const { data: priorChecks } = await supabase
+          .from("inventory_daily_checks")
+          .select("tool_id, check_date, opening_balance, used_quantity, damaged_lost_quantity")
+          .in(
+            "tool_id",
+            needsOpening.map((t) => t.id)
+          )
+          .lt("check_date", todayIso)
+          .order("check_date", { ascending: false });
+
+        const seenToolIds = new Set<string>();
+        for (const row of priorChecks ?? []) {
+          if (seenToolIds.has(row.tool_id)) continue;
+          seenToolIds.add(row.tool_id);
+          const remaining = computeConsumableRemaining(row.opening_balance, row.used_quantity, row.damaged_lost_quantity);
+          if (remaining !== null) defaultOpeningByTool[row.tool_id] = String(remaining);
+        }
+        for (const tool of needsOpening) {
+          if (!(tool.id in defaultOpeningByTool)) defaultOpeningByTool[tool.id] = tool.total_quantity ?? "";
+        }
       }
     }
   }
@@ -269,6 +300,7 @@ export default async function ProjectDetailPage({
             tracks={linkedTracks}
             toolsByTrack={Object.fromEntries(inventoryToolsByTrack)}
             checksByTrack={Object.fromEntries(inventoryChecksByTrack)}
+            defaultOpeningByTool={defaultOpeningByTool}
             todayIso={todayIso}
             isSuperAdmin={profile.role === "super_admin"}
             currentUserId={profile.id}

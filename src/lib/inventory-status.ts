@@ -1,37 +1,44 @@
-import type { InventoryDailyCheck } from "@/lib/types/inventory";
-
 export type InventoryStatusTone = "ok" | "warn" | "bad" | "idle";
 
 export type InventoryStatus = { label: string; tone: InventoryStatusTone };
 
-/** Compares a tool's counted "الكمية الفعلية" against its total_quantity
- * for the day. Both are free text (real data mixes numbers with unit/status
- * words like "لتر" or "مفقودة"), so a numeric comparison only applies when
- * both sides actually parse as numbers - otherwise "recorded" is as
- * specific as it's honest to be. */
-export function computeInventoryStatus(
-  totalQuantity: string | null,
-  check: Pick<InventoryDailyCheck, "morning_checked" | "evening_checked" | "actual_quantity"> | null
-): InventoryStatus {
-  const hasAnyEntry = !!check && (check.morning_checked || check.evening_checked || !!check.actual_quantity);
-  if (!hasAnyEntry) {
-    return { label: "لم يُجرد", tone: "idle" };
-  }
+function parseNum(value: string | null | undefined): number | null {
+  if (value === null || value === undefined || value.trim() === "") return null;
+  const n = parseFloat(value);
+  return isNaN(n) ? null : n;
+}
 
-  if (!check?.actual_quantity) {
-    return { label: "بانتظار العدد", tone: "warn" };
-  }
+/** Fixed tools: compare "الموجود فعليًا" against the tool's reference
+ * total_quantity. Both are free text (real quantities mix numbers with
+ * unit/status words), so a numeric verdict only applies when both sides
+ * actually parse as numbers. */
+export function computeFixedStatus(totalQuantity: string | null, foundQuantity: string | null): InventoryStatus {
+  if (!foundQuantity) return { label: "لم يُجرد", tone: "idle" };
 
-  const totalNum = totalQuantity !== null ? parseFloat(totalQuantity) : NaN;
-  const actualNum = parseFloat(check.actual_quantity);
-
-  if (!isNaN(totalNum) && !isNaN(actualNum)) {
-    if (actualNum === totalNum) return { label: "مطابق", tone: "ok" };
-    if (actualNum < totalNum) return { label: `نقص ${totalNum - actualNum}`, tone: "bad" };
+  const total = parseNum(totalQuantity);
+  const found = parseNum(foundQuantity);
+  if (total !== null && found !== null) {
+    if (found === total) return { label: "جيد", tone: "ok" };
+    if (found < total) return { label: `نقص ${total - found}`, tone: "bad" };
     return { label: "زيادة", tone: "warn" };
   }
-
   return { label: "مُسجَّل", tone: "ok" };
+}
+
+/** Consumables: المتبقي = رصيد بداية اليوم − المستخدم − التالف/المفقود.
+ * Returns null (rendered as "—") when any of the three isn't a real
+ * number - the same free-text-quantity tolerance as everywhere else in
+ * this feature. */
+export function computeConsumableRemaining(
+  opening: string | null,
+  used: string | null,
+  damagedLost: string | null
+): number | null {
+  const openingNum = parseNum(opening);
+  if (openingNum === null) return null;
+  const usedNum = parseNum(used) ?? 0;
+  const damagedNum = parseNum(damagedLost) ?? 0;
+  return openingNum - usedNum - damagedNum;
 }
 
 export const INVENTORY_BADGE_CLASS: Record<InventoryStatusTone, string> = {

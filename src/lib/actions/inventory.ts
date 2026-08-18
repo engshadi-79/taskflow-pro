@@ -69,9 +69,10 @@ export async function createInventoryTool(
   const unit = (formData.get("unit") as string)?.trim() || null;
   const totalQuantity = (formData.get("total_quantity") as string)?.trim() || null;
   const groupLabel = (formData.get("group_label") as string)?.trim() || null;
+  const itemType = formData.get("item_type") === "consumable" ? "consumable" : "fixed";
 
   if (!trackId || !name) {
-    return { error: "اسم الأداة مطلوب" };
+    return { error: "اسم المادة مطلوب" };
   }
 
   const supabase = await createClient();
@@ -82,6 +83,7 @@ export async function createInventoryTool(
     unit,
     total_quantity: totalQuantity,
     group_label: groupLabel,
+    item_type: itemType,
   });
 
   if (error) return { error: "تعذر إضافة الأداة" };
@@ -101,9 +103,10 @@ export async function updateInventoryTool(
   const unit = (formData.get("unit") as string)?.trim() || null;
   const totalQuantity = (formData.get("total_quantity") as string)?.trim() || null;
   const groupLabel = (formData.get("group_label") as string)?.trim() || null;
+  const itemType = formData.get("item_type") === "consumable" ? "consumable" : "fixed";
 
   if (!name) {
-    return { error: "اسم الأداة مطلوب" };
+    return { error: "اسم المادة مطلوب" };
   }
 
   const supabase = await createClient();
@@ -115,7 +118,7 @@ export async function updateInventoryTool(
 
   const { error } = await supabase
     .from("inventory_tools")
-    .update({ name, unit, total_quantity: totalQuantity, group_label: groupLabel })
+    .update({ name, unit, total_quantity: totalQuantity, group_label: groupLabel, item_type: itemType })
     .eq("id", id);
 
   if (error) return { error: "تعذر تحديث الأداة" };
@@ -139,16 +142,19 @@ export async function deleteInventoryTool(id: string) {
   if (existing?.track_id) await revalidateTrackProject(supabase, existing.track_id);
 }
 
-/** Saves exactly one field of one day's check the moment it changes -
- * mirrors a checkbox toggling instantly and an actual-quantity input
- * autosaving on a debounce, rather than a single explicit "save the whole
- * row" button. Reads the existing row first so touching one field doesn't
- * reset the other two back to their defaults. */
+type DailyCheckField = "found_quantity" | "opening_balance" | "used_quantity" | "damaged_lost_quantity" | "notes";
+
+/** Saves exactly one field of one day's check the moment it changes
+ * (debounced on the caller's side) rather than a single explicit "save
+ * the whole row" button. Reads the existing row first so touching one
+ * field doesn't reset the others back to null - important here since
+ * opening_balance is often pre-filled from a lookup the caller did, not
+ * something the employee typed themselves. */
 export async function updateDailyCheckField(
   toolId: string,
   checkDate: string,
-  field: "morning_checked" | "evening_checked" | "actual_quantity",
-  value: boolean | string
+  field: DailyCheckField,
+  value: string
 ): Promise<InventoryFormState> {
   const profile = await getCurrentProfile();
   if (!profile) return { error: "يجب تسجيل الدخول" };
@@ -175,20 +181,22 @@ export async function updateDailyCheckField(
 
   const { data: existing } = await supabase
     .from("inventory_daily_checks")
-    .select("morning_checked, evening_checked, actual_quantity")
+    .select("found_quantity, opening_balance, used_quantity, damaged_lost_quantity, notes")
     .eq("tool_id", toolId)
     .eq("check_date", checkDate)
-    .maybeSingle<{ morning_checked: boolean; evening_checked: boolean; actual_quantity: string | null }>();
+    .maybeSingle<Record<DailyCheckField, string | null>>();
 
   const { error } = await supabase.from("inventory_daily_checks").upsert(
     {
       tool_id: toolId,
       organization_id: tool.organization_id,
       check_date: checkDate,
-      morning_checked: existing?.morning_checked ?? false,
-      evening_checked: existing?.evening_checked ?? false,
-      actual_quantity: existing?.actual_quantity ?? null,
-      [field]: value,
+      found_quantity: existing?.found_quantity ?? null,
+      opening_balance: existing?.opening_balance ?? null,
+      used_quantity: existing?.used_quantity ?? null,
+      damaged_lost_quantity: existing?.damaged_lost_quantity ?? null,
+      notes: existing?.notes ?? null,
+      [field]: value || null,
       checked_by: profile.id,
     },
     { onConflict: "tool_id,check_date" }
