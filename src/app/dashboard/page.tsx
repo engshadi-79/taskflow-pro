@@ -30,39 +30,30 @@ import { WORKFLOW_STATUS_LABEL, type WorkflowRequestStatus } from "@/lib/types/w
 import { timeAgo } from "@/lib/format-time-ago";
 import { parsePeriod, periodRange, PERIOD_LABEL, type ReportPeriod } from "@/lib/report-periods";
 
-/** Applies the optional employee/project dashboard filters to a tasks
- * query - loosely typed since PostgrestFilterBuilder's generics don't
- * survive a shared helper cleanly, same tradeoff Reports page's own
- * inline `let query = query.eq(...)` reassignments make implicitly. */
-function withDashboardFilters(
-  query: any, // eslint-disable-line @typescript-eslint/no-explicit-any
-  opts: {
-    employeeId: string | null;
-    employeeIds: string[] | null;
-    projectId: string | null;
-    status?: string | null;
-    priority?: string | null;
-  }
-) {
-  let q = query;
-  if (opts.employeeId) q = q.eq("assigned_to", opts.employeeId);
-  else if (opts.employeeIds) {
-    q = q.in("assigned_to", opts.employeeIds.length ? opts.employeeIds : ["00000000-0000-0000-0000-000000000000"]);
-  }
-  if (opts.projectId) q = q.eq("project_id", opts.projectId);
-  // composes as a real AND with any status a query already hard-codes
-  // (e.g. completedCount already filters status=completed) - selecting a
-  // different status here correctly zeroes that KPI out, the same way an
-  // incompatible employee+project combination already does
-  if (opts.status) q = q.eq("status", opts.status);
-  if (opts.priority) q = q.eq("priority", opts.priority);
-  return q;
-}
-
 type WeeklyTopEmployeeRow = { user_id: string; full_name: string; completed_count: number };
 type DistributionByDeptRow = { department_name: string; task_count: number };
 type DistributionByPriorityRow = { priority: Priority; task_count: number };
 type TrendRow = { day: string; completed_count: number };
+type SummaryCounts = {
+  employee_count: number;
+  total_members: number;
+  department_count: number;
+  completed_count: number;
+  total_count: number;
+  pending_count: number;
+  active_count: number;
+  team_overdue_count: number;
+  pending_review_count: number;
+  pending_approvals_count: number;
+  unread_count: number;
+  completed_this_week: number;
+  completed_last_week: number;
+  new_this_week: number;
+  new_last_week: number;
+  project_count: number;
+  my_overdue_count: number;
+  my_due_today_count: number;
+};
 type ActivityLogRow = {
   id: string;
   description: string;
@@ -341,30 +332,8 @@ export default async function DashboardPage({
     const { data } = await supabase.from("users").select("id").eq("department_id", params.department_id);
     departmentEmployeeIds = (data ?? []).map((u) => u.id);
   }
-  const filterOpts = {
-    employeeId: employeeIdFilter,
-    employeeIds: departmentEmployeeIds,
-    projectId: projectIdFilter,
-    status: statusFilter,
-    priority: priorityFilter,
-  };
-
   const [
-    { count: employeeCount },
-    { count: totalMembers },
-    { count: departmentCount },
-    { count: completedCount },
-    { count: totalCount },
-    { count: pendingCount },
-    { count: activeCount },
-    { count: teamOverdueCount },
-    { count: pendingReviewCount },
-    { count: pendingApprovalsCount },
-    { count: unreadCount },
-    { count: completedThisWeek },
-    { count: completedLastWeek },
-    { count: newThisWeek },
-    { count: newLastWeek },
+    { data: summaryRaw },
     { data: weeklyTopEmployeesRaw },
     { data: distributionRaw },
     { data: trendRaw },
@@ -373,84 +342,28 @@ export default async function DashboardPage({
     { data: workloadRows },
     { data: slaRows },
     { data: projectRows },
-    { count: projectCount },
     { data: pendingApprovalsRaw },
     { data: atRiskProjectsRaw },
     { data: departmentsForFilter },
     { data: projectsForFilter },
     { data: employeesForFilter },
-    { count: myOverdueCount },
-    { count: myDueTodayCount },
     { data: myUrgentTasksRaw },
     { data: notesRaw },
   ] = await Promise.all([
-    supabase.from("users").select("*", { count: "exact", head: true }).eq("role", "employee"),
-    supabase.from("users").select("*", { count: "exact", head: true }),
-    supabase.from("departments").select("*", { count: "exact", head: true }),
-    withDashboardFilters(
-      supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "completed"),
-      filterOpts
-    ),
-    withDashboardFilters(supabase.from("tasks").select("*", { count: "exact", head: true }), filterOpts),
-    withDashboardFilters(
-      supabase
-        .from("tasks")
-        .select("*", { count: "exact", head: true })
-        .in("status", ["new", "in_progress", "pending_review"]),
-      filterOpts
-    ),
-    withDashboardFilters(
-      supabase.from("tasks").select("*", { count: "exact", head: true }).in("status", ["new", "in_progress"]),
-      filterOpts
-    ),
-    // "overdue" is a real status value, not derived from due_date at read
-    // time - maintained by the mark_overdue_tasks() cron job
-    withDashboardFilters(
-      supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "overdue"),
-      filterOpts
-    ),
-    withDashboardFilters(
-      supabase.from("tasks").select("*", { count: "exact", head: true }).eq("status", "pending_review"),
-      filterOpts
-    ),
-    supabase
-      .from("workflow_requests")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "pending")
-      .neq("requested_by", profile.id),
-    supabase
-      .from("notifications")
-      .select("*", { count: "exact", head: true })
-      .eq("is_read", false),
-    withDashboardFilters(
-      supabase
-        .from("tasks")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "completed")
-        .gte("updated_at", weekAgo),
-      filterOpts
-    ),
-    withDashboardFilters(
-      supabase
-        .from("tasks")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "completed")
-        .gte("updated_at", twoWeeksAgo)
-        .lt("updated_at", weekAgo),
-      filterOpts
-    ),
-    withDashboardFilters(
-      supabase.from("tasks").select("*", { count: "exact", head: true }).gte("created_at", weekAgo),
-      filterOpts
-    ),
-    withDashboardFilters(
-      supabase
-        .from("tasks")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", twoWeeksAgo)
-        .lt("created_at", weekAgo),
-      filterOpts
-    ),
+    // Replaces ~18 separate count(*)-only round trips (users/departments/
+    // tasks×13/workflow_requests/notifications/projects) with one RPC call
+    // that computes them all server-side in a single request - see
+    // dashboard_summary_counts() in supabase/dashboard_extras.sql.
+    supabase.rpc("dashboard_summary_counts", {
+      p_employee_id: employeeIdFilter,
+      p_employee_ids: departmentEmployeeIds,
+      p_project_id: projectIdFilter,
+      p_status: statusFilter,
+      p_priority: priorityFilter,
+      p_since: weekAgo,
+      p_two_weeks_ago: twoWeeksAgo,
+      p_today: todayIso,
+    }),
     supabase.rpc("report_weekly_top_employees"),
     profile.role === "super_admin"
       ? supabase.rpc("report_task_distribution_by_department")
@@ -471,7 +384,6 @@ export default async function DashboardPage({
       .select("id, name, status")
       .order("created_at", { ascending: false })
       .limit(5),
-    supabase.from("projects").select("*", { count: "exact", head: true }),
     // leans on workflow_requests_select RLS instead of re-deriving
     // can_act_on_workflow_request()'s logic in JS: that policy already
     // returns "my own requests OR ones I can currently act on OR (if
@@ -501,18 +413,6 @@ export default async function DashboardPage({
     supabase.from("users").select("id, full_name").order("full_name"),
     supabase
       .from("tasks")
-      .select("*", { count: "exact", head: true })
-      .eq("assigned_to", profile.id)
-      .neq("status", "completed")
-      .lt("due_date", todayIso),
-    supabase
-      .from("tasks")
-      .select("*", { count: "exact", head: true })
-      .eq("assigned_to", profile.id)
-      .neq("status", "completed")
-      .eq("due_date", todayIso),
-    supabase
-      .from("tasks")
       .select("id, title, due_date")
       .eq("assigned_to", profile.id)
       .neq("status", "completed")
@@ -524,6 +424,26 @@ export default async function DashboardPage({
       .select("id, content, created_at")
       .order("created_at", { ascending: false }),
   ]);
+
+  const summary = (summaryRaw as SummaryCounts[] | null)?.[0];
+  const employeeCount = summary?.employee_count ?? 0;
+  const totalMembers = summary?.total_members ?? 0;
+  const departmentCount = summary?.department_count ?? 0;
+  const completedCount = summary?.completed_count ?? 0;
+  const totalCount = summary?.total_count ?? 0;
+  const pendingCount = summary?.pending_count ?? 0;
+  const activeCount = summary?.active_count ?? 0;
+  const teamOverdueCount = summary?.team_overdue_count ?? 0;
+  const pendingReviewCount = summary?.pending_review_count ?? 0;
+  const pendingApprovalsCount = summary?.pending_approvals_count ?? 0;
+  const unreadCount = summary?.unread_count ?? 0;
+  const completedThisWeek = summary?.completed_this_week ?? 0;
+  const completedLastWeek = summary?.completed_last_week ?? 0;
+  const newThisWeek = summary?.new_this_week ?? 0;
+  const newLastWeek = summary?.new_last_week ?? 0;
+  const projectCount = summary?.project_count ?? 0;
+  const myOverdueCount = summary?.my_overdue_count ?? 0;
+  const myDueTodayCount = summary?.my_due_today_count ?? 0;
 
   const completionRate =
     totalCount && totalCount > 0 ? Math.round(((completedCount ?? 0) / totalCount) * 100) : 0;
