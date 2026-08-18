@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { finalizeEmployeeKpiEvaluation, type KpiFormState } from "@/lib/actions/kpi";
+import { TrophyIcon } from "@/components/shared/icons";
 import { KPI_WEIGHTS } from "@/lib/types/kpi";
 
 const initialState: KpiFormState = {};
@@ -56,7 +57,14 @@ function FinalizeRow({ row }: { row: PendingRow }) {
 
 export function KpiPendingReviewList({ rows }: { rows: PendingRow[] }) {
   if (rows.length === 0) {
-    return <p className="text-[12.5px] text-muted">لا توجد تقييمات بانتظار مراجعتك</p>;
+    return (
+      <div className="flex flex-col items-center gap-2 py-6 text-center">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-background text-faint">
+          <TrophyIcon className="h-5 w-5" />
+        </span>
+        <p className="text-[13px] text-muted">لا توجد تقييمات بانتظار مراجعتك</p>
+      </div>
+    );
   }
   return (
     <div className="space-y-3">

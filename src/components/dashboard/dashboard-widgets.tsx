@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InboxIcon } from "@/components/shared/icons";
 
 type KpiTone = "orange" | "pink" | "green" | "purple";
 
@@ -34,7 +35,12 @@ export function MiniListPanel({
         </Link>
       </div>
       {rows.length === 0 ? (
-        <p className="text-sm text-muted">{emptyLabel}</p>
+        <div className="flex flex-col items-center gap-2 py-4 text-center">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-background text-faint">
+            <InboxIcon className="h-4.5 w-4.5" />
+          </span>
+          <p className="text-[12.5px] text-muted">{emptyLabel}</p>
+        </div>
       ) : (
         <div className="space-y-2.5">
           {rows.map((r) => (

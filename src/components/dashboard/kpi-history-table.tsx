@@ -1,3 +1,4 @@
+import { TrophyIcon } from "@/components/shared/icons";
 import { KPI_WEIGHTS } from "@/lib/types/kpi";
 
 type HistoryRow = {
@@ -15,7 +16,14 @@ type HistoryRow = {
 
 export function KpiHistoryTable({ rows, showEmployeeColumn = true }: { rows: HistoryRow[]; showEmployeeColumn?: boolean }) {
   if (rows.length === 0) {
-    return <p className="text-[12.5px] text-muted">لا توجد تقييمات معتمَدة بعد</p>;
+    return (
+      <div className="flex flex-col items-center gap-2 py-6 text-center">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-background text-faint">
+          <TrophyIcon className="h-5 w-5" />
+        </span>
+        <p className="text-[13px] text-muted">لا توجد تقييمات معتمَدة بعد</p>
+      </div>
+    );
   }
 
   return (
@@ -34,7 +42,7 @@ export function KpiHistoryTable({ rows, showEmployeeColumn = true }: { rows: His
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.id} className="border-t border-border">
+            <tr key={r.id} className="border-t border-border transition-colors hover:bg-background">
               {showEmployeeColumn && <td className="px-2 py-2.5 font-medium text-foreground">{r.employee_name ?? "—"}</td>}
               <td className="px-2 py-2.5 text-muted">{r.period_start} - {r.period_end}</td>
               <td className="px-2 py-2.5 text-muted">{r.completion_score}٪</td>

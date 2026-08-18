@@ -6,6 +6,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
 } from "@/lib/actions/notifications";
+import { BellIcon } from "@/components/shared/icons";
 import type { Notification } from "@/lib/types/notification";
 
 export function NotificationsList({ notifications }: { notifications: Notification[] }) {
@@ -31,10 +32,14 @@ export function NotificationsList({ notifications }: { notifications: Notificati
         {items.map((notification) => {
           const card = (
             <div
-              className={`rounded-lg border p-4 text-sm ${
-                notification.is_read
-                  ? "border-border bg-surface"
-                  : "border-accent-300 bg-accent-50"
+              className={`rounded-[14px] border p-4 text-sm transition-colors ${
+                notification.is_read ? "border-border bg-surface" : "border-accent-300 bg-accent-50"
+              } ${
+                notification.task_id
+                  ? notification.is_read
+                    ? "hover:bg-background"
+                    : "hover:bg-accent-100"
+                  : ""
               }`}
             >
               {notification.title && (
@@ -68,7 +73,14 @@ export function NotificationsList({ notifications }: { notifications: Notificati
             </li>
           );
         })}
-        {items.length === 0 && <p className="text-sm text-muted">لا توجد إشعارات</p>}
+        {items.length === 0 && (
+          <li className="flex flex-col items-center gap-2 py-10 text-center">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-background text-faint">
+              <BellIcon className="h-5 w-5" />
+            </span>
+            <p className="text-[13px] text-muted">لا توجد إشعارات</p>
+          </li>
+        )}
       </ul>
     </div>
   );

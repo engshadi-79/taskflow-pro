@@ -62,8 +62,13 @@ export default async function DecisionsPage({
       </PageHeader>
 
       {insights.length === 0 ? (
-        <div className="rounded-[18px] border border-border bg-surface p-10 text-center text-muted">
-          لا توجد تغيّرات ملحوظة مقارنة بالفترة السابقة — كل المؤشرات ضمن نطاقها المعتاد.
+        <div className="flex flex-col items-center gap-2 rounded-[18px] border border-border bg-surface p-10 text-center">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-background text-faint">
+            <AlertIcon className="h-5 w-5" />
+          </span>
+          <p className="text-[13px] text-muted">
+            لا توجد تغيّرات ملحوظة مقارنة بالفترة السابقة — كل المؤشرات ضمن نطاقها المعتاد.
+          </p>
         </div>
       ) : (
         <div className="mb-4.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">

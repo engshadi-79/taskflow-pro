@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { actOnWorkflowRequest, bulkApproveWorkflowRequests } from "@/lib/actions/workflow";
+import { GearIcon } from "@/components/shared/icons";
 import { PRIORITY_LABEL, type Priority } from "@/lib/types/task";
 
 type RequestRow = {
@@ -98,7 +99,12 @@ export function ApprovalsInbox({ requests }: { requests: RequestRow[] }) {
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
       {requests.length === 0 ? (
-        <p className="text-sm text-muted">لا توجد طلبات بانتظار موافقتك</p>
+        <div className="flex flex-col items-center gap-2 py-6 text-center">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-background text-faint">
+            <GearIcon className="h-5 w-5" />
+          </span>
+          <p className="text-[13px] text-muted">لا توجد طلبات بانتظار موافقتك</p>
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -116,7 +122,7 @@ export function ApprovalsInbox({ requests }: { requests: RequestRow[] }) {
             </thead>
             <tbody>
               {requests.map((r) => (
-                <tr key={r.id} className="border-t border-border">
+                <tr key={r.id} className="border-t border-border transition-colors hover:bg-background">
                   <td className="px-2 py-2.5">
                     <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
                   </td>
