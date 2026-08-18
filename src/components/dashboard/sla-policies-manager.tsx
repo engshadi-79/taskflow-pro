@@ -100,8 +100,13 @@ export function SlaPoliciesManager({
             ))}
             {policies.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-muted">
-                  لا توجد سياسات بعد
+                <td colSpan={6} className="px-4 py-10">
+                  <div className="flex flex-col items-center gap-2 text-center">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-background text-faint">
+                      <ClockIcon className="h-5 w-5" />
+                    </span>
+                    <p className="text-[13px] text-muted">لا توجد سياسات بعد</p>
+                  </div>
                 </td>
               </tr>
             )}
@@ -171,7 +176,7 @@ function PolicyRow({
   }
 
   return (
-    <tr className="border-t border-border">
+    <tr className="border-t border-border transition-colors hover:bg-background">
       <td className="px-4 py-3 text-foreground">{policy.name}</td>
       <td className="px-4 py-3 text-muted">{PRIORITY_LABEL[policy.priority]}</td>
       <td className="px-4 py-3 text-muted">{policy.response_minutes} د</td>

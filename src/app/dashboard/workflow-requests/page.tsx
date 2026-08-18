@@ -65,7 +65,7 @@ export default async function WorkflowRequestsPage() {
           </thead>
           <tbody>
             {(requests ?? []).map((req) => (
-              <tr key={req.id} className="border-t border-border">
+              <tr key={req.id} className="border-t border-border transition-colors hover:bg-background">
                 <td className="px-1.5 py-4">
                   <Link href={`/dashboard/workflow-requests/${req.id}`} className="font-medium text-foreground hover:text-accent-600">
                     {req.title}
@@ -85,8 +85,13 @@ export default async function WorkflowRequestsPage() {
             ))}
             {(requests ?? []).length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-muted">
-                  لا توجد طلبات
+                <td colSpan={6} className="px-4 py-10">
+                  <div className="flex flex-col items-center gap-2 text-center">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-background text-faint">
+                      <GearIcon className="h-5 w-5" />
+                    </span>
+                    <p className="text-[13px] text-muted">لا توجد طلبات</p>
+                  </div>
                 </td>
               </tr>
             )}

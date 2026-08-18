@@ -139,7 +139,7 @@ export default async function WorkloadPage({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.user_id} className="border-t border-border">
+              <tr key={row.user_id} className="border-t border-border transition-colors hover:bg-background">
                 <td className="px-1.5 py-4 font-medium text-foreground">{row.full_name}</td>
                 <td className="px-1.5 py-4 text-muted">{row.open_count}</td>
                 <td className={`px-1.5 py-4 ${row.urgent_count > 0 ? "font-semibold text-brand-red-500" : "text-muted"}`}>
@@ -171,8 +171,13 @@ export default async function WorkloadPage({
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-muted">
-                  لا يوجد موظفون مطابقون
+                <td colSpan={7} className="px-4 py-10">
+                  <div className="flex flex-col items-center gap-2 text-center">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-background text-faint">
+                      <ChartIcon className="h-5 w-5" />
+                    </span>
+                    <p className="text-[13px] text-muted">لا يوجد موظفون مطابقون</p>
+                  </div>
                 </td>
               </tr>
             )}

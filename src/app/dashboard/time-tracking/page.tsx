@@ -160,7 +160,7 @@ export default async function TimeTrackingReportPage({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.user_id} className="border-t border-border">
+              <tr key={row.user_id} className="border-t border-border transition-colors hover:bg-background">
                 <td className="px-1.5 py-4 font-medium text-foreground">{row.full_name}</td>
                 <td className="px-1.5 py-4 text-muted">{row.entry_count}</td>
                 <td className="px-1.5 py-4 font-bold text-accent-600">{formatHours(Number(row.total_seconds))}</td>
@@ -168,8 +168,13 @@ export default async function TimeTrackingReportPage({
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-muted">
-                  لا توجد بيانات مطابقة
+                <td colSpan={3} className="px-4 py-10">
+                  <div className="flex flex-col items-center gap-2 text-center">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-background text-faint">
+                      <ClockIcon className="h-5 w-5" />
+                    </span>
+                    <p className="text-[13px] text-muted">لا توجد بيانات مطابقة</p>
+                  </div>
                 </td>
               </tr>
             )}

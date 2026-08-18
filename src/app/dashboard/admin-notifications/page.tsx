@@ -146,7 +146,7 @@ export default async function AdminNotificationsPage() {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className="border-t border-border">
+              <tr key={row.id} className="border-t border-border transition-colors hover:bg-background">
                 <td className="px-4 py-3">
                   <Link href={`/dashboard/admin-notifications/${row.id}`} className="font-bold text-foreground hover:text-accent-600">
                     {row.title}
@@ -172,8 +172,13 @@ export default async function AdminNotificationsPage() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-muted">
-                  لا توجد إشعارات إدارية بعد
+                <td colSpan={7} className="px-4 py-10">
+                  <div className="flex flex-col items-center gap-2 text-center">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-background text-faint">
+                      <AlertIcon className="h-5 w-5" />
+                    </span>
+                    <p className="text-[13px] text-muted">لا توجد إشعارات إدارية بعد</p>
+                  </div>
                 </td>
               </tr>
             )}
