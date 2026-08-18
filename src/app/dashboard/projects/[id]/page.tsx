@@ -8,7 +8,7 @@ import { ProjectMilestones } from "@/components/dashboard/project-milestones";
 import { ProjectTeam } from "@/components/dashboard/project-team";
 import { TaskList } from "@/components/dashboard/task-list";
 import { KanbanBoard } from "@/components/dashboard/kanban-board";
-import { InventoryTrackPanel } from "@/components/dashboard/inventory-track-panel";
+import { InventoryTrackTabs } from "@/components/dashboard/inventory-track-tabs";
 import { InventoryProjectLinker } from "@/components/dashboard/inventory-project-linker";
 import { BriefcaseIcon, CalendarIcon, DownloadIcon, UserIcon } from "@/components/shared/icons";
 import { PageHeader, HeaderChip } from "@/components/shared/page-header";
@@ -265,18 +265,15 @@ export default async function ProjectDetailPage({
             لا يوجد مسار جرد مرتبط بهذا المشروع بعد
           </div>
         ) : (
-          linkedTracks.map((track) => (
-            <InventoryTrackPanel
-              key={track.id}
-              track={track}
-              tools={inventoryToolsByTrack.get(track.id) ?? []}
-              initialChecks={inventoryChecksByTrack.get(track.id) ?? []}
-              todayIso={todayIso}
-              isSuperAdmin={profile.role === "super_admin"}
-              currentUserId={profile.id}
-              employees={(employees ?? []).map((e) => ({ id: e.id, full_name: e.full_name }))}
-            />
-          ))
+          <InventoryTrackTabs
+            tracks={linkedTracks}
+            toolsByTrack={Object.fromEntries(inventoryToolsByTrack)}
+            checksByTrack={Object.fromEntries(inventoryChecksByTrack)}
+            todayIso={todayIso}
+            isSuperAdmin={profile.role === "super_admin"}
+            currentUserId={profile.id}
+            employees={(employees ?? []).map((e) => ({ id: e.id, full_name: e.full_name }))}
+          />
         )}
       </div>
     ),
