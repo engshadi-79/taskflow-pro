@@ -238,7 +238,7 @@ export default async function ProfileDetailPage({
                   </thead>
                   <tbody>
                     {tasks.map((task) => (
-                      <tr key={task.id} className="border-t border-border">
+                      <tr key={task.id} className="border-t border-border transition-colors hover:bg-background">
                         <td className="px-1.5 py-3">
                           <Link
                             href={`/dashboard/tasks/${task.id}`}
@@ -258,7 +258,12 @@ export default async function ProfileDetailPage({
                 </table>
               </div>
             ) : (
-              <p className="text-sm text-muted">لا توجد مهام حالية</p>
+              <div className="flex flex-col items-center gap-2 py-6 text-center">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-background text-faint">
+                  <CheckSquareIcon className="h-5 w-5" />
+                </span>
+                <p className="text-[13px] text-muted">لا توجد مهام حالية</p>
+              </div>
             )}
           </div>
         </div>

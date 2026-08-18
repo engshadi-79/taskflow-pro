@@ -79,8 +79,11 @@ export default async function HelpCenterPage() {
           </h2>
           <div className="flex flex-col gap-2.5">
             {recent.length === 0 && (
-              <div className="rounded-[16px] border border-border bg-surface p-8 text-center text-[13px] text-muted">
-                لا توجد مقالات منشورة بعد
+              <div className="flex flex-col items-center gap-2 rounded-[16px] border border-border bg-surface p-8 text-center">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-background text-faint">
+                  <ClockIcon className="h-5 w-5" />
+                </span>
+                <p className="text-[13px] text-muted">لا توجد مقالات منشورة بعد</p>
               </div>
             )}
             {recent.map((a) => (
