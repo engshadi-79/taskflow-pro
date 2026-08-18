@@ -384,3 +384,11 @@ export const BookIcon = (p: IconProps) => (
     <path d="M7.5 3H20v19H7.5A2.5 2.5 0 0 1 5 19.5v-14A2.5 2.5 0 0 1 7.5 3Z" />
   </Svg>
 );
+
+export const ClipboardIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="5" y="4" width="14" height="17" rx="2" />
+    <path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" />
+    <path d="M9 11h6M9 15h6M9 19h3" />
+  </Svg>
+);
