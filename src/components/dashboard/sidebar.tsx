@@ -15,7 +15,6 @@ import {
   CheckCircleIcon,
   CheckSquareIcon,
   ChevronDownIcon,
-  ClipboardIcon,
   ClockIcon,
   CloseIcon,
   FolderIcon,
@@ -44,8 +43,7 @@ type IconKey =
   | "calendar"
   | "check"
   | "chat"
-  | "help"
-  | "clipboard";
+  | "help";
 
 type NavItem = {
   href: string;
@@ -75,7 +73,6 @@ const ICONS: Record<IconKey, (p: { className?: string }) => React.ReactElement> 
   check: CheckCircleIcon,
   chat: ChatIcon,
   help: HelpIcon,
-  clipboard: ClipboardIcon,
 };
 
 // Icon colours on the dark rail, mirroring the ACAS portal's multi-hue nav.
@@ -185,12 +182,6 @@ const TIME_TRACKING: NavItem = {
   icon: "clock",
   tone: "amber",
 };
-const INVENTORY: NavItem = {
-  href: "/dashboard/inventory",
-  label: "جرد الأدوات",
-  icon: "clipboard",
-  tone: "green",
-};
 const PERFORMANCE: NavItem = {
   href: "/dashboard/performance",
   label: "الأداء والمؤشرات",
@@ -267,7 +258,7 @@ const ORG_SETTINGS: NavItem = {
 const NAV_BY_ROLE: Record<Role, NavSection[]> = {
   super_admin: [
     { label: "التنقل", items: [DASHBOARD] },
-    { label: "إدارة المهام", items: [TASKS, KANBAN, CALENDAR, PROJECTS, WORKLOAD, TIME_TRACKING, INVENTORY] },
+    { label: "إدارة المهام", items: [TASKS, KANBAN, CALENDAR, PROJECTS, WORKLOAD, TIME_TRACKING] },
     { label: "التواصل والمعرفة", items: [MEETINGS, CHAT, KNOWLEDGE, HELP_CENTER] },
     { label: "الفريق والتنظيم", items: [TEAM, DEPARTMENTS] },
     {
@@ -279,7 +270,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
   ],
   department_manager: [
     { label: "التنقل", items: [DASHBOARD] },
-    { label: "إدارة المهام", items: [TASKS, KANBAN, CALENDAR, PROJECTS, WORKLOAD, TIME_TRACKING, INVENTORY] },
+    { label: "إدارة المهام", items: [TASKS, KANBAN, CALENDAR, PROJECTS, WORKLOAD, TIME_TRACKING] },
     { label: "التواصل والمعرفة", items: [MEETINGS, CHAT, KNOWLEDGE, HELP_CENTER] },
     { label: "الفريق", items: [TEAM] },
     { label: "الطلبات وسير العمل", items: [WORKFLOW_REQUESTS, APPROVALS] },
@@ -288,7 +279,7 @@ const NAV_BY_ROLE: Record<Role, NavSection[]> = {
   ],
   employee: [
     { label: "التنقل", items: [{ ...DASHBOARD, label: "مهامي" }] },
-    { label: "إدارة المهام", items: [KANBAN, CALENDAR, PROJECTS, INVENTORY] },
+    { label: "إدارة المهام", items: [KANBAN, CALENDAR, PROJECTS] },
     { label: "التواصل والمعرفة", items: [MEETINGS, CHAT, KNOWLEDGE, HELP_CENTER] },
     { label: "الطلبات والأداء", items: [WORKFLOW_REQUESTS, PERFORMANCE] },
     { label: "المستخدمون", items: [PROFILE, NOTIFICATIONS] },

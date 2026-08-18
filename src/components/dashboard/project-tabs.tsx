@@ -8,6 +8,7 @@ const TABS = [
   { key: "kanban", label: "كانبان" },
   { key: "milestones", label: "المراحل" },
   { key: "team", label: "الفريق" },
+  { key: "inventory", label: "جرد الأدوات" },
   { key: "files", label: "الملفات" },
   { key: "activity", label: "النشاط" },
 ] as const;

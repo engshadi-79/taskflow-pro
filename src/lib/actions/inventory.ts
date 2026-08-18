@@ -2,10 +2,24 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { requireRole } from "@/lib/actions/guards";
 
 export type InventoryFormState = { error?: string };
+
+/** The inventory tab only exists on the project a track is linked to -
+ * revalidate that project's page (a track with no project isn't shown
+ * anywhere, so there's nothing to revalidate in that case). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function revalidateTrackProject(supabase: SupabaseClient<any>, trackId: string) {
+  const { data: track } = await supabase
+    .from("inventory_tracks")
+    .select("project_id")
+    .eq("id", trackId)
+    .single();
+  if (track?.project_id) revalidatePath(`/dashboard/projects/${track.project_id}`);
+}
 
 export async function assignTrackResponsible(trackId: string, userId: string | null) {
   await requireRole(["super_admin"]);
@@ -18,7 +32,29 @@ export async function assignTrackResponsible(trackId: string, userId: string | n
 
   if (error) return { error: "تعذر إسناد المسار" };
 
-  revalidatePath("/dashboard/inventory");
+  await revalidateTrackProject(supabase, trackId);
+  return {};
+}
+
+export async function assignTrackProject(trackId: string, projectId: string | null) {
+  await requireRole(["super_admin"]);
+
+  const supabase = await createClient();
+  const { data: previous } = await supabase
+    .from("inventory_tracks")
+    .select("project_id")
+    .eq("id", trackId)
+    .single();
+
+  const { error } = await supabase
+    .from("inventory_tracks")
+    .update({ project_id: projectId })
+    .eq("id", trackId);
+
+  if (error) return { error: "تعذر ربط المسار بالمشروع" };
+
+  if (previous?.project_id) revalidatePath(`/dashboard/projects/${previous.project_id}`);
+  if (projectId) revalidatePath(`/dashboard/projects/${projectId}`);
   return {};
 }
 
@@ -48,7 +84,7 @@ export async function createInventoryTool(
 
   if (error) return { error: "تعذر إضافة الأداة" };
 
-  revalidatePath("/dashboard/inventory");
+  await revalidateTrackProject(supabase, trackId);
   return {};
 }
 
@@ -68,6 +104,12 @@ export async function updateInventoryTool(
   }
 
   const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from("inventory_tools")
+    .select("track_id")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabase
     .from("inventory_tools")
     .update({ name, unit, total_quantity: totalQuantity })
@@ -75,7 +117,7 @@ export async function updateInventoryTool(
 
   if (error) return { error: "تعذر تحديث الأداة" };
 
-  revalidatePath("/dashboard/inventory");
+  if (existing?.track_id) await revalidateTrackProject(supabase, existing.track_id);
   return {};
 }
 
@@ -83,9 +125,15 @@ export async function deleteInventoryTool(id: string) {
   await requireRole(["super_admin"]);
 
   const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from("inventory_tools")
+    .select("track_id")
+    .eq("id", id)
+    .single();
+
   await supabase.from("inventory_tools").delete().eq("id", id);
 
-  revalidatePath("/dashboard/inventory");
+  if (existing?.track_id) await revalidateTrackProject(supabase, existing.track_id);
 }
 
 export async function upsertDailyCheck(
@@ -100,9 +148,13 @@ export async function upsertDailyCheck(
 
   const { data: tool } = await supabase
     .from("inventory_tools")
-    .select("id, organization_id, track:inventory_tracks(responsible_user_id)")
+    .select("id, organization_id, track:inventory_tracks(responsible_user_id, project_id)")
     .eq("id", toolId)
-    .single<{ id: string; organization_id: string; track: { responsible_user_id: string | null } | null }>();
+    .single<{
+      id: string;
+      organization_id: string;
+      track: { responsible_user_id: string | null; project_id: string | null } | null;
+    }>();
 
   if (!tool) return { error: "الأداة غير موجودة" };
 
@@ -127,6 +179,6 @@ export async function upsertDailyCheck(
 
   if (error) return { error: "تعذر حفظ الجرد" };
 
-  revalidatePath("/dashboard/inventory");
+  if (tool.track?.project_id) revalidatePath(`/dashboard/projects/${tool.track.project_id}`);
   return {};
 }

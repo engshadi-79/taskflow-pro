@@ -3,6 +3,7 @@ export type InventoryTrack = {
   organization_id: string;
   name: string;
   responsible_user_id: string | null;
+  project_id: string | null;
   created_at: string;
 };
 

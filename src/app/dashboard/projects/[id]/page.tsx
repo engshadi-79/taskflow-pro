@@ -8,6 +8,8 @@ import { ProjectMilestones } from "@/components/dashboard/project-milestones";
 import { ProjectTeam } from "@/components/dashboard/project-team";
 import { TaskList } from "@/components/dashboard/task-list";
 import { KanbanBoard } from "@/components/dashboard/kanban-board";
+import { InventoryTrackPanel } from "@/components/dashboard/inventory-track-panel";
+import { InventoryProjectLinker } from "@/components/dashboard/inventory-project-linker";
 import { BriefcaseIcon, CalendarIcon, DownloadIcon, UserIcon } from "@/components/shared/icons";
 import { PageHeader, HeaderChip } from "@/components/shared/page-header";
 import {
@@ -18,6 +20,7 @@ import {
   type ProjectTaskStats,
 } from "@/lib/types/project";
 import { PRIORITY_LABEL, type TaskWithAssignee } from "@/lib/types/task";
+import type { InventoryDailyCheck, InventoryTool, InventoryTrack } from "@/lib/types/inventory";
 
 export default async function ProjectDetailPage({
   params,
@@ -61,6 +64,7 @@ export default async function ProjectDetailPage({
     { data: departments },
     { data: statsRows },
     { data: activity },
+    { data: inventoryTracksRaw },
   ] = await Promise.all([
     supabase
       .from("tasks")
@@ -90,6 +94,15 @@ export default async function ProjectDetailPage({
       .eq("entity_id", id)
       .order("created_at", { ascending: false })
       .returns<{ id: string; description: string | null; action_type: string; created_at: string }[]>(),
+    // RLS already scopes this to every track for super_admin, or only the
+    // track(s) this specific viewer is personally responsible for - the
+    // linker below (super_admin only) offers whichever of those aren't
+    // already linked to this project.
+    supabase
+      .from("inventory_tracks")
+      .select("*, responsible:users!inventory_tracks_responsible_user_id_fkey(id, full_name)")
+      .order("name")
+      .returns<(InventoryTrack & { responsible: { id: string; full_name: string } | null })[]>(),
   ]);
 
   const stats = (statsRows as ProjectTaskStats[] | null)?.[0] ?? {
@@ -121,6 +134,47 @@ export default async function ProjectDetailPage({
       return { ...attachment, signedUrl: data?.signedUrl ?? null };
     })
   );
+
+  const inventoryTracks = inventoryTracksRaw ?? [];
+  const linkedTracks = inventoryTracks.filter((t) => t.project_id === id);
+  const availableTracks = inventoryTracks.filter((t) => t.project_id !== id);
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const inventoryToolsByTrack = new Map<string, InventoryTool[]>();
+  const inventoryChecksByTrack = new Map<string, InventoryDailyCheck[]>();
+
+  if (linkedTracks.length > 0) {
+    const { data: toolsData } = await supabase
+      .from("inventory_tools")
+      .select("*")
+      .in(
+        "track_id",
+        linkedTracks.map((t) => t.id)
+      )
+      .order("position")
+      .returns<InventoryTool[]>();
+    const allTools = toolsData ?? [];
+    for (const track of linkedTracks) {
+      inventoryToolsByTrack.set(track.id, allTools.filter((tool) => tool.track_id === track.id));
+    }
+
+    if (allTools.length > 0) {
+      const { data: checksData } = await supabase
+        .from("inventory_daily_checks")
+        .select("*")
+        .eq("check_date", todayIso)
+        .in(
+          "tool_id",
+          allTools.map((t) => t.id)
+        )
+        .returns<InventoryDailyCheck[]>();
+      const allChecks = checksData ?? [];
+      for (const track of linkedTracks) {
+        const toolIds = new Set((inventoryToolsByTrack.get(track.id) ?? []).map((t) => t.id));
+        inventoryChecksByTrack.set(track.id, allChecks.filter((c) => toolIds.has(c.tool_id)));
+      }
+    }
+  }
 
   const panels: Record<ProjectTabKey, React.ReactNode> = {
     overview: (
@@ -200,6 +254,31 @@ export default async function ProjectDetailPage({
         employees={nonMembers}
         canManage={canManageProject}
       />
+    ),
+    inventory: (
+      <div className="space-y-4.5">
+        {profile.role === "super_admin" && (
+          <InventoryProjectLinker projectId={project.id} availableTracks={availableTracks} />
+        )}
+        {linkedTracks.length === 0 ? (
+          <div className="rounded-[18px] border border-border bg-surface p-10 text-center text-muted">
+            لا يوجد مسار جرد مرتبط بهذا المشروع بعد
+          </div>
+        ) : (
+          linkedTracks.map((track) => (
+            <InventoryTrackPanel
+              key={track.id}
+              track={track}
+              tools={inventoryToolsByTrack.get(track.id) ?? []}
+              initialChecks={inventoryChecksByTrack.get(track.id) ?? []}
+              todayIso={todayIso}
+              isSuperAdmin={profile.role === "super_admin"}
+              currentUserId={profile.id}
+              employees={(employees ?? []).map((e) => ({ id: e.id, full_name: e.full_name }))}
+            />
+          ))
+        )}
+      </div>
     ),
     files: (
       <ul className="space-y-2">

@@ -20,11 +20,16 @@ create table public.inventory_tracks (
   organization_id uuid not null references public.organizations(id) on delete cascade,
   name text not null,
   responsible_user_id uuid references public.users(id) on delete set null,
+  -- which project this track's inventory tab shows under - a track with no
+  -- project isn't surfaced anywhere in the UI until an admin links it from
+  -- that project's "جرد الأدوات" tab (see inventory_project_link.sql).
+  project_id uuid references public.projects(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
 create index inventory_tracks_organization_id_idx on public.inventory_tracks(organization_id);
 create index inventory_tracks_responsible_user_id_idx on public.inventory_tracks(responsible_user_id);
+create index inventory_tracks_project_id_idx on public.inventory_tracks(project_id);
 
 alter table public.inventory_tracks enable row level security;
 
