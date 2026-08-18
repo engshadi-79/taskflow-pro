@@ -1,7 +1,13 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types/roles";
 
-export async function getCurrentProfile(): Promise<Profile | null> {
+// Both the dashboard layout and virtually every page call this once each
+// per navigation - React's cache() deduplicates those into a single
+// getUser() + profile/permissions round trip per request instead of two,
+// without risking staleness across separate navigations (the cache only
+// lives for the duration of one request's render).
+export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
   const supabase = await createClient();
 
   const {
@@ -26,4 +32,4 @@ export async function getCurrentProfile(): Promise<Profile | null> {
   if (!profile) return null;
 
   return { ...profile, permissionKeys: permissionKeys ?? [] };
-}
+});

@@ -1,14 +1,17 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Organization } from "@/lib/types/organization";
 
 /** organizations_select RLS already scopes this to exactly the caller's
- * own org - no .eq() needed, there's only ever one visible row. */
-export async function getCurrentOrganization(): Promise<Organization | null> {
+ * own org - no .eq() needed, there's only ever one visible row.
+ * cache()'d for the same reason as getCurrentProfile - dedupes repeat
+ * calls within one request instead of re-querying per caller. */
+export const getCurrentOrganization = cache(async (): Promise<Organization | null> => {
   const supabase = await createClient();
   const { data } = await supabase.from("organizations").select("*").single<Organization>();
   return data;
-}
+});
 
 /**
  * Pre-login branding only (name + logo) - the /login page has no
