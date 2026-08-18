@@ -14,6 +14,7 @@ export type InventoryTool = {
   name: string;
   unit: string | null;
   total_quantity: string | null;
+  group_label: string | null;
   position: number;
   created_at: string;
 };
@@ -23,8 +24,8 @@ export type InventoryDailyCheck = {
   tool_id: string;
   organization_id: string;
   check_date: string;
-  morning_quantity: string | null;
-  evening_quantity: string | null;
+  morning_checked: boolean;
+  evening_checked: boolean;
   actual_quantity: string | null;
   checked_by: string | null;
   updated_at: string;

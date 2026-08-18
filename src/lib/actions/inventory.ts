@@ -68,6 +68,7 @@ export async function createInventoryTool(
   const name = (formData.get("name") as string)?.trim();
   const unit = (formData.get("unit") as string)?.trim() || null;
   const totalQuantity = (formData.get("total_quantity") as string)?.trim() || null;
+  const groupLabel = (formData.get("group_label") as string)?.trim() || null;
 
   if (!trackId || !name) {
     return { error: "اسم الأداة مطلوب" };
@@ -80,6 +81,7 @@ export async function createInventoryTool(
     name,
     unit,
     total_quantity: totalQuantity,
+    group_label: groupLabel,
   });
 
   if (error) return { error: "تعذر إضافة الأداة" };
@@ -98,6 +100,7 @@ export async function updateInventoryTool(
   const name = (formData.get("name") as string)?.trim();
   const unit = (formData.get("unit") as string)?.trim() || null;
   const totalQuantity = (formData.get("total_quantity") as string)?.trim() || null;
+  const groupLabel = (formData.get("group_label") as string)?.trim() || null;
 
   if (!name) {
     return { error: "اسم الأداة مطلوب" };
@@ -112,7 +115,7 @@ export async function updateInventoryTool(
 
   const { error } = await supabase
     .from("inventory_tools")
-    .update({ name, unit, total_quantity: totalQuantity })
+    .update({ name, unit, total_quantity: totalQuantity, group_label: groupLabel })
     .eq("id", id);
 
   if (error) return { error: "تعذر تحديث الأداة" };
@@ -136,10 +139,16 @@ export async function deleteInventoryTool(id: string) {
   if (existing?.track_id) await revalidateTrackProject(supabase, existing.track_id);
 }
 
-export async function upsertDailyCheck(
+/** Saves exactly one field of one day's check the moment it changes -
+ * mirrors a checkbox toggling instantly and an actual-quantity input
+ * autosaving on a debounce, rather than a single explicit "save the whole
+ * row" button. Reads the existing row first so touching one field doesn't
+ * reset the other two back to their defaults. */
+export async function updateDailyCheckField(
   toolId: string,
   checkDate: string,
-  values: { morning?: string; evening?: string; actual?: string }
+  field: "morning_checked" | "evening_checked" | "actual_quantity",
+  value: boolean | string
 ): Promise<InventoryFormState> {
   const profile = await getCurrentProfile();
   if (!profile) return { error: "يجب تسجيل الدخول" };
@@ -164,14 +173,22 @@ export async function upsertDailyCheck(
     return { error: "غير مصرح لك بتعديل جرد هذا المسار" };
   }
 
+  const { data: existing } = await supabase
+    .from("inventory_daily_checks")
+    .select("morning_checked, evening_checked, actual_quantity")
+    .eq("tool_id", toolId)
+    .eq("check_date", checkDate)
+    .maybeSingle<{ morning_checked: boolean; evening_checked: boolean; actual_quantity: string | null }>();
+
   const { error } = await supabase.from("inventory_daily_checks").upsert(
     {
       tool_id: toolId,
       organization_id: tool.organization_id,
       check_date: checkDate,
-      morning_quantity: values.morning ?? null,
-      evening_quantity: values.evening ?? null,
-      actual_quantity: values.actual ?? null,
+      morning_checked: existing?.morning_checked ?? false,
+      evening_checked: existing?.evening_checked ?? false,
+      actual_quantity: existing?.actual_quantity ?? null,
+      [field]: value,
       checked_by: profile.id,
     },
     { onConflict: "tool_id,check_date" }
