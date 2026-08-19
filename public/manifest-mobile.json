@@ -1,0 +1,20 @@
+{
+  "name": "منجز - تطبيق الجوال",
+  "short_name": "منجز",
+  "description": "تطبيق منجز للجوال - المهام والمشاريع والفريق من هاتفك",
+  "start_url": "/m",
+  "scope": "/m",
+  "id": "/m",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "dir": "rtl",
+  "lang": "ar",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

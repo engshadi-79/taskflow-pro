@@ -1,7 +1,15 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
 import { MobileTabBar } from "@/components/mobile/mobile-tab-bar";
+
+// A dedicated manifest (start_url/scope "/m") lets this surface be packaged
+// on its own - e.g. via PWABuilder - as an app that opens straight into the
+// mobile UI, separate from the desktop dashboard's own manifest.json.
+export const metadata: Metadata = {
+  manifest: "/manifest-mobile.json",
+};
 
 /**
  * Auth gate mirrors src/app/dashboard/layout.tsx exactly - this is a
