@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { signOut } from "@/lib/actions/auth";
@@ -36,12 +37,12 @@ export default async function MobileSettingsPage() {
 
         <div>
           <div className="mb-2.5 text-[12px] font-extrabold text-faint">أخرى</div>
-          <a
-            href="/dashboard/settings"
+          <Link
+            href="/m/profile"
             className="block rounded-[14px] bg-surface p-3.5 text-[13px] font-bold text-foreground shadow-[0_4px_12px_rgba(30,41,59,.05)]"
           >
-            إعدادات إضافية (الإشعارات، الحساب، الخطة)
-          </a>
+            الملف الشخصي وبيانات التواصل
+          </Link>
         </div>
 
         <form action={signOut}>
