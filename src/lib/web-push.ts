@@ -19,13 +19,18 @@ export type PushSubscriptionRow = { endpoint: string; p256dh: string; auth: stri
 
 export type PushPayload = { title: string; body: string; url?: string; tag?: string };
 
+export type SendPushResult =
+  | { ok: true }
+  | { ok: false; dead: true; statusCode: number }
+  | { ok: false; dead: false; statusCode?: number; message: string };
+
 /**
- * true = delivered (or queued by the push service); false = the
- * subscription is dead (410 Gone / 404) and the caller should delete it -
- * anything else just gets logged, since a transient push-service failure
- * shouldn't silently drop the subscription.
+ * dead:true (410 Gone / 404) means the subscription itself no longer
+ * exists at the push service - the caller should delete it. Any other
+ * failure is surfaced with its real status/message instead of being
+ * swallowed, so a misconfiguration doesn't masquerade as "delivered".
  */
-export async function sendPush(subscription: PushSubscriptionRow, payload: PushPayload): Promise<boolean> {
+export async function sendPush(subscription: PushSubscriptionRow, payload: PushPayload): Promise<SendPushResult> {
   try {
     ensureVapidConfigured();
     await webpush.sendNotification(
@@ -41,11 +46,13 @@ export async function sendPush(subscription: PushSubscriptionRow, payload: PushP
       // Android skins (MIUI, EMUI, ColorOS, ...).
       { urgency: "high", TTL: 60 * 60 * 24 }
     );
-    return true;
+    return { ok: true };
   } catch (error) {
     const statusCode = (error as { statusCode?: number }).statusCode;
-    if (statusCode === 404 || statusCode === 410) return false;
-    console.error("[web-push] send failed:", error);
-    return true;
+    const body = (error as { body?: string }).body;
+    if (statusCode === 404 || statusCode === 410) return { ok: false, dead: true, statusCode };
+    const message = body || (error as Error).message || "unknown error";
+    console.error("[web-push] send failed:", statusCode, message);
+    return { ok: false, dead: false, statusCode, message };
   }
 }

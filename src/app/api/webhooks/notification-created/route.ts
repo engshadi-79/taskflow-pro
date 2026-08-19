@@ -62,17 +62,23 @@ export async function POST(req: NextRequest) {
 
   let sent = 0;
   const deadIds: string[] = [];
+  const errors: { endpoint: string; statusCode?: number; message: string }[] = [];
 
   await Promise.all(
     subscriptions.map(async (sub) => {
-      const alive = await sendPush(sub, {
+      const result = await sendPush(sub, {
         title: notification.title || "منجز",
         body: notification.message,
         url: urlForNotification(notification),
         tag: notification.id,
       });
-      if (alive) sent++;
-      else deadIds.push(sub.id);
+      if (result.ok) {
+        sent++;
+      } else if (result.dead) {
+        deadIds.push(sub.id);
+      } else {
+        errors.push({ endpoint: sub.endpoint.slice(-24), statusCode: result.statusCode, message: result.message });
+      }
     })
   );
 
@@ -80,5 +86,5 @@ export async function POST(req: NextRequest) {
     await supabase.from("push_subscriptions").delete().in("id", deadIds);
   }
 
-  return NextResponse.json({ sent, removed: deadIds.length });
+  return NextResponse.json({ sent, removed: deadIds.length, errors });
 }
