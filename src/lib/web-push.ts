@@ -33,7 +33,13 @@ export async function sendPush(subscription: PushSubscriptionRow, payload: PushP
         endpoint: subscription.endpoint,
         keys: { p256dh: subscription.p256dh, auth: subscription.auth },
       },
-      JSON.stringify(payload)
+      JSON.stringify(payload),
+      // "high" maps to FCM's high-priority delivery flag, so Android tries
+      // to wake and deliver immediately instead of batching it for the next
+      // Doze/battery-saver maintenance window - the default ("normal") is
+      // exactly what gets silently held for a long time on aggressive
+      // Android skins (MIUI, EMUI, ColorOS, ...).
+      { urgency: "high", TTL: 60 * 60 * 24 }
     );
     return true;
   } catch (error) {
