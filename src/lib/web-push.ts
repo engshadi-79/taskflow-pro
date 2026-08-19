@@ -1,10 +1,19 @@
 import webpush from "web-push";
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+// Configured lazily (not at module scope) so a missing/misconfigured env
+// var can never throw during the build or at import time - a build-time
+// crash here would silently drop this whole route from the deployment
+// instead of failing loudly at the one request that actually needs it.
+let vapidConfigured = false;
+function ensureVapidConfigured() {
+  if (vapidConfigured) return;
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT!,
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  );
+  vapidConfigured = true;
+}
 
 export type PushSubscriptionRow = { endpoint: string; p256dh: string; auth: string };
 
@@ -18,6 +27,7 @@ export type PushPayload = { title: string; body: string; url?: string; tag?: str
  */
 export async function sendPush(subscription: PushSubscriptionRow, payload: PushPayload): Promise<boolean> {
   try {
+    ensureVapidConfigured();
     await webpush.sendNotification(
       {
         endpoint: subscription.endpoint,
