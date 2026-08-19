@@ -36,3 +36,46 @@ self.addEventListener("fetch", (event) => {
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
 });
+
+// Real device notifications - fires even with the app fully closed, as long
+// as the OS keeps this service worker registered. Payload is whatever
+// /api/webhooks/notification-created sent via web-push (see src/lib/web-push.ts).
+self.addEventListener("push", (event) => {
+  let payload = { title: "منجز", body: "" };
+  try {
+    payload = event.data ? event.data.json() : payload;
+  } catch {
+    // non-JSON payload: fall back to the default above
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title || "منجز", {
+      body: payload.body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: payload.tag,
+      dir: "rtl",
+      lang: "ar",
+      data: { url: payload.url || "/m/notifications" },
+    })
+  );
+});
+
+// Focuses an already-open tab at the target URL instead of always opening a
+// new one, same "reuse what's there" behaviour users expect from chat apps.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data && event.notification.data.url ? event.notification.data.url : "/m";
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if (client.url.includes(self.location.origin) && "focus" in client) {
+          client.navigate(targetUrl);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(targetUrl);
+    })
+  );
+});

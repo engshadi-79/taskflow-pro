@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { signOut } from "@/lib/actions/auth";
 import { MobileHeader } from "@/components/mobile/mobile-header";
+import { MobilePushToggle } from "@/components/mobile/mobile-push-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function MobileSettingsPage() {
@@ -12,6 +13,11 @@ export default async function MobileSettingsPage() {
     <div>
       <MobileHeader title="الإعدادات" back />
       <div className="flex flex-col gap-5 px-4 pb-6">
+        <div>
+          <div className="mb-2.5 text-[12px] font-extrabold text-faint">الإشعارات</div>
+          <MobilePushToggle />
+        </div>
+
         <div>
           <div className="mb-2.5 text-[12px] font-extrabold text-faint">التفضيلات العامة</div>
           <div className="flex items-center gap-3 rounded-[14px] bg-surface p-3.5 shadow-[0_4px_12px_rgba(30,41,59,.05)]">
