@@ -12,7 +12,7 @@ const ITEMS: { key: string; href: string; label: string; tint: string; icon: str
   { key: "requests", href: "/m/requests", label: "الطلبات والموافقات", tint: "bg-green-50", icon: "✅" },
   { key: "reports", href: "/m/reports", label: "التقارير والأداء", tint: "bg-brand-blue-50", icon: "📈" },
   { key: "profile", href: "/m/profile", label: "الملف الشخصي", tint: "bg-accent-50", icon: "👤" },
-  { key: "settings", href: "/dashboard/settings", label: "الإعدادات", tint: "bg-background", icon: "⚙️" },
+  { key: "settings", href: "/m/settings", label: "الإعدادات", tint: "bg-background", icon: "⚙️" },
 ];
 
 export default async function MobileMorePage() {

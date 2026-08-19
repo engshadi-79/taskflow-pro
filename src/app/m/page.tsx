@@ -152,7 +152,7 @@ export default async function MobileDashboardPage() {
                 </svg>
               </button>
             </form>
-            <Link href="/dashboard/settings" aria-label="الإعدادات" className="flex h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-white/15">
+            <Link href="/m/settings" aria-label="الإعدادات" className="flex h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-white/15">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3" />
                 <path d="M12 3v2.5M12 18.5V21M21 12h-2.5M5.5 12H3M18 6l-1.7 1.7M7.7 16.3 6 18M18 18l-1.7-1.7M7.7 7.7 6 6" />

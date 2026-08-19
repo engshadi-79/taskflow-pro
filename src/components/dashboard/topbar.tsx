@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/dashboard/notification-bell";
 import { UserMenu } from "@/components/dashboard/user-menu";
@@ -45,6 +46,17 @@ export function Topbar({
         <NotificationBell userId={userId} initialUnreadCount={unreadCount} />
         <ChatQuickAccessButton />
         <HelpQuickAccessButton />
+        <Link
+          href="/m"
+          title="تطبيق الجوال"
+          aria-label="تطبيق الجوال"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-50 text-accent-600 transition-colors hover:brightness-95"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="6" y="2" width="12" height="20" rx="2.5" />
+            <path d="M11 18h2" />
+          </svg>
+        </Link>
         <ThemeToggle />
 
         <div className="mx-1 hidden h-8 w-px bg-border sm:block" />
