@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MOBILE_PRIORITY_STYLE, MOBILE_STATUS_STYLE } from "@/lib/mobile-theme";
 import { PRIORITY_LABEL, STATUS_LABEL, type TaskStatus, type TaskWithAssignee } from "@/lib/types/task";
 
@@ -16,15 +16,24 @@ const FILTERS: { key: "all" | TaskStatus; label: string }[] = [
 
 export function MobileTaskList({ tasks }: { tasks: TaskWithAssignee[] }) {
   const [filter, setFilter] = useState<"all" | TaskStatus>("all");
+  const chipsRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(
     () => (filter === "all" ? tasks : tasks.filter((t) => t.status === filter)),
     [tasks, filter]
   );
 
+  // Some Android WebView versions don't initialize a horizontally
+  // scrollable RTL container at its true start edge, clipping the first
+  // item. Forcing scrollLeft to 0 (the spec-correct "start" value in RTL)
+  // is a no-op on browsers that already get this right.
+  useEffect(() => {
+    if (chipsRef.current) chipsRef.current.scrollLeft = 0;
+  }, []);
+
   return (
     <div>
-      <div className="sticky top-0 z-10 flex gap-2 overflow-x-auto bg-background px-4 pb-3">
+      <div ref={chipsRef} className="sticky top-0 z-10 flex gap-2 overflow-x-auto bg-background px-4 pb-3">
         {FILTERS.map((f) => {
           const active = filter === f.key;
           return (

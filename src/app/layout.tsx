@@ -34,7 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="ar"
       dir="rtl"
-      className={`${notoKufi.variable} h-full antialiased`}
+      className={`${notoKufi.variable} h-full overflow-x-hidden antialiased`}
       // the boot script below adds `dark` before hydration, which React would
       // otherwise report as a server/client attribute mismatch
       suppressHydrationWarning
@@ -53,7 +53,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col bg-background text-foreground font-body">
+      <body className="min-h-full flex flex-col overflow-x-hidden bg-background text-foreground font-body">
         {children}
         <ServiceWorkerRegister />
       </body>

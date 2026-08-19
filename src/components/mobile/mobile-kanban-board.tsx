@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { moveTaskStatus } from "@/lib/actions/tasks";
 import { MOBILE_PRIORITY_STYLE } from "@/lib/mobile-theme";
 import { STATUS_LABEL, type TaskStatus, type TaskWithAssignee } from "@/lib/types/task";
@@ -28,6 +28,13 @@ export function MobileKanbanBoard({
   const [items, setItems] = useState(tasks);
   const [moveTaskId, setMoveTaskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const columnsRef = useRef<HTMLDivElement>(null);
+
+  // Same Android WebView RTL initial-scroll-position workaround as the
+  // task-list filter chips - a no-op on browsers that already start at 0.
+  useEffect(() => {
+    if (columnsRef.current) columnsRef.current.scrollLeft = 0;
+  }, []);
 
   const columns = COLUMN_STATUSES.map((status) => ({
     status,
@@ -56,7 +63,7 @@ export function MobileKanbanBoard({
 
   return (
     <div>
-      <div className="flex gap-3 overflow-x-auto px-4 pb-6">
+      <div ref={columnsRef} className="flex gap-3 overflow-x-auto px-4 pb-6">
         {columns.map((col) => (
           <div key={col.status} className="w-[210px] shrink-0 rounded-[14px] bg-background p-2.5">
             <div className="mb-2.5 flex items-center gap-1.5 px-1">
