@@ -49,7 +49,7 @@ export function MobileTaskList({ tasks }: { tasks: TaskWithAssignee[] }) {
             className="rounded-[14px] bg-surface p-3.5 shadow-[0_4px_12px_rgba(30,41,59,.06)]"
           >
             <div className="flex items-start justify-between gap-2">
-              <span className="flex-1 text-[13.5px] font-bold text-foreground">{task.title}</span>
+              <span className="min-w-0 flex-1 text-[13.5px] font-bold text-foreground">{task.title}</span>
               <span
                 className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-extrabold ${MOBILE_STATUS_STYLE[task.status].badge}`}
               >

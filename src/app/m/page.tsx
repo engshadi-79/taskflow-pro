@@ -239,9 +239,9 @@ export default async function MobileDashboardPage() {
                 href={`/m/projects/${p.id}`}
                 className="rounded-[14px] border border-brand-red-100 bg-surface p-3.5"
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-[13.5px] font-bold text-foreground">{p.name}</span>
-                  <span className="text-[11px] font-extrabold text-brand-red-600">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-foreground">{p.name}</span>
+                  <span className="shrink-0 text-[11px] font-extrabold text-brand-red-600">
                     متأخر منذ {Math.max(1, Math.round((new Date(todayIso).getTime() - new Date(p.due_date).getTime()) / 86400000))} يوم
                   </span>
                 </div>

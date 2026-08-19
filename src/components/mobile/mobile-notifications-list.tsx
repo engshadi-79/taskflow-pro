@@ -45,7 +45,7 @@ export function MobileNotificationsList({ notifications }: { notifications: Noti
             }`}
           >
             <span className={`mt-1 h-[9px] w-[9px] shrink-0 rounded-full ${n.is_read ? "bg-faint" : "bg-accent-500"}`} />
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <div className={`text-[12.5px] leading-relaxed ${n.is_read ? "font-semibold text-muted" : "font-extrabold text-foreground"}`}>
                 {n.title && <span>{n.title} — </span>}
                 {n.message}

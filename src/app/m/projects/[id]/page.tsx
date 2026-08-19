@@ -132,7 +132,7 @@ export default async function MobileProjectDetailPage({
             {(tasks ?? []).map((task) => (
               <Link key={task.id} href={`/m/tasks/${task.id}`} className="rounded-[14px] bg-surface p-3.5 shadow-[0_4px_12px_rgba(30,41,59,.06)]">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="flex-1 text-[13px] font-bold text-foreground">{task.title}</span>
+                  <span className="min-w-0 flex-1 text-[13px] font-bold text-foreground">{task.title}</span>
                   <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-extrabold ${MOBILE_STATUS_STYLE[task.status].badge}`}>
                     {STATUS_LABEL[task.status]}
                   </span>
@@ -163,7 +163,7 @@ export default async function MobileProjectDetailPage({
             {(milestones ?? []).map((m) => (
               <div key={m.id} className="flex items-center gap-2.5 rounded-[14px] bg-surface p-3.5 shadow-[0_4px_12px_rgba(30,41,59,.06)]">
                 <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${MILESTONE_DOT[m.status]}`} />
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-bold text-foreground">{m.title}</div>
                   <div className="mt-0.5 text-[11px] font-semibold text-muted">
                     {m.due_date ?? "بدون موعد"} — {MILESTONE_STATUS_LABEL[m.status]}

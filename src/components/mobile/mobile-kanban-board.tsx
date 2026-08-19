@@ -72,7 +72,7 @@ export function MobileKanbanBoard({
                   </Link>
                   <div className="mt-2 flex items-center gap-1.5">
                     <span className={`h-[6px] w-[6px] shrink-0 rounded-full ${MOBILE_PRIORITY_STYLE[task.priority].dot}`} />
-                    <span className="flex-1 truncate text-[10.5px] font-semibold text-muted">{task.assignee?.full_name ?? "—"}</span>
+                    <span className="min-w-0 flex-1 truncate text-[10.5px] font-semibold text-muted">{task.assignee?.full_name ?? "—"}</span>
                     <button
                       type="button"
                       onClick={() => setMoveTaskId(task.id)}

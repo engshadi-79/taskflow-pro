@@ -35,7 +35,7 @@ export default async function MobileLayout({ children }: { children: React.React
 
   return (
     <div className="mx-auto flex h-dvh max-w-[480px] flex-col overflow-hidden bg-background text-foreground">
-      <div className="flex-1 overflow-y-auto overscroll-contain">{children}</div>
+      <div className="flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">{children}</div>
       <MobileTabBar hasUnread={(unreadCount ?? 0) > 0} />
     </div>
   );

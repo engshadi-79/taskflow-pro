@@ -35,7 +35,7 @@ export default async function MobileWorkloadPage() {
         {rows.map((row) => (
           <div key={row.user_id} className="rounded-[14px] bg-surface p-3.5 shadow-[0_4px_12px_rgba(30,41,59,.06)]">
             <div className="flex items-center justify-between">
-              <span className="text-[13.5px] font-bold text-foreground">{row.full_name}</span>
+              <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-foreground">{row.full_name}</span>
               <span className={`rounded-full px-2.5 py-1 text-[10.5px] font-extrabold ${STATUS_BADGE[row.load_status]}`}>
                 {LOAD_STATUS_LABEL[row.load_status]}
               </span>

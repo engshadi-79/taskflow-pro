@@ -42,7 +42,7 @@ export function MobileApprovalsList({ requests }: { requests: ApprovalRow[] }) {
             className="flex w-full items-center gap-2.5 text-start"
           >
             <span className={`h-[18px] w-[18px] shrink-0 rounded-[5px] border-2 ${selected[r.id] ? "border-accent-600 bg-accent-600" : "border-border"}`} />
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <div className="text-[13px] font-bold text-foreground">{r.template_name ? `${r.title} (${r.template_name})` : r.title}</div>
               <div className="mt-0.5 text-[11px] font-semibold text-muted">{r.requester_name ?? "—"}</div>
             </div>

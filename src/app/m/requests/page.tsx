@@ -90,7 +90,7 @@ export default async function MobileRequestsPage({ searchParams }: { searchParam
               {(myRequests ?? []).map((r) => (
                 <div key={r.id} className="rounded-[14px] bg-surface p-3.5 shadow-[0_4px_12px_rgba(30,41,59,.06)]">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[13px] font-bold text-foreground">{r.template?.name ? `${r.title} (${r.template.name})` : r.title}</span>
+                    <span className="min-w-0 flex-1 text-[13px] font-bold text-foreground">{r.template?.name ? `${r.title} (${r.template.name})` : r.title}</span>
                     <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-extrabold ${STATUS_BADGE[r.status]}`}>
                       {WORKFLOW_STATUS_LABEL[r.status]}
                     </span>
