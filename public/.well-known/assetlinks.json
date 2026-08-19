@@ -3,6 +3,6 @@
   "target": {
     "namespace": "android_app",
     "package_name": "app.vercel.taskflow_pro_kappa_ruddy.twa",
-    "sha256_cert_fingerprints": ["DC:E3:4C:C1:09:39:9F:98:D6:03:5D:CE:F6:61:A4:0B:81:04:BF:D4:F8:CB:9F:85:6F:DD:FC:60:8D:C8:CA:4A"]
+    "sha256_cert_fingerprints": ["C4:CD:4B:F6:AE:D0:70:60:1A:58:8E:D0:5E:20:D6:5C:86:10:15:EF:F3:69:B7:A6:E5:9A:1F:19:B3:1D:B4:CF"]
   }
 }]
