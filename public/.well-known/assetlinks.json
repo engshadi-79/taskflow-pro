@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "app.vercel.taskflow_pro_kappa_ruddy.twa",
+    "sha256_cert_fingerprints": ["DC:E3:4C:C1:09:39:9F:98:D6:03:5D:CE:F6:61:A4:0B:81:04:BF:D4:F8:CB:9F:85:6F:DD:FC:60:8D:C8:CA:4A"]
+  }
+}]
