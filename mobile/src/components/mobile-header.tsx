@@ -1,0 +1,60 @@
+import { useRouter } from "expo-router";
+import { Text, TouchableOpacity, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { BackIcon } from "@/components/tab-icons";
+import { GRADIENT_PRIMARY } from "@/lib/mobile-theme";
+
+function BackButton({ light }: { light?: boolean }) {
+  const router = useRouter();
+  return (
+    <TouchableOpacity
+      onPress={() => router.back()}
+      className={`h-8 w-8 items-center justify-center rounded-full ${light ? "bg-white/15" : "bg-background"}`}
+    >
+      <BackIcon color={light ? "#fff" : "#1a202c"} />
+    </TouchableOpacity>
+  );
+}
+
+/** Same two variants as the web app's mobile-header.tsx. */
+export function MobileHeader({
+  title,
+  subtitle,
+  back,
+  gradient,
+  chips,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  back?: boolean;
+  gradient?: boolean;
+  chips?: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  if (gradient) {
+    return (
+      <LinearGradient colors={GRADIENT_PRIMARY} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="px-4 pb-4 pt-14">
+        <View className="mb-3 flex-row items-center gap-2.5">
+          {back && <BackButton light />}
+          {subtitle && <Text className="text-[13px] font-bold text-white/90">{subtitle}</Text>}
+        </View>
+        <Text className="text-[17px] font-extrabold leading-snug text-white">{title}</Text>
+        {chips && <View className="mt-2.5 flex-row flex-wrap gap-2">{chips}</View>}
+      </LinearGradient>
+    );
+  }
+
+  return (
+    <View className="bg-background px-4 pb-2.5 pt-4">
+      <View className="flex-row items-center justify-between gap-2.5">
+        <View className="flex-row items-center gap-2.5">
+          {back && <BackButton />}
+          <Text className="text-[20px] font-extrabold text-foreground">{title}</Text>
+        </View>
+        {action}
+      </View>
+      {subtitle && <Text className="mt-1 text-[12.5px] font-medium text-muted">{subtitle}</Text>}
+    </View>
+  );
+}
