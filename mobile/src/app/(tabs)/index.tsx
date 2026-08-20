@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import { GRADIENT_PRIMARY, PRIORITY_COLOR, STATUS_COLOR, STATUS_LABEL, type Priority, type TaskStatus } from "@/lib/mobile-theme";
@@ -56,6 +57,7 @@ function Ring({ value, label }: { value: number; label: string }) {
 export default function DashboardScreen() {
   const { profile, signOut } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const isManagerRole = profile?.role !== "employee";
 
   const [loading, setLoading] = useState(true);
@@ -197,7 +199,13 @@ export default function DashboardScreen() {
 
   return (
     <ScrollView className="flex-1 bg-background" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-      <LinearGradient colors={GRADIENT_PRIMARY} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="px-4 pb-12 pt-14">
+      <LinearGradient
+        colors={GRADIENT_PRIMARY}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        className="px-4 pb-12"
+        style={{ paddingTop: insets.top + 12 }}
+      >
         <View className="mb-4 flex-row items-center justify-between">
           <TouchableOpacity onPress={signOut} className="h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-white/15">
             <Text className="text-white">⎋</Text>

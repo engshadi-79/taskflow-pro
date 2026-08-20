@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BackIcon } from "@/components/tab-icons";
 import { GRADIENT_PRIMARY } from "@/lib/mobile-theme";
 
@@ -16,7 +17,13 @@ function BackButton({ light }: { light?: boolean }) {
   );
 }
 
-/** Same two variants as the web app's mobile-header.tsx. */
+/**
+ * Same two variants as the web app's mobile-header.tsx. Both add
+ * insets.top explicitly (rather than a fixed pt-*) - these screens sit
+ * directly under the status bar with no navigator header of their own
+ * (headerShown: false), so nothing else accounts for that inset, and a
+ * fixed value renders too short/overlapping on edge-to-edge Android.
+ */
 export function MobileHeader({
   title,
   subtitle,
@@ -32,9 +39,17 @@ export function MobileHeader({
   chips?: React.ReactNode;
   action?: React.ReactNode;
 }) {
+  const insets = useSafeAreaInsets();
+
   if (gradient) {
     return (
-      <LinearGradient colors={GRADIENT_PRIMARY} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="px-4 pb-4 pt-14">
+      <LinearGradient
+        colors={GRADIENT_PRIMARY}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        className="px-4 pb-4"
+        style={{ paddingTop: insets.top + 12 }}
+      >
         <View className="mb-3 flex-row items-center gap-2.5">
           {back && <BackButton light />}
           {subtitle && <Text className="text-[13px] font-bold text-white/90">{subtitle}</Text>}
@@ -46,7 +61,7 @@ export function MobileHeader({
   }
 
   return (
-    <View className="bg-background px-4 pb-2.5 pt-4">
+    <View className="bg-background px-4 pb-2.5" style={{ paddingTop: insets.top + 12 }}>
       <View className="flex-row items-center justify-between gap-2.5">
         <View className="flex-row items-center gap-2.5">
           {back && <BackButton />}
