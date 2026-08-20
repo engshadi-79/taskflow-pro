@@ -1,20 +1,35 @@
 import "../global.css";
-import { useEffect } from "react";
-import { I18nManager } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, I18nManager, View } from "react-native";
+import * as Updates from "expo-updates";
 import { Slot } from "expo-router";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGate } from "@/components/auth-gate";
 
 export default function RootLayout() {
+  // I18nManager.forceRTL() only takes effect on the *next* cold start, not
+  // the current render - without an immediate reload, a fresh install
+  // renders one full pass in LTR (mirrored tab order, misaligned headers)
+  // before ever picking up RTL, and simply backgrounding/foregrounding the
+  // app (not a true kill+relaunch) never fixes it. Reloading right here,
+  // once, makes it self-correct with no manual restart needed.
+  const [reloading, setReloading] = useState(false);
+
   useEffect(() => {
-    if (!I18nManager.isRTL) {
-      I18nManager.allowRTL(true);
-      I18nManager.forceRTL(true);
-      // Native RTL only fully applies after the app relaunches - a fresh
-      // dev-client/production install picks this up on its very first
-      // launch since this runs before any screen renders.
-    }
+    if (I18nManager.isRTL) return;
+    I18nManager.allowRTL(true);
+    I18nManager.forceRTL(true);
+    setReloading(true);
+    Updates.reloadAsync().catch(() => setReloading(false));
   }, []);
+
+  if (reloading) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#f8fafc" }}>
+        <ActivityIndicator color="#4f46e5" />
+      </View>
+    );
+  }
 
   return (
     <AuthProvider>
