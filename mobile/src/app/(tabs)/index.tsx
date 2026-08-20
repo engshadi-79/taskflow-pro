@@ -219,10 +219,12 @@ export default function DashboardScreen() {
         <Text className="mb-1 text-[13px] font-bold text-white/85">
           {isManagerRole ? "مرحبًا بك 👋" : `مرحبًا، ${profile.full_name.split(" ")[0]}`}
         </Text>
-        <Text className="text-[19px] font-black text-white">{profile.full_name}</Text>
+        <Text numberOfLines={1} ellipsizeMode="tail" className="text-[19px] font-black text-white">
+          {profile.full_name}
+        </Text>
       </LinearGradient>
 
-      <View className="-mt-8 px-4">
+      <View className="-mt-4 px-4">
         <View className="rounded-[20px] bg-surface p-4 shadow-lg">
           <View className="flex-row items-center gap-4">
             <View className="flex-1 gap-3">
