@@ -229,7 +229,7 @@ export default function DashboardScreen() {
         </Text>
       </LinearGradient>
 
-      <View className="-mt-2 px-4">
+      <View className="mt-1 px-4">
         <View className="rounded-[20px] bg-surface p-4 shadow-lg">
           <View className="flex-row items-center gap-4">
             <View className="flex-1 gap-3">
