@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "منجز",
-    "slug": "monjez-mobile",
+    "slug": "taskflow-pro",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -40,6 +40,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "owner": "engshadi2011s-team",
+    "extra": {
+      "eas": {
+        "projectId": "31f611ea-54a7-4a1a-a9f5-77597959ab91"
+      }
     }
   }
 }
