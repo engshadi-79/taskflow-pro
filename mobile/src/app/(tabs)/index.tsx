@@ -203,7 +203,7 @@ export default function DashboardScreen() {
         colors={GRADIENT_PRIMARY}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        className="px-4 pb-12"
+        className="px-4 pb-16"
         style={{ paddingTop: insets.top + 12 }}
       >
         <View className="mb-4 flex-row items-center justify-between">
@@ -219,12 +219,17 @@ export default function DashboardScreen() {
         <Text className="mb-1 text-[13px] font-bold text-white/85">
           {isManagerRole ? "مرحبًا بك 👋" : `مرحبًا، ${profile.full_name.split(" ")[0]}`}
         </Text>
-        <Text numberOfLines={1} ellipsizeMode="tail" className="text-[19px] font-black text-white">
+        <Text
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={{ lineHeight: 28 }}
+          className="text-[19px] font-black text-white"
+        >
           {profile.full_name}
         </Text>
       </LinearGradient>
 
-      <View className="-mt-4 px-4">
+      <View className="-mt-2 px-4">
         <View className="rounded-[20px] bg-surface p-4 shadow-lg">
           <View className="flex-row items-center gap-4">
             <View className="flex-1 gap-3">
