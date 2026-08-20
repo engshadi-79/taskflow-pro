@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "264606334479",
+    "project_id": "maham-71b4a",
+    "storage_bucket": "maham-71b4a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:264606334479:android:857e6fdfe65860d4b5ad7a",
+        "android_client_info": {
+          "package_name": "com.monjez.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJxdAYjk7VhAnXIykbiw-jeZsWadFBT5Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
