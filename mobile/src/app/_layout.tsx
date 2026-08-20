@@ -2,11 +2,34 @@ import "../global.css";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, I18nManager, View } from "react-native";
 import * as Updates from "expo-updates";
-import { Slot } from "expo-router";
+import * as Notifications from "expo-notifications";
+import { Slot, useRouter, type Href } from "expo-router";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGate } from "@/components/auth-gate";
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+function useNotificationTapNavigation() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const url = response.notification.request.content.data?.url as string | undefined;
+      if (url) router.push(url as Href);
+    });
+    return () => sub.remove();
+  }, [router]);
+}
+
 export default function RootLayout() {
+  useNotificationTapNavigation();
   // I18nManager.forceRTL() only takes effect on the *next* cold start, not
   // the current render - without an immediate reload, a fresh install
   // renders one full pass in LTR (mirrored tab order, misaligned headers)
