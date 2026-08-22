@@ -21,9 +21,9 @@ export function DepartmentHoursChart({ rows }: { rows: DepartmentHoursRow[] }) {
         // min-w-0 floor, so each refused to shrink below its own (untruncated)
         // name's width and pushed the row past the screen edge.
         <div className="overflow-x-auto">
-          <div className="flex h-[180px] items-end gap-3">
+          <div className="flex h-[195px] items-end gap-3">
             {rows.map((row) => (
-              <div key={row.name} className="flex w-[56px] shrink-0 flex-col items-center gap-2">
+              <div key={row.name} className="flex w-[68px] shrink-0 flex-col items-center gap-2">
                 <span className="text-[11px] font-extrabold text-foreground">{row.hours}</span>
                 <div className="flex h-[130px] w-full items-end">
                   <div
@@ -31,7 +31,10 @@ export function DepartmentHoursChart({ rows }: { rows: DepartmentHoursRow[] }) {
                     style={{ height: `${Math.max((row.hours / max) * 100, 4)}%` }}
                   />
                 </div>
-                <span className="w-full truncate text-center text-[11px] font-bold text-muted">
+                {/* Two lines instead of one truncated line - most department
+                    names are long enough that a single ellipsized line left
+                    nothing recognizable. */}
+                <span className="line-clamp-2 w-full text-center text-[10px] font-bold leading-tight text-muted">
                   {row.name}
                 </span>
               </div>
