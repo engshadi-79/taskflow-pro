@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * Small accessible dialog: labelled, closes on Escape and backdrop click,
@@ -47,7 +48,11 @@ export function Modal({
     };
   }, [onClose]);
 
-  return (
+  // Portaled straight to <body>: some callers mount this several layers
+  // deep inside overflow-hidden flex containers (the dashboard shell's
+  // sidebar/content split), which clips a plain in-place `fixed` panel down
+  // to whatever ancestor box actually has room instead of the full viewport.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="presentation"
@@ -74,6 +79,7 @@ export function Modal({
         </div>
         <div className="p-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
