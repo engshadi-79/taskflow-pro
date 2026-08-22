@@ -65,8 +65,13 @@ export function WelcomeBanner({
       <AnimatedBackground intensity="subtle" />
 
       {/* date (+ department) pinned to the left, opposite the photo, and
-          vertically centered on the banner's own height */}
-      <div className="relative mb-5 flex flex-col items-start gap-2 sm:absolute sm:end-6 sm:top-1/2 sm:mb-0 sm:-translate-y-1/2">
+          vertically centered on the banner's own height. z-10: the name/photo
+          row below is a plain block div spanning the banner's full width (its
+          empty left side is transparent, not narrowed to its content), so
+          without an explicit stack order it paints over this one - harmless
+          when these were static chips, but it swallowed clicks the moment one
+          of them (OnlineNowWidget) became interactive. */}
+      <div className="relative z-10 mb-5 flex flex-col items-start gap-2 sm:absolute sm:end-6 sm:top-1/2 sm:mb-0 sm:-translate-y-1/2">
         <OnlineNowWidget />
         {departmentName && (
           <SolidChip icon={<FolderIcon className="h-3.5 w-3.5 text-accent-600" />}>{departmentName}</SolidChip>
