@@ -28,7 +28,7 @@ export function Topbar({
   return (
     // z-20 keeps the dropdowns above page content, and still below the
     // z-30 sidebar rail
-    <header className="sticky top-0 z-20 flex h-[70px] shrink-0 items-center justify-between border-b border-border bg-surface px-3 sm:px-6">
+    <header className="sticky top-0 z-20 flex h-[70px] shrink-0 items-center justify-center border-b border-border bg-surface px-3 sm:justify-between sm:px-6">
       {/* Institutional line, mirroring the ACAS lockup. The mark itself lives
           in the sidebar header, so it is deliberately not repeated here. */}
       <div className="hidden leading-tight sm:block">
