@@ -15,7 +15,7 @@ export function WhatsappFloatingButton() {
       rel="noreferrer"
       aria-label="تواصل معنا عبر واتساب"
       title="تواصل معنا عبر واتساب"
-      className="fixed bottom-5 start-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-black/25 transition-transform hover:scale-110"
+      className="fixed bottom-44 end-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-black/25 transition-transform hover:scale-110"
     >
       <WhatsappIcon className="h-7 w-7" />
     </a>
