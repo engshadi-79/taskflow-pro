@@ -6,6 +6,7 @@ export type Profile = {
   full_name: string;
   email: string;
   phone: string | null;
+  whatsapp: string | null;
   secondary_email: string | null;
   bio: string | null;
   role: Role;

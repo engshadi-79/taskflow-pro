@@ -52,6 +52,16 @@ export function SelfProfileForm({ profile }: { profile: Profile }) {
             className={inputClass}
           />
         </label>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium text-foreground">رقم الواتساب</span>
+          <input
+            name="whatsapp"
+            type="tel"
+            defaultValue={profile.whatsapp ?? ""}
+            placeholder="اختياري — إذا كان مختلفًا عن رقم الهاتف"
+            className={inputClass}
+          />
+        </label>
         <label className="block sm:col-span-2">
           <span className="mb-1.5 block text-sm font-medium text-foreground">
             بريد إلكتروني إضافي

@@ -158,6 +158,7 @@ export async function updateOwnProfile(
 
   const fullName = (formData.get("full_name") as string)?.trim();
   const phone = (formData.get("phone") as string)?.trim() || null;
+  const whatsapp = (formData.get("whatsapp") as string)?.trim() || null;
   const secondaryEmail = (formData.get("secondary_email") as string)?.trim() || null;
   const bio = (formData.get("bio") as string)?.trim() || null;
 
@@ -176,6 +177,7 @@ export async function updateOwnProfile(
     p_phone: phone,
     p_secondary_email: secondaryEmail,
     p_bio: bio,
+    p_whatsapp: whatsapp,
   });
 
   if (error) {

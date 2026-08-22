@@ -8,7 +8,7 @@ import { AvatarUpload } from "@/components/dashboard/avatar-upload";
 import { Avatar } from "@/components/shared/avatar";
 import { computeEmployeeStats } from "@/lib/employee-stats";
 import { StatCard } from "@/components/shared/stat-card";
-import { CalendarIcon, MailIcon, PhoneIcon, CheckSquareIcon, CheckCircleIcon, ClockIcon } from "@/components/shared/icons";
+import { CalendarIcon, MailIcon, PhoneIcon, ChatIcon, CheckSquareIcon, CheckCircleIcon, ClockIcon } from "@/components/shared/icons";
 import { PRIORITY_LABEL, STATUS_LABEL, type Task } from "@/lib/types/task";
 import type { Profile, Role } from "@/lib/types/roles";
 
@@ -68,7 +68,7 @@ export default async function ProfileDetailPage({
     await Promise.all([
       supabase
         .from("users")
-        .select("id, organization_id, full_name, email, phone, secondary_email, bio, role, department_id, job_title, manager_id, avatar_url, is_active, created_at")
+        .select("id, organization_id, full_name, email, phone, whatsapp, secondary_email, bio, role, department_id, job_title, manager_id, avatar_url, is_active, created_at")
         .eq("id", id)
         .single<Profile>(),
       supabase.from("departments").select("id, name"),
@@ -169,6 +169,15 @@ export default async function ProfileDetailPage({
                 icon={<PhoneIcon className="h-3.5 w-3.5" />}
               >
                 {employee.phone}
+              </ContactRow>
+            )}
+            {employee.whatsapp && (
+              <ContactRow
+                label="واتساب"
+                tint="bg-green-50 text-green-600"
+                icon={<ChatIcon className="h-3.5 w-3.5" />}
+              >
+                {employee.whatsapp}
               </ContactRow>
             )}
             <ContactRow
