@@ -339,3 +339,32 @@ export async function deleteEmployee(id: string): Promise<UserFormState> {
   revalidatePath("/dashboard/employees");
   return {};
 }
+
+/**
+ * The super_admin equivalent of "forgot password" for an employee who can't
+ * receive/click a reset email - sets the password directly via the admin
+ * API instead of Auth's user-facing recovery flow (see confirmPasswordReset
+ * in src/lib/actions/auth.ts for that one). No way to read back the old
+ * password either way: Supabase only ever stores a one-way hash.
+ */
+export async function resetEmployeePassword(
+  id: string,
+  newPassword: string
+): Promise<UserFormState> {
+  await requireRole(["super_admin"]);
+
+  if (newPassword.length < 8) {
+    return { error: "كلمة المرور يجب ألا تقل عن 8 أحرف" };
+  }
+
+  const adminClient = createAdminClient();
+  const { error } = await adminClient.auth.admin.updateUserById(id, {
+    password: newPassword,
+  });
+
+  if (error) {
+    return { error: "تعذر تعيين كلمة المرور" };
+  }
+
+  return {};
+}

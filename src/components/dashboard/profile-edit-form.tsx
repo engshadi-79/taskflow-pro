@@ -1,7 +1,13 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { updateEmployee, toggleEmployeeActive, deleteEmployee } from "@/lib/actions/users";
+import {
+  updateEmployee,
+  toggleEmployeeActive,
+  deleteEmployee,
+  resetEmployeePassword,
+} from "@/lib/actions/users";
+import { Modal } from "@/components/shared/modal";
 import type { Profile, Role } from "@/lib/types/roles";
 
 type DepartmentOption = { id: string; name: string };
@@ -34,6 +40,7 @@ export function ProfileEditForm({
   const [active, setActive] = useState(employee.is_active);
   const [togglePending, setTogglePending] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const isSuperAdmin = viewerRole === "super_admin";
 
   return (
@@ -105,6 +112,14 @@ export function ProfileEditForm({
             <>
               <button
                 type="button"
+                onClick={() => setShowResetPassword(true)}
+                className="text-sm font-bold text-accent-600 hover:underline"
+              >
+                تعيين كلمة مرور جديدة
+              </button>
+
+              <button
+                type="button"
                 disabled={togglePending}
                 onClick={async () => {
                   setTogglePending(true);
@@ -144,6 +159,131 @@ export function ProfileEditForm({
           {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
         </div>
       </form>
+
+      {showResetPassword && (
+        <ResetEmployeePasswordDialog
+          employeeId={employee.id}
+          onClose={() => setShowResetPassword(false)}
+        />
+      )}
     </div>
+  );
+}
+
+function ResetEmployeePasswordDialog({
+  employeeId,
+  onClose,
+}: {
+  employeeId: string;
+  onClose: () => void;
+}) {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setError("كلمة المرور وتأكيدها غير متطابقين");
+      return;
+    }
+    setPending(true);
+    setError(null);
+    const result = await resetEmployeePassword(employeeId, newPassword);
+    setPending(false);
+    if (result?.error) {
+      setError(result.error);
+      return;
+    }
+    setSuccess(true);
+  }
+
+  return (
+    <Modal
+      title="تعيين كلمة مرور جديدة"
+      subtitle="لن تتمكن من رؤية كلمة المرور القديمة أبدًا — يمكنك فقط تعيين واحدة جديدة"
+      onClose={onClose}
+    >
+      {success ? (
+        <div className="space-y-4 text-center">
+          <p className="text-sm font-bold text-green-600">
+            تم تعيين كلمة المرور الجديدة بنجاح
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-[10px] bg-accent-600 py-2.5 text-sm font-extrabold text-white hover:bg-accent-700"
+          >
+            إغلاق
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label
+              htmlFor="reset_new_password"
+              className="mb-1.5 block text-sm font-medium text-foreground"
+            >
+              كلمة المرور الجديدة
+            </label>
+            <input
+              id="reset_new_password"
+              type="password"
+              required
+              minLength={8}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+              className={inputClass}
+            />
+            <p className="mt-1 text-[11.5px] text-muted">8 أحرف على الأقل</p>
+          </div>
+
+          <div>
+            <label
+              htmlFor="reset_confirm_password"
+              className="mb-1.5 block text-sm font-medium text-foreground"
+            >
+              تأكيد كلمة المرور
+            </label>
+            <input
+              id="reset_confirm_password"
+              type="password"
+              required
+              minLength={8}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+              className={inputClass}
+            />
+          </div>
+
+          {error && (
+            <p className="text-sm font-medium text-red-600" role="alert">
+              {error}
+            </p>
+          )}
+
+          <div className="flex gap-2.5">
+            <button
+              type="submit"
+              disabled={pending}
+              className="flex-1 rounded-[10px] bg-accent-600 py-2.5 text-sm font-extrabold text-white hover:bg-accent-700 disabled:opacity-60"
+            >
+              {pending ? "جارٍ الحفظ..." : "حفظ"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-[10px] border border-border px-5 py-2.5 text-sm font-bold text-muted hover:bg-background"
+            >
+              إلغاء
+            </button>
+          </div>
+        </form>
+      )}
+    </Modal>
   );
 }
