@@ -193,65 +193,68 @@ export default async function CalendarPage({
         </div>
       </PageHeader>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Link
-            href={linkFor({ view, date: shiftAnchor(anchor, view, -1) })}
-            className="rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-foreground hover:bg-background"
-          >
-            ← السابق
-          </Link>
-          <Link
-            href={linkFor({ view, date: todayKey() })}
-            className="rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-foreground hover:bg-background"
-          >
-            اليوم
-          </Link>
-          <Link
-            href={linkFor({ view, date: shiftAnchor(anchor, view, 1) })}
-            className="rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-foreground hover:bg-background"
-          >
-            التالي →
-          </Link>
-          <span className="ms-2 text-sm font-bold text-foreground">{title}</span>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <span className="text-center text-sm font-bold text-foreground sm:hidden">{title}</span>
+          <div className="flex items-center gap-2">
+            <Link
+              href={linkFor({ view, date: shiftAnchor(anchor, view, -1) })}
+              className="flex-1 shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-center text-sm text-foreground hover:bg-background sm:flex-initial"
+            >
+              ‹ السابق
+            </Link>
+            <Link
+              href={linkFor({ view, date: todayKey() })}
+              className="flex-1 shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-center text-sm text-foreground hover:bg-background sm:flex-initial"
+            >
+              اليوم
+            </Link>
+            <Link
+              href={linkFor({ view, date: shiftAnchor(anchor, view, 1) })}
+              className="flex-1 shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-center text-sm text-foreground hover:bg-background sm:flex-initial"
+            >
+              التالي ›
+            </Link>
+          </div>
+          <span className="hidden text-sm font-bold text-foreground sm:ms-2 sm:block">{title}</span>
         </div>
 
-        <form method="get" className="flex flex-wrap items-center gap-2">
+        <form method="get" className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <input type="hidden" name="view" value={view} />
           <input type="hidden" name="date" value={anchor} />
           {profile.role === "super_admin" && (
-            <select name="department_id" defaultValue={params.department_id ?? ""} className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500">
+            <select name="department_id" defaultValue={params.department_id ?? ""} className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500 sm:w-auto">
               <option value="">كل الأقسام</option>
               {(departments ?? []).map((d) => (
                 <option key={d.id} value={d.id}>{d.name}</option>
               ))}
             </select>
           )}
-          <select name="employee_id" defaultValue={params.employee_id ?? ""} className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500">
+          <select name="employee_id" defaultValue={params.employee_id ?? ""} className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500 sm:w-auto">
             <option value="">كل الموظفين</option>
             {(employees ?? []).map((e) => (
               <option key={e.id} value={e.id}>{e.full_name}</option>
             ))}
           </select>
-          <select name="project_id" defaultValue={params.project_id ?? ""} className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500">
+          <select name="project_id" defaultValue={params.project_id ?? ""} className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500 sm:w-auto">
             <option value="">كل المشاريع</option>
             {(projects ?? []).map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
-          <select name="status" defaultValue={params.status ?? ""} className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500">
+          <select name="status" defaultValue={params.status ?? ""} className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500 sm:w-auto">
             <option value="">كل الحالات</option>
             {(Object.keys(STATUS_LABEL) as TaskStatus[]).map((s) => (
               <option key={s} value={s}>{STATUS_LABEL[s]}</option>
             ))}
           </select>
-          <select name="priority" defaultValue={params.priority ?? ""} className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500">
+          <select name="priority" defaultValue={params.priority ?? ""} className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500 sm:w-auto">
             <option value="">كل الأولويات</option>
             {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
               <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>
             ))}
           </select>
-          <button type="submit" className="rounded-md bg-accent-500 px-3 py-1.5 text-[12.5px] font-bold text-white hover:bg-accent-600">
+          <button type="submit" className="w-full rounded-md bg-accent-500 px-3 py-1.5 text-[12.5px] font-bold text-white hover:bg-accent-600 sm:w-auto">
             تصفية
           </button>
         </form>

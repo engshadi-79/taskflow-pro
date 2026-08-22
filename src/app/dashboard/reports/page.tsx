@@ -328,13 +328,13 @@ export default async function ReportsPage({
       {/* filters for the new Department/Employee/Project/Priority
           performance tables below - the existing widgets above keep using
           just the period tabs, unchanged */}
-      <form method="get" className="flex flex-wrap items-end gap-2.5 rounded-[18px] border border-border bg-surface p-4">
+      <form method="get" className="grid grid-cols-1 gap-2 rounded-[18px] border border-border bg-surface p-4 sm:flex sm:flex-wrap sm:items-end sm:gap-2.5">
         <input type="hidden" name="period" value={period} />
         {profile.role === "super_admin" && (
           <select
             name="department_id"
             defaultValue={params.department_id ?? ""}
-            className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500"
+            className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500 sm:w-auto"
           >
             <option value="">كل الأقسام</option>
             {(departmentsForFilter ?? []).map((d) => (
@@ -345,7 +345,7 @@ export default async function ReportsPage({
         <select
           name="project_id"
           defaultValue={params.project_id ?? ""}
-          className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500"
+          className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500 sm:w-auto"
         >
           <option value="">كل المشاريع</option>
           {(projectsForFilter ?? []).map((p) => (
@@ -355,7 +355,7 @@ export default async function ReportsPage({
         <select
           name="priority"
           defaultValue={params.priority ?? ""}
-          className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500"
+          className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500 sm:w-auto"
         >
           <option value="">كل الأولويات</option>
           {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
@@ -365,14 +365,14 @@ export default async function ReportsPage({
         <select
           name="status"
           defaultValue={params.status ?? ""}
-          className="rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500"
+          className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[12.5px] text-foreground outline-none focus:border-accent-500 sm:w-auto"
         >
           <option value="">كل الحالات</option>
           {(Object.keys(STATUS_LABEL) as TaskStatus[]).map((s) => (
             <option key={s} value={s}>{STATUS_LABEL[s]}</option>
           ))}
         </select>
-        <button type="submit" className="rounded-md bg-accent-500 px-3 py-1.5 text-[12.5px] font-bold text-white hover:bg-accent-600">
+        <button type="submit" className="w-full rounded-md bg-accent-500 px-3 py-1.5 text-[12.5px] font-bold text-white hover:bg-accent-600 sm:w-auto">
           تصفية
         </button>
       </form>
