@@ -61,7 +61,7 @@ export function WelcomeBanner({
   const initialDateLabel = formatDateLabel(now);
 
   return (
-    <section className="banner-violet relative mb-5 overflow-hidden rounded-[20px] px-6 py-7 text-white shadow-lg shadow-accent-600/20">
+    <section className="banner-violet relative mb-5 overflow-hidden rounded-[20px] px-4 py-5 text-white shadow-lg shadow-accent-600/20 sm:px-6 sm:py-7">
       <AnimatedBackground intensity="subtle" />
 
       {/* date (+ department) pinned to the left, opposite the photo, and
@@ -71,7 +71,7 @@ export function WelcomeBanner({
           without an explicit stack order it paints over this one - harmless
           when these were static chips, but it swallowed clicks the moment one
           of them (OnlineNowWidget) became interactive. */}
-      <div className="relative z-10 mb-5 flex flex-col items-start gap-2 sm:absolute sm:end-6 sm:top-1/2 sm:mb-0 sm:-translate-y-1/2">
+      <div className="relative z-10 mb-3 flex flex-col items-start gap-1.5 sm:absolute sm:end-6 sm:top-1/2 sm:mb-0 sm:gap-2 sm:-translate-y-1/2">
         <OnlineNowWidget />
         {departmentName && (
           <SolidChip icon={<FolderIcon className="h-3.5 w-3.5 text-accent-600" />}>{departmentName}</SolidChip>
@@ -84,18 +84,18 @@ export function WelcomeBanner({
         </SolidChip>
       </div>
 
-      <div className="relative flex items-center gap-4">
+      <div className="relative flex items-center gap-3 sm:gap-4">
         {/* photo first (renders at the right edge in RTL), role chip below it */}
-        <div className="flex shrink-0 flex-col items-center gap-2.5">
+        <div className="flex shrink-0 flex-col items-center gap-2 sm:gap-2.5">
           <div className="relative">
             <Avatar
               src={avatarUrl}
               name={fullName}
-              size={104}
+              size={80}
               background="rgba(255,255,255,0.15)"
               className="ring-4 ring-white/30"
             />
-            <span className="absolute bottom-1.5 end-1.5 h-4 w-4 rounded-full bg-green-500 ring-[3px] ring-white/80" />
+            <span className="absolute bottom-1 end-1 h-3.5 w-3.5 rounded-full bg-green-500 ring-[3px] ring-white/80" />
           </div>
           <SolidChip icon={<BriefcaseIcon className="h-3.5 w-3.5 text-accent-600" />}>
             {ROLE_LABEL[role]}
@@ -104,10 +104,10 @@ export function WelcomeBanner({
 
         {/* name, beside the photo */}
         <div className="min-w-0">
-          <p className="text-[13.5px] font-bold text-white/85">
+          <p className="text-[12px] font-bold text-white/85 sm:text-[13.5px]">
             <LiveGreeting initial={initialGreeting} /> 👋
           </p>
-          <h1 className="mt-1 text-[28px] font-black leading-tight sm:text-[32px]">
+          <h1 className="mt-1 text-[22px] font-black leading-tight sm:text-[32px]">
             {firstName}
           </h1>
         </div>
