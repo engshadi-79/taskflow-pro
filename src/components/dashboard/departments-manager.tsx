@@ -42,9 +42,9 @@ export function DepartmentsManager({
 
       <form
         action={createAction}
-        className="flex flex-wrap items-end gap-3 rounded-[18px] border border-border bg-surface p-4"
+        className="grid grid-cols-1 gap-3 rounded-[18px] border border-border bg-surface p-4 sm:flex sm:flex-wrap sm:items-end"
       >
-        <div>
+        <div className="w-full sm:w-auto">
           <label
             htmlFor="new-dept-name"
             className="mb-1.5 block text-sm font-medium text-foreground"
@@ -55,13 +55,13 @@ export function DepartmentsManager({
             id="new-dept-name"
             name="name"
             required
-            className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500 sm:w-auto"
           />
         </div>
         <button
           type="submit"
           disabled={creating}
-          className="rounded-[10px] bg-accent-500 px-4 py-2 text-sm font-extrabold text-white hover:bg-accent-600 disabled:opacity-60"
+          className="w-full rounded-[10px] bg-accent-500 px-4 py-2 text-sm font-extrabold text-white hover:bg-accent-600 disabled:opacity-60 sm:w-auto"
         >
           {creating ? "جارٍ الإضافة..." : "إضافة قسم"}
         </button>
