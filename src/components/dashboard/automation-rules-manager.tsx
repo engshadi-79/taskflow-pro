@@ -75,11 +75,11 @@ export function AutomationRulesManager({
       >
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-foreground">اسم القاعدة</span>
-          <input name="name" required className={inputClass} />
+          <input name="name" required className={`${inputClass} w-full`} />
         </label>
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-foreground">عند (Trigger)</span>
-          <select name="trigger_event" defaultValue="task_created" className={inputClass}>
+          <select name="trigger_event" defaultValue="task_created" className={`${inputClass} w-full`}>
             {(Object.keys(TRIGGER_LABEL) as AutomationTrigger[]).map((t) => (
               <option key={t} value={t}>
                 {TRIGGER_LABEL[t]}
@@ -89,7 +89,7 @@ export function AutomationRulesManager({
         </label>
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-foreground">شرط: الأولوية (اختياري)</span>
-          <select name="condition_priority" defaultValue="" className={inputClass}>
+          <select name="condition_priority" defaultValue="" className={`${inputClass} w-full`}>
             <option value="">أي أولوية</option>
             {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
               <option key={p} value={p}>
@@ -104,7 +104,7 @@ export function AutomationRulesManager({
             name="action_type"
             value={actionType}
             onChange={(e) => setActionType(e.target.value as AutomationAction)}
-            className={inputClass}
+            className={`${inputClass} w-full`}
           >
             {(Object.keys(ACTION_LABEL) as AutomationAction[]).map((a) => (
               <option key={a} value={a}>
@@ -117,7 +117,7 @@ export function AutomationRulesManager({
         {NEEDS_USER.includes(actionType) && (
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-foreground">الشخص المستهدف</span>
-            <select name="param_user_id" defaultValue="" required className={inputClass}>
+            <select name="param_user_id" defaultValue="" required className={`${inputClass} w-full`}>
               <option value="" disabled>
                 اختر موظفًا
               </option>
@@ -132,7 +132,7 @@ export function AutomationRulesManager({
         {actionType === "change_status" && (
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-foreground">الحالة الجديدة</span>
-            <select name="param_status" defaultValue="" required className={inputClass}>
+            <select name="param_status" defaultValue="" required className={`${inputClass} w-full`}>
               <option value="" disabled>
                 اختر حالة
               </option>
@@ -153,7 +153,7 @@ export function AutomationRulesManager({
               name="param_priority"
               defaultValue=""
               required={actionType === "change_priority"}
-              className={inputClass}
+              className={`${inputClass} w-full`}
             >
               <option value="" disabled={actionType === "change_priority"}>
                 اختر أولوية
@@ -170,11 +170,11 @@ export function AutomationRulesManager({
           <>
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium text-foreground">عنوان المهمة (اختياري)</span>
-              <input name="param_title" className={inputClass} />
+              <input name="param_title" className={`${inputClass} w-full`} />
             </label>
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium text-foreground">المسند إليه (اختياري)</span>
-              <select name="param_user_id" defaultValue="" className={inputClass}>
+              <select name="param_user_id" defaultValue="" className={`${inputClass} w-full`}>
                 <option value="">نفس المسؤول عن المهمة الأصلية</option>
                 {employees.map((e) => (
                   <option key={e.id} value={e.id}>
