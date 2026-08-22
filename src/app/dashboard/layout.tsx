@@ -47,6 +47,7 @@ export default async function DashboardLayout({
         role={profile.role}
         jobTitle={profile.job_title}
         avatarUrl={profile.avatar_url}
+        currentEmail={profile.email}
         unreadCount={unreadCount ?? 0}
         recentActivityCount={recentActivity?.length ?? 0}
       />

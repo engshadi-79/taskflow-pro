@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAppUrl } from "@/lib/email/resend";
 
 export type SignInState = { error?: string };
 
@@ -77,6 +78,62 @@ export async function changePassword(
 
   if (error) {
     return { error: "تعذّر تغيير كلمة المرور، حاول مرة أخرى" };
+  }
+
+  return { success: true };
+}
+
+export type ChangeEmailState = { error?: string; success?: boolean };
+
+/**
+ * Supabase's "Secure email change" (on by default) requires confirming the
+ * change from BOTH the old and new address before it takes effect, so
+ * success here only means the two links were sent - the address hasn't
+ * changed yet. Both links land on /auth/callback like every other auth code
+ * exchange; sync_own_email.sql keeps public.users.email in step once they're
+ * clicked. Re-checks the current password first, same rationale as
+ * changePassword above.
+ */
+export async function changeEmail(
+  _prevState: ChangeEmailState,
+  formData: FormData
+): Promise<ChangeEmailState> {
+  const currentPassword = formData.get("current_password") as string;
+  const newEmail = (formData.get("new_email") as string)?.trim();
+
+  if (!currentPassword || !newEmail) {
+    return { error: "جميع الحقول مطلوبة" };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user?.email) {
+    return { error: "الجلسة غير صالحة، أعد تسجيل الدخول" };
+  }
+
+  if (newEmail.toLowerCase() === user.email.toLowerCase()) {
+    return { error: "البريد الجديد مطابق للحالي" };
+  }
+
+  const { error: reauthError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+
+  if (reauthError) {
+    return { error: "كلمة المرور غير صحيحة" };
+  }
+
+  const { error } = await supabase.auth.updateUser(
+    { email: newEmail },
+    { emailRedirectTo: `${getAppUrl()}/auth/callback` }
+  );
+
+  if (error) {
+    return { error: "تعذّر إرسال روابط التأكيد، حاول مرة أخرى" };
   }
 
   return { success: true };

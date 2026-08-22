@@ -21,6 +21,15 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Keeps public.users.email in sync after an email-change confirmation
+      // (see sync_own_email.sql); a harmless no-op for every other flow
+      // (OAuth sign-in, password reset) since the address never changed.
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user?.email) {
+        await supabase.rpc("sync_own_email", { p_email: user.email });
+      }
       if (newOrgName) {
         // Best-effort: claim_new_organization() (see saas_multi_tenant_v3.sql)
         // only ever acts when the just-signed-in account is still a pending

@@ -3,8 +3,10 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  changeEmail,
   changePassword,
   signOut,
+  type ChangeEmailState,
   type ChangePasswordState,
 } from "@/lib/actions/auth";
 import { Modal } from "@/components/shared/modal";
@@ -19,6 +21,7 @@ import {
   InfoIcon,
   KeyIcon,
   LogoutIcon,
+  MailIcon,
   UserIcon,
 } from "@/components/shared/icons";
 import type { Role } from "@/lib/types/roles";
@@ -60,16 +63,18 @@ export function UserMenu({
   role,
   jobTitle,
   avatarUrl,
+  currentEmail,
 }: {
   fullName: string;
   role: Role;
   jobTitle?: string | null;
   avatarUrl?: string | null;
+  currentEmail: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [dialog, setDialog] = useState<"password" | "settings" | "notifications" | "about" | null>(
-    null
-  );
+  const [dialog, setDialog] = useState<
+    "password" | "email" | "settings" | "notifications" | "about" | null
+  >(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -174,6 +179,13 @@ export function UserMenu({
                 تغيير كلمة المرور
               </MenuButton>
               <MenuButton
+                onClick={() => pick("email")}
+                tint="bg-teal-50 text-teal-600"
+                icon={<MailIcon className="h-[17px] w-[17px]" />}
+              >
+                تغيير البريد الإلكتروني
+              </MenuButton>
+              <MenuButton
                 onClick={() => pick("settings")}
                 tint="bg-background text-muted"
                 icon={<GearIcon className="h-[17px] w-[17px]" />}
@@ -213,6 +225,9 @@ export function UserMenu({
       </div>
 
       {dialog === "password" && <ChangePasswordDialog onClose={closeDialog} />}
+      {dialog === "email" && (
+        <ChangeEmailDialog onClose={closeDialog} currentEmail={currentEmail} />
+      )}
       {dialog === "settings" && <SettingsDialog onClose={closeDialog} />}
       {dialog === "notifications" && (
         <SidePanel
@@ -375,6 +390,104 @@ function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
               className="flex-1 rounded-[10px] bg-accent-600 py-2.5 text-sm font-extrabold text-white hover:bg-accent-700 disabled:opacity-60"
             >
               {pending ? "جارٍ الحفظ..." : "حفظ"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-[10px] border border-border px-5 py-2.5 text-sm font-bold text-muted hover:bg-background"
+            >
+              إلغاء
+            </button>
+          </div>
+        </form>
+      )}
+    </Modal>
+  );
+}
+
+function ChangeEmailDialog({
+  onClose,
+  currentEmail,
+}: {
+  onClose: () => void;
+  currentEmail: string;
+}) {
+  const [state, formAction, pending] = useActionState<ChangeEmailState, FormData>(
+    changeEmail,
+    {}
+  );
+
+  return (
+    <Modal
+      title="تغيير البريد الإلكتروني"
+      subtitle={`البريد الحالي: ${currentEmail}`}
+      onClose={onClose}
+    >
+      {state.success ? (
+        <div className="space-y-4 text-center">
+          <p className="text-sm font-bold text-green-600">
+            أرسلنا رابط تأكيد إلى البريد الجديد، ورابطًا آخر إلى بريدك الحالي
+            كإجراء أمان. افتح الرسالتين واضغط رابط التأكيد في كل منهما لإتمام
+            التغيير.
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-[10px] bg-accent-600 py-2.5 text-sm font-extrabold text-white hover:bg-accent-700"
+          >
+            إغلاق
+          </button>
+        </div>
+      ) : (
+        <form action={formAction} className="space-y-4">
+          <div>
+            <label
+              htmlFor="new_email"
+              className="mb-1.5 block text-sm font-medium text-foreground"
+            >
+              البريد الإلكتروني الجديد
+            </label>
+            <input
+              id="new_email"
+              name="new_email"
+              type="email"
+              required
+              autoComplete="email"
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="current_password_for_email"
+              className="mb-1.5 block text-sm font-medium text-foreground"
+            >
+              كلمة المرور الحالية
+            </label>
+            <input
+              id="current_password_for_email"
+              name="current_password"
+              type="password"
+              required
+              autoComplete="current-password"
+              className={inputClass}
+            />
+            <p className="mt-1 text-[11.5px] text-muted">للتأكيد على هويتك</p>
+          </div>
+
+          {state.error && (
+            <p className="text-sm font-medium text-brand-red-500" role="alert">
+              {state.error}
+            </p>
+          )}
+
+          <div className="flex gap-2.5">
+            <button
+              type="submit"
+              disabled={pending}
+              className="flex-1 rounded-[10px] bg-accent-600 py-2.5 text-sm font-extrabold text-white hover:bg-accent-700 disabled:opacity-60"
+            >
+              {pending ? "جارٍ الإرسال..." : "إرسال روابط التأكيد"}
             </button>
             <button
               type="button"

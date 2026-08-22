@@ -14,6 +14,7 @@ export function Topbar({
   role,
   jobTitle,
   avatarUrl,
+  currentEmail,
   unreadCount,
   recentActivityCount,
 }: {
@@ -22,6 +23,7 @@ export function Topbar({
   role: Role;
   jobTitle?: string | null;
   avatarUrl?: string | null;
+  currentEmail: string;
   unreadCount: number;
   recentActivityCount: number;
 }) {
@@ -67,7 +69,13 @@ export function Topbar({
         <div className="mx-1 hidden h-8 w-px bg-border sm:block" />
 
         {/* sign-out now lives inside this menu, as on the reference portal */}
-        <UserMenu fullName={fullName} role={role} jobTitle={jobTitle} avatarUrl={avatarUrl} />
+        <UserMenu
+          fullName={fullName}
+          role={role}
+          jobTitle={jobTitle}
+          avatarUrl={avatarUrl}
+          currentEmail={currentEmail}
+        />
       </div>
     </header>
   );
