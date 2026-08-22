@@ -478,7 +478,7 @@ export default async function DashboardPage({
           avatarUrl={profile.avatar_url}
         />
 
-        <form method="get" className="flex flex-wrap items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5">
+        <form method="get" className="hidden flex-wrap items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 sm:flex">
           <select
             name="period"
             defaultValue={period}
