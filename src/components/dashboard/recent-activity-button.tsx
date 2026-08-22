@@ -119,7 +119,7 @@ export function RecentActivityButton({
         <div
           role="dialog"
           aria-label="آخر أنشطتي"
-          className="absolute end-0 top-[calc(100%+10px)] z-40 w-[min(92vw,480px)] overflow-hidden rounded-[18px] border border-border bg-surface shadow-2xl shadow-black/20"
+          className="fixed inset-x-4 top-[80px] z-40 max-w-[480px] overflow-hidden rounded-[18px] border border-border bg-surface shadow-2xl shadow-black/20 sm:absolute sm:inset-x-auto sm:end-0 sm:top-[calc(100%+10px)] sm:w-[min(92vw,480px)]"
         >
           <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
             <span className="text-[13.5px] font-black text-foreground">آخر أنشطتي</span>

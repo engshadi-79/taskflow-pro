@@ -325,7 +325,7 @@ export function NotificationBell({
         <div
           role="dialog"
           aria-label="الإشعارات"
-          className="absolute end-0 top-[calc(100%+10px)] z-40 w-[min(92vw,380px)] overflow-hidden rounded-[18px] border border-border bg-surface shadow-2xl shadow-black/20"
+          className="fixed inset-x-4 top-[80px] z-40 max-w-[380px] overflow-hidden rounded-[18px] border border-border bg-surface shadow-2xl shadow-black/20 sm:absolute sm:inset-x-auto sm:end-0 sm:top-[calc(100%+10px)] sm:w-[min(92vw,380px)]"
         >
           <div className="banner-violet flex items-center justify-between gap-3 px-4 py-3.5 text-white">
             <div>

@@ -139,7 +139,7 @@ export function UserMenu({
           <div
             role="menu"
             aria-label="قائمة المستخدم"
-            className="absolute end-0 top-[calc(100%+10px)] z-40 w-[min(88vw,264px)] overflow-hidden rounded-[18px] border border-border bg-surface shadow-2xl shadow-black/20"
+            className="fixed inset-x-4 top-[80px] z-40 mx-auto max-w-[264px] overflow-hidden rounded-[18px] border border-border bg-surface shadow-2xl shadow-black/20 sm:absolute sm:inset-x-auto sm:end-0 sm:top-[calc(100%+10px)] sm:mx-0 sm:w-[min(88vw,264px)]"
           >
             <div className="flex flex-col items-center gap-2 px-5 pb-4 pt-5 text-center">
               <Avatar
