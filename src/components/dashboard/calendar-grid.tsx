@@ -106,6 +106,63 @@ export function CalendarGrid({
         <p className="rounded-md bg-pink-50 px-4 py-2 text-sm font-medium text-pink-600">{error}</p>
       )}
 
+      {/* Shown right above the grid (not below it) so tapping a day near the
+          top doesn't force a scroll past the whole month to see its items. */}
+      {view !== "day" && selectedCell && (
+        <div className="rounded-[14px] border border-border bg-surface p-3.5 md:hidden">
+          <h3 className="mb-2.5 text-[13px] font-extrabold text-foreground">{selectedCell.date}</h3>
+          {selectedCell.tasks.length === 0 &&
+          selectedCell.milestones.length === 0 &&
+          selectedCell.projectDeadlines.length === 0 &&
+          selectedCell.meetings.length === 0 ? (
+            <p className="text-[12.5px] text-muted">لا توجد أحداث في هذا اليوم</p>
+          ) : (
+            <div className="space-y-2">
+              {selectedCell.projectDeadlines.map((p) => (
+                <div key={`p-${p.id}`} className="rounded-[10px] bg-purple-50 px-3 py-2.5 text-[12.5px] font-bold text-purple-600">
+                  نهاية مشروع: {p.name}
+                </div>
+              ))}
+              {selectedCell.milestones.map((m) => (
+                <div key={`m-${m.id}`} className="rounded-[10px] bg-teal-50 px-3 py-2.5 text-[12.5px] font-bold text-teal-600">
+                  مرحلة: {m.title}
+                </div>
+              ))}
+              {selectedCell.meetings.map((mt) => (
+                <Link
+                  key={`mt-${mt.id}`}
+                  href={`/dashboard/meetings/${mt.id}`}
+                  className="block rounded-[10px] bg-orange-50 px-3 py-2.5 text-[12.5px] font-bold text-orange-600"
+                >
+                  اجتماع{mt.meeting_time ? ` ${mt.meeting_time}` : ""}: {mt.title}
+                </Link>
+              ))}
+              {(byDate[selectedCell.date] ?? []).map((task) => (
+                <Link
+                  key={task.id}
+                  href={`/dashboard/tasks/${task.id}`}
+                  className="flex items-center gap-2 rounded-[10px] bg-background px-3 py-2.5 text-[12.5px]"
+                >
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${PRIORITY_DOT[task.priority]}`} />
+                  {task.is_recurring && <RefreshIcon className="h-3.5 w-3.5 shrink-0 text-accent-500" />}
+                  <span
+                    className={`truncate ${
+                      task.status === "completed"
+                        ? "text-faint line-through"
+                        : task.status === "overdue"
+                          ? "font-bold text-brand-red-500"
+                          : "font-bold text-foreground"
+                    }`}
+                  >
+                    {task.title}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {view !== "day" && (
         <div className={`grid ${gridCols} gap-2 text-center text-[12px] font-bold text-muted`}>
           {cells.slice(0, 7).map((cell) => (
@@ -248,61 +305,6 @@ export function CalendarGrid({
           );
         })}
       </div>
-
-      {view !== "day" && selectedCell && (
-        <div className="rounded-[14px] border border-border bg-surface p-3.5 md:hidden">
-          <h3 className="mb-2.5 text-[13px] font-extrabold text-foreground">{selectedCell.date}</h3>
-          {selectedCell.tasks.length === 0 &&
-          selectedCell.milestones.length === 0 &&
-          selectedCell.projectDeadlines.length === 0 &&
-          selectedCell.meetings.length === 0 ? (
-            <p className="text-[12.5px] text-muted">لا توجد أحداث في هذا اليوم</p>
-          ) : (
-            <div className="space-y-2">
-              {selectedCell.projectDeadlines.map((p) => (
-                <div key={`p-${p.id}`} className="rounded-[10px] bg-purple-50 px-3 py-2.5 text-[12.5px] font-bold text-purple-600">
-                  نهاية مشروع: {p.name}
-                </div>
-              ))}
-              {selectedCell.milestones.map((m) => (
-                <div key={`m-${m.id}`} className="rounded-[10px] bg-teal-50 px-3 py-2.5 text-[12.5px] font-bold text-teal-600">
-                  مرحلة: {m.title}
-                </div>
-              ))}
-              {selectedCell.meetings.map((mt) => (
-                <Link
-                  key={`mt-${mt.id}`}
-                  href={`/dashboard/meetings/${mt.id}`}
-                  className="block rounded-[10px] bg-orange-50 px-3 py-2.5 text-[12.5px] font-bold text-orange-600"
-                >
-                  اجتماع{mt.meeting_time ? ` ${mt.meeting_time}` : ""}: {mt.title}
-                </Link>
-              ))}
-              {(byDate[selectedCell.date] ?? []).map((task) => (
-                <Link
-                  key={task.id}
-                  href={`/dashboard/tasks/${task.id}`}
-                  className="flex items-center gap-2 rounded-[10px] bg-background px-3 py-2.5 text-[12.5px]"
-                >
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${PRIORITY_DOT[task.priority]}`} />
-                  {task.is_recurring && <RefreshIcon className="h-3.5 w-3.5 shrink-0 text-accent-500" />}
-                  <span
-                    className={`truncate ${
-                      task.status === "completed"
-                        ? "text-faint line-through"
-                        : task.status === "overdue"
-                          ? "font-bold text-brand-red-500"
-                          : "font-bold text-foreground"
-                    }`}
-                  >
-                    {task.title}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
