@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { createClient } from "@/lib/supabase/client";
 import { moveTaskStatus, archiveTask, unarchiveTask } from "@/lib/actions/tasks";
 import { CalendarIcon, CloseIcon, InboxIcon } from "@/components/shared/icons";
@@ -50,15 +51,7 @@ export function KanbanBoard({
   // Native HTML5 drag-and-drop has no real touch equivalent, so a phone
   // can't move a card between columns at all without this menu.
   const [statusMenuTaskId, setStatusMenuTaskId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!statusMenuTaskId) return;
-    function onPointerDown() {
-      setStatusMenuTaskId(null);
-    }
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [statusMenuTaskId]);
+  const statusMenuTask = items.find((t) => t.id === statusMenuTaskId) ?? null;
 
   useEffect(() => {
     const supabase = createClient();
@@ -224,53 +217,19 @@ export function KanbanBoard({
                       </span>
 
                       {canDrag && (
-                        <div className="relative shrink-0">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setStatusMenuTaskId((id) => (id === task.id ? null : task.id));
-                            }}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            aria-label="نقل المهمة إلى حالة أخرى"
-                            aria-expanded={statusMenuTaskId === task.id}
-                            aria-haspopup="menu"
-                            className="flex h-6 w-6 items-center justify-center rounded-full text-faint transition-colors hover:bg-background hover:text-foreground"
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                              <circle cx="5" cy="12" r="2" />
-                              <circle cx="12" cy="12" r="2" />
-                              <circle cx="19" cy="12" r="2" />
-                            </svg>
-                          </button>
-
-                          {statusMenuTaskId === task.id && (
-                            <div
-                              role="menu"
-                              aria-label="نقل إلى حالة"
-                              onPointerDown={(e) => e.stopPropagation()}
-                              className="absolute end-0 top-7 z-20 w-[190px] overflow-hidden rounded-[12px] border border-border bg-surface shadow-xl"
-                            >
-                              {COLUMNS.filter((c) => c.status !== task.status).map((c) => (
-                                <button
-                                  key={c.status}
-                                  type="button"
-                                  role="menuitem"
-                                  onClick={() => {
-                                    setStatusMenuTaskId(null);
-                                    handleDrop(c.status, task.id);
-                                  }}
-                                  className="flex w-full items-center gap-2 px-3 py-2.5 text-start text-[12.5px] font-bold text-foreground transition-colors hover:bg-background"
-                                >
-                                  <span className={`flex h-5 w-5 items-center justify-center rounded-md ${c.dot}`}>
-                                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                                  </span>
-                                  {STATUS_LABEL[c.status]}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setStatusMenuTaskId(task.id)}
+                          aria-label="نقل المهمة إلى حالة أخرى"
+                          aria-haspopup="dialog"
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-faint transition-colors hover:bg-background hover:text-foreground"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="5" cy="12" r="2" />
+                            <circle cx="12" cy="12" r="2" />
+                            <circle cx="19" cy="12" r="2" />
+                          </svg>
+                        </button>
                       )}
                     </div>
                     <Link
@@ -395,6 +354,59 @@ export function KanbanBoard({
           </div>
         </div>
       )}
+
+      {statusMenuTask &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+            <div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+              onClick={() => setStatusMenuTaskId(null)}
+              aria-hidden
+            />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="نقل المهمة إلى حالة أخرى"
+              className="animate-pop-in relative w-full max-w-[420px] overflow-hidden rounded-t-[20px] border border-border bg-surface shadow-2xl sm:rounded-[18px]"
+            >
+              <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3.5">
+                <div className="min-w-0">
+                  <h3 className="text-[13px] font-extrabold text-foreground">نقل إلى حالة أخرى</h3>
+                  <p className="truncate text-[11.5px] text-muted">{statusMenuTask.title}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStatusMenuTaskId(null)}
+                  aria-label="إغلاق"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-background"
+                >
+                  <CloseIcon className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="p-2">
+                {COLUMNS.filter((c) => c.status !== statusMenuTask.status).map((c) => (
+                  <button
+                    key={c.status}
+                    type="button"
+                    onClick={() => {
+                      const taskId = statusMenuTask.id;
+                      setStatusMenuTaskId(null);
+                      handleDrop(c.status, taskId);
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-[12px] px-3 py-3 text-start text-[13.5px] font-bold text-foreground transition-colors hover:bg-background"
+                  >
+                    <span className={`flex h-7 w-7 items-center justify-center rounded-full ${c.dot}`}>
+                      <span className="h-2 w-2 rounded-full bg-current" />
+                    </span>
+                    {STATUS_LABEL[c.status]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
