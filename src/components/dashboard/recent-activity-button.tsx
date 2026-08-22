@@ -103,13 +103,16 @@ export function RecentActivityButton({
         onClick={toggle}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="flex h-9 items-center gap-2 rounded-full border border-border bg-background px-3 text-[12.5px] font-bold text-foreground transition-colors hover:bg-accent-50"
+        aria-label="آخر أنشطتي"
+        // same icon+corner-badge shape as NotificationBell below sm (where a
+        // full text pill wouldn't fit), the original bordered pill from sm up
+        className="relative flex h-10 w-10 items-center justify-center rounded-full bg-background text-foreground transition-colors hover:bg-accent-50 sm:h-9 sm:w-auto sm:gap-2 sm:rounded-full sm:border sm:border-border sm:px-3 sm:text-[12.5px] sm:font-bold"
       >
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-500 px-1 text-[11px] font-extrabold text-white">
+        <span className="absolute -end-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-extrabold text-white ring-2 ring-surface sm:static sm:h-5 sm:min-w-5 sm:px-1 sm:text-[11px] sm:ring-0">
           {count}
         </span>
-        <RefreshIcon className="h-3.5 w-3.5 text-muted" />
-        آخر أنشطتي
+        <RefreshIcon className="h-4 w-4 text-muted sm:h-3.5 sm:w-3.5" />
+        <span className="hidden sm:inline">آخر أنشطتي</span>
       </button>
 
       {open && (

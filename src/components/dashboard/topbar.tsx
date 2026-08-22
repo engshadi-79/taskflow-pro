@@ -41,25 +41,24 @@ export function Topbar({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-2.5">
-        {/* Secondary actions - all reachable elsewhere too (sidebar links,
-            the floating ChatWidget, /m itself) - hidden below sm so the
-            always-visible group never overflows a phone-width header. */}
-        <div className="hidden items-center gap-2.5 sm:flex">
-          <RecentActivityButton userId={userId} initialCount={recentActivityCount} />
-          <ChatQuickAccessButton />
-          <HelpQuickAccessButton />
-          <Link
-            href="/m"
-            title="تطبيق الجوال"
-            aria-label="تطبيق الجوال"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-50 text-accent-600 transition-colors hover:brightness-95"
-          >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="6" y="2" width="12" height="20" rx="2.5" />
-              <path d="M11 18h2" />
-            </svg>
-          </Link>
-        </div>
+        <RecentActivityButton userId={userId} initialCount={recentActivityCount} />
+        <ChatQuickAccessButton />
+        <HelpQuickAccessButton />
+
+        {/* Switching to the separate /m mobile site is redundant once this
+            dashboard is itself responsive, and confusing on a phone - kept
+            desktop-only. */}
+        <Link
+          href="/m"
+          title="تطبيق الجوال"
+          aria-label="تطبيق الجوال"
+          className="hidden h-10 w-10 items-center justify-center rounded-full bg-accent-50 text-accent-600 transition-colors hover:brightness-95 sm:flex"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="6" y="2" width="12" height="20" rx="2.5" />
+            <path d="M11 18h2" />
+          </svg>
+        </Link>
 
         <CommandPalette role={role} />
         <NotificationBell userId={userId} initialUnreadCount={unreadCount} />
