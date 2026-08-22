@@ -16,21 +16,27 @@ export function DepartmentHoursChart({ rows }: { rows: DepartmentHoursRow[] }) {
       {rows.length === 0 ? (
         <p className="text-sm text-muted">لا توجد بيانات كافية بعد</p>
       ) : (
-        <div className="flex h-[180px] items-end gap-3">
-          {rows.map((row) => (
-            <div key={row.name} className="flex flex-1 flex-col items-center gap-2">
-              <span className="text-[11px] font-extrabold text-foreground">{row.hours}</span>
-              <div className="flex h-[130px] w-full items-end">
-                <div
-                  className="w-full rounded-t-md bg-gradient-to-t from-accent-600 to-accent-400"
-                  style={{ height: `${Math.max((row.hours / max) * 100, 4)}%` }}
-                />
+        // Fixed-width columns in a horizontally-scrollable strip instead of
+        // flex-1 - with several departments, equal-share columns had no
+        // min-w-0 floor, so each refused to shrink below its own (untruncated)
+        // name's width and pushed the row past the screen edge.
+        <div className="overflow-x-auto">
+          <div className="flex h-[180px] items-end gap-3">
+            {rows.map((row) => (
+              <div key={row.name} className="flex w-[56px] shrink-0 flex-col items-center gap-2">
+                <span className="text-[11px] font-extrabold text-foreground">{row.hours}</span>
+                <div className="flex h-[130px] w-full items-end">
+                  <div
+                    className="w-full rounded-t-md bg-gradient-to-t from-accent-600 to-accent-400"
+                    style={{ height: `${Math.max((row.hours / max) * 100, 4)}%` }}
+                  />
+                </div>
+                <span className="w-full truncate text-center text-[11px] font-bold text-muted">
+                  {row.name}
+                </span>
               </div>
-              <span className="w-full truncate text-center text-[11px] font-bold text-muted">
-                {row.name}
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
