@@ -87,8 +87,8 @@ export default async function MeetingsPage() {
                   </td>
                   <td className="px-1.5 py-3 text-muted">{organizerNameById.get(m.id) ?? "—"}</td>
                   <td className="px-1.5 py-3 text-muted">
-                    {m.meeting_date}
-                    {m.meeting_time ? ` — ${m.meeting_time}` : ""}
+                    <div className="text-[11.5px]">{m.meeting_date}</div>
+                    {m.meeting_time && <div className="text-[11px] text-faint">{m.meeting_time.slice(0, 5)}</div>}
                   </td>
                   <td className="px-1.5 py-3 text-muted">{m.location ?? "—"}</td>
                   <td className="px-1.5 py-3">
