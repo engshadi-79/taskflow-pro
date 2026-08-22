@@ -60,6 +60,8 @@ export function LoginForm({ orgLogoUrl }: { orgLogoUrl: string | null }) {
   const [resetPending, setResetPending] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+  const [adminRequestPending, setAdminRequestPending] = useState(false);
+  const [adminRequestSent, setAdminRequestSent] = useState(false);
   // Avoids useSearchParams(), which would force this otherwise-static page
   // into a Suspense boundary just to show one conditional banner.
   const googleError = useSyncExternalStore(subscribeNever, getGoogleErrorSnapshot, getErrorServerSnapshot);
@@ -71,6 +73,7 @@ export function LoginForm({ orgLogoUrl }: { orgLogoUrl: string | null }) {
     setResetEmail(emailRef.current?.value ?? "");
     setResetError(null);
     setResetSent(false);
+    setAdminRequestSent(false);
     setMode("forgot");
   }
 
@@ -91,6 +94,34 @@ export function LoginForm({ orgLogoUrl }: { orgLogoUrl: string | null }) {
       return;
     }
     setResetSent(true);
+  }
+
+  /**
+   * Fallback path for when outbound email doesn't reach real employees
+   * (Resend sandbox mode currently only delivers to its own account owner) -
+   * notifies the org's super_admin(s) in-app instead (see
+   * request_password_reset in supabase/password_reset_request_notify.sql),
+   * who can then set a new password directly from the employee's profile
+   * page. Always reports success either way, same anti-enumeration shape as
+   * the email path above.
+   */
+  async function handleRequestAdminReset() {
+    if (!resetEmail.trim()) {
+      setResetError("أدخل بريدك الإلكتروني");
+      return;
+    }
+    setAdminRequestPending(true);
+    setResetError(null);
+    const supabase = createClient();
+    const { error } = await supabase.rpc("request_password_reset", {
+      p_email: resetEmail.trim(),
+    });
+    setAdminRequestPending(false);
+    if (error) {
+      setResetError("تعذّر إرسال الطلب، حاول مرة أخرى");
+      return;
+    }
+    setAdminRequestSent(true);
   }
 
   async function handleGoogle() {
@@ -302,6 +333,29 @@ export function LoginForm({ orgLogoUrl }: { orgLogoUrl: string | null }) {
                   {resetPending ? "جارٍ الإرسال..." : "إرسال رابط إعادة التعيين"}
                 </button>
               </div>
+            )}
+
+            <div className="mt-5 flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs font-medium text-faint">أو</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            {adminRequestSent ? (
+              <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2.5 text-center text-sm font-bold text-green-700">
+                تم إرسال طلبك لمديرك، سيتواصل معك لتعيين كلمة مرور جديدة.
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={handleRequestAdminReset}
+                disabled={adminRequestPending}
+                className="mt-3 w-full rounded-[10px] border border-border bg-surface px-3 py-2.5 text-sm font-bold text-foreground transition-colors hover:bg-background disabled:opacity-60"
+              >
+                {adminRequestPending
+                  ? "جارٍ الإرسال..."
+                  : "أرسل طلبًا لمديرك ليعيّن لك كلمة مرور جديدة"}
+              </button>
             )}
 
             <button

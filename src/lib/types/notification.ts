@@ -60,7 +60,7 @@ export const NOTIFICATION_CATEGORIES: NotificationCategory[] = [
   {
     key: "workflow",
     label: "الطلبات والموافقات",
-    types: ["workflow_pending_approval", "workflow_approved", "workflow_rejected", "workflow_escalated", "user_pending_approval"],
+    types: ["workflow_pending_approval", "workflow_approved", "workflow_rejected", "workflow_escalated", "user_pending_approval", "password_reset_request"],
   },
   {
     key: "knowledge",

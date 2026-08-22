@@ -18,6 +18,7 @@ import {
   ExternalLinkIcon,
   EyeIcon,
   FolderIcon,
+  KeyIcon,
   RefreshIcon,
   UserIcon,
   XCircleIcon,
@@ -66,6 +67,11 @@ const TYPE_META: Record<string, Meta> = {
     label: "بانتظار موافقتك",
     tint: "bg-orange-500",
     icon: <UserIcon className="h-[17px] w-[17px]" />,
+  },
+  password_reset_request: {
+    label: "طلب إعادة تعيين كلمة مرور",
+    tint: "bg-orange-500",
+    icon: <KeyIcon className="h-[17px] w-[17px]" />,
   },
   workflow_pending_approval: {
     label: "طلب بانتظار موافقتك",
@@ -145,7 +151,9 @@ const WORKFLOW_TYPES = ["workflow_pending_approval", "workflow_approved", "workf
 function urlFor(
   n: Pick<Notification, "type" | "task_id" | "meeting_id" | "article_id" | "comment_id" | "conversation_id">
 ): string {
-  if (n.type === "user_pending_approval") return "/dashboard/employees";
+  if (n.type === "user_pending_approval" || n.type === "password_reset_request") {
+    return "/dashboard/employees";
+  }
   // notifications has no request_id column, only task_id (unused here) -
   // the list page is the honest link we can give without a schema change
   if (WORKFLOW_TYPES.includes(n.type)) return "/dashboard/workflow-requests";
