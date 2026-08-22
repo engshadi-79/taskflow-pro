@@ -18,6 +18,9 @@ const ROLE_LABEL: Record<Role, string> = {
  * the actual Realtime Presence channel and rebroadcasts synced state as a
  * window CustomEvent - this just listens, so "متصلون الآن" reflects
  * whoever is on ANY /dashboard/** page right now, not only this one.
+ *
+ * Rendered as a solid white pill so it reads as one of WelcomeBanner's own
+ * chips (department/date) rather than a separate floating card beside it.
  */
 export function OnlineNowWidget() {
   const [entries, setEntries] = useState<PresenceEntry[]>([]);
@@ -43,35 +46,28 @@ export function OnlineNowWidget() {
 
   return (
     <>
-      <div className="w-full max-w-[220px] shrink-0 rounded-2xl border border-green-100 bg-gradient-to-br from-green-50 via-white to-white p-4 shadow-sm dark:border-green-900/40 dark:from-green-950/20 dark:via-surface dark:to-surface">
-        <p className="mb-3 text-center text-[13px] font-extrabold text-foreground">متصلون الآن</p>
-
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="group flex w-full flex-col items-center gap-1.5 rounded-xl bg-surface px-4 py-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="اضغط لعرض الأسماء"
+        className="group inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-2 text-[12px] font-bold text-primary shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+      >
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-green-50 text-green-600 transition-transform group-hover:scale-105">
+          <UsersIcon className="h-3.5 w-3.5" />
+        </span>
+        <b
+          className={`text-[14px] leading-none text-green-600 transition-transform duration-300 ${
+            bump ? "scale-125" : "scale-100"
+          }`}
         >
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-emerald-600 text-white shadow-sm transition-transform group-hover:scale-105">
-            <UsersIcon className="h-5 w-5" />
-          </span>
-          <b
-            className={`text-[22px] leading-none text-green-600 transition-transform duration-300 ${
-              bump ? "scale-125" : "scale-100"
-            }`}
-          >
-            {entries.length}
-          </b>
-          <span className="text-[11.5px] font-bold text-muted">متصل الآن</span>
-        </button>
-
-        <p className="mt-3 flex items-center justify-center gap-1.5 text-[10.5px] text-faint">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75 motion-reduce:hidden" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
-          </span>
-          اضغط الأيقونة لعرض الأسماء
-        </p>
-      </div>
+          {entries.length}
+        </b>
+        متصل الآن
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75 motion-reduce:hidden" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+        </span>
+      </button>
 
       {open && <OnlineListModal entries={entries} lastSync={lastSync} onClose={() => setOpen(false)} />}
     </>

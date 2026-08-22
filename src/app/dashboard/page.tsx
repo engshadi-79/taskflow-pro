@@ -12,7 +12,6 @@ import {
   MiniListPanel,
 } from "@/components/dashboard/dashboard-widgets";
 import { WelcomeBanner } from "@/components/dashboard/welcome-banner";
-import { OnlineNowWidget } from "@/components/dashboard/online-now-widget";
 import { QuickShortcuts } from "@/components/dashboard/quick-shortcuts";
 import { resolveShortcuts } from "@/lib/shortcuts-registry";
 import { MyNotesWidget } from "@/components/dashboard/my-notes-widget";
@@ -179,17 +178,12 @@ export default async function DashboardPage({
 
     return (
       <div className="space-y-5">
-        <div className="flex flex-wrap-reverse gap-4">
-          <div className="min-w-0 flex-1">
-            <WelcomeBanner
-              fullName={profile.full_name}
-              role={profile.role}
-              departmentName={(ownDept as { name: string } | null)?.name}
-              avatarUrl={profile.avatar_url}
-            />
-          </div>
-          <OnlineNowWidget />
-        </div>
+        <WelcomeBanner
+          fullName={profile.full_name}
+          role={profile.role}
+          departmentName={(ownDept as { name: string } | null)?.name}
+          avatarUrl={profile.avatar_url}
+        />
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard
@@ -476,83 +470,80 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-4.5">
-      <div className="flex flex-wrap-reverse gap-4">
-        <div className="min-w-0 flex-1 space-y-2.5">
-          <WelcomeBanner
-            fullName={profile.full_name}
-            role={profile.role}
-            departmentName={(ownDepartment as { name: string } | null)?.name}
-            avatarUrl={profile.avatar_url}
-          />
+      <div className="space-y-2.5">
+        <WelcomeBanner
+          fullName={profile.full_name}
+          role={profile.role}
+          departmentName={(ownDepartment as { name: string } | null)?.name}
+          avatarUrl={profile.avatar_url}
+        />
 
-          <form method="get" className="flex flex-wrap items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5">
+        <form method="get" className="flex flex-wrap items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5">
+          <select
+            name="period"
+            defaultValue={period}
+            className="rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground outline-none focus:border-accent-500"
+          >
+            {(Object.keys(PERIOD_LABEL) as ReportPeriod[]).map((p) => (
+              <option key={p} value={p}>{PERIOD_LABEL[p]}</option>
+            ))}
+          </select>
+          {profile.role === "super_admin" && (
             <select
-              name="period"
-              defaultValue={period}
+              name="department_id"
+              defaultValue={params.department_id ?? ""}
               className="rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground outline-none focus:border-accent-500"
             >
-              {(Object.keys(PERIOD_LABEL) as ReportPeriod[]).map((p) => (
-                <option key={p} value={p}>{PERIOD_LABEL[p]}</option>
+              <option value="">كل الأقسام</option>
+              {(departmentsForFilter ?? []).map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
               ))}
             </select>
-            {profile.role === "super_admin" && (
-              <select
-                name="department_id"
-                defaultValue={params.department_id ?? ""}
-                className="rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground outline-none focus:border-accent-500"
-              >
-                <option value="">كل الأقسام</option>
-                {(departmentsForFilter ?? []).map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-            )}
-            <select
-              name="project_id"
-              defaultValue={params.project_id ?? ""}
-              className="rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground outline-none focus:border-accent-500"
-            >
-              <option value="">كل المشاريع</option>
-              {(projectsForFilter ?? []).map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-            <select
-              name="employee_id"
-              defaultValue={params.employee_id ?? ""}
-              className="rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground outline-none focus:border-accent-500"
-            >
-              <option value="">كل الموظفين</option>
-              {(employeesForFilter ?? []).map((e) => (
-                <option key={e.id} value={e.id}>{e.full_name}</option>
-              ))}
-            </select>
-            <select
-              name="status"
-              defaultValue={params.status ?? ""}
-              className="rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground outline-none focus:border-accent-500"
-            >
-              <option value="">كل الحالات</option>
-              {(Object.keys(STATUS_LABEL) as TaskStatus[]).map((s) => (
-                <option key={s} value={s}>{STATUS_LABEL[s]}</option>
-              ))}
-            </select>
-            <select
-              name="priority"
-              defaultValue={params.priority ?? ""}
-              className="rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground outline-none focus:border-accent-500"
-            >
-              <option value="">كل الأولويات</option>
-              {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
-                <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>
-              ))}
-            </select>
-            <button type="submit" className="rounded-full bg-accent-500 px-3 py-1 text-[12px] font-bold text-white hover:bg-accent-600">
-              تصفية
-            </button>
-          </form>
-        </div>
-        <OnlineNowWidget />
+          )}
+          <select
+            name="project_id"
+            defaultValue={params.project_id ?? ""}
+            className="rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground outline-none focus:border-accent-500"
+          >
+            <option value="">كل المشاريع</option>
+            {(projectsForFilter ?? []).map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <select
+            name="employee_id"
+            defaultValue={params.employee_id ?? ""}
+            className="rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground outline-none focus:border-accent-500"
+          >
+            <option value="">كل الموظفين</option>
+            {(employeesForFilter ?? []).map((e) => (
+              <option key={e.id} value={e.id}>{e.full_name}</option>
+            ))}
+          </select>
+          <select
+            name="status"
+            defaultValue={params.status ?? ""}
+            className="rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground outline-none focus:border-accent-500"
+          >
+            <option value="">كل الحالات</option>
+            {(Object.keys(STATUS_LABEL) as TaskStatus[]).map((s) => (
+              <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+            ))}
+          </select>
+          <select
+            name="priority"
+            defaultValue={params.priority ?? ""}
+            className="rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground outline-none focus:border-accent-500"
+          >
+            <option value="">كل الأولويات</option>
+            {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
+              <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>
+            ))}
+          </select>
+          <button type="submit" className="rounded-full bg-accent-500 px-3 py-1 text-[12px] font-bold text-white hover:bg-accent-600">
+            تصفية
+          </button>
+        </form>
       </div>
 
       <div className="grid grid-cols-1 gap-4.5 lg:grid-cols-[1.65fr_1fr_1fr]">

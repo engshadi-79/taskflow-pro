@@ -2,6 +2,7 @@ import { AnimatedBackground } from "@/components/shared/animated-background";
 import { Avatar } from "@/components/shared/avatar";
 import { BriefcaseIcon, CalendarIcon, FolderIcon } from "@/components/shared/icons";
 import { LiveDateLabel, LiveGreeting } from "@/components/dashboard/live-greeting";
+import { OnlineNowWidget } from "@/components/dashboard/online-now-widget";
 import { formatDateLabel, greetingFor } from "@/lib/greeting";
 import type { Role } from "@/lib/types/roles";
 
@@ -66,6 +67,7 @@ export function WelcomeBanner({
       {/* date (+ department) pinned to the left, opposite the photo, and
           vertically centered on the banner's own height */}
       <div className="relative mb-5 flex flex-col items-start gap-2 sm:absolute sm:end-6 sm:top-1/2 sm:mb-0 sm:-translate-y-1/2">
+        <OnlineNowWidget />
         {departmentName && (
           <SolidChip icon={<FolderIcon className="h-3.5 w-3.5 text-accent-600" />}>{departmentName}</SolidChip>
         )}
