@@ -151,22 +151,6 @@ export function NotificationPreferencesSettings({ role }: { role: Role }) {
               </label>
             )}
 
-            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-[10px] border border-border px-3.5 py-2.5 text-[13px] font-bold text-foreground hover:bg-background">
-              <span>
-                إشعارات عبر واتساب
-                <span className="mt-0.5 block text-[11px] font-medium text-muted">
-                  يتطلب حفظ رقم واتساب في ملفك الشخصي أولًا
-                </span>
-              </span>
-              <input
-                type="checkbox"
-                checked={prefs.whatsapp_notifications_enabled}
-                disabled={saving}
-                onChange={(e) => save({ ...prefs, whatsapp_notifications_enabled: e.target.checked })}
-                className="h-4 w-4 shrink-0 accent-accent-600"
-              />
-            </label>
-
             {(role === "super_admin" || role === "department_manager") && (
               <label className="flex cursor-pointer items-center justify-between gap-3 rounded-[10px] border border-border px-3.5 py-2.5 text-[13px] font-bold text-foreground hover:bg-background">
                 <span>
