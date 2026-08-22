@@ -1,5 +1,20 @@
 import type { PerformanceRow } from "@/components/dashboard/performance-table";
 
+// Cycled by row index whenever a chart doesn't supply its own `colorFor`
+// (department/employee/project charts all used one flat accent color before,
+// making every bar visually identical - only the priority chart had distinct
+// per-row colors, via its own severity-based colorFor).
+const DEFAULT_PALETTE = [
+  "bg-gradient-to-l from-accent-600 to-accent-400",
+  "bg-gradient-to-l from-teal-600 to-teal-500",
+  "bg-gradient-to-l from-orange-600 to-orange-500",
+  "bg-gradient-to-l from-pink-600 to-pink-500",
+  "bg-gradient-to-l from-purple-600 to-purple-500",
+  "bg-gradient-to-l from-green-600 to-green-500",
+  "bg-gradient-to-l from-brand-blue-600 to-brand-blue-500",
+  "bg-gradient-to-l from-brand-red-600 to-brand-red-500",
+];
+
 /**
  * Horizontal bar chart of completionRate per row - one shared component for
  * the Department/Employee/Project/Priority performance sections, same
@@ -30,8 +45,8 @@ export function PerformanceBarChart({
         <p className="text-sm text-muted">لا توجد بيانات كافية بعد</p>
       ) : (
         <div className="max-h-[320px] space-y-3 overflow-y-auto pe-1">
-          {rows.map((row) => {
-            const color = colorFor?.(row);
+          {rows.map((row, index) => {
+            const color = colorFor?.(row) ?? DEFAULT_PALETTE[index % DEFAULT_PALETTE.length];
             return (
               <div key={row.key} className="flex items-center gap-3">
                 <span className="w-24 shrink-0 truncate text-[12px] font-bold text-muted" title={row.name}>
@@ -39,7 +54,7 @@ export function PerformanceBarChart({
                 </span>
                 <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-background">
                   <div
-                    className={`h-full rounded-full ${color ?? "bg-gradient-to-l from-accent-600 to-accent-400"}`}
+                    className={`h-full rounded-full ${color}`}
                     style={{ width: `${Math.min(row.completionRate, 100)}%` }}
                   />
                 </div>
