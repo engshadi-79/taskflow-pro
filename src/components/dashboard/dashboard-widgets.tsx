@@ -77,18 +77,18 @@ export function KpiCard({
 }) {
   return (
     <div
-      className={`relative flex min-h-[135px] flex-col justify-between overflow-hidden rounded-[20px] bg-gradient-to-br ${KPI_GRADIENT[tone]} p-[22px] text-white`}
+      className={`relative flex min-h-[110px] flex-col justify-between overflow-hidden rounded-[20px] bg-gradient-to-br ${KPI_GRADIENT[tone]} p-3.5 text-white sm:min-h-[135px] sm:p-[22px]`}
     >
       <div className="absolute -bottom-5 -start-5 h-[90px] w-[90px] rounded-full bg-white/10" />
-      <h3 className="relative z-2 text-[13.5px] font-bold opacity-95">{title}</h3>
-      <div className="relative z-2 my-1.5 font-display text-[26px]">{value}</div>
-      <div className="relative z-2 mb-2.5 h-[5px] rounded-md bg-white/30">
+      <h3 className="relative z-2 text-[12px] font-bold opacity-95 sm:text-[13.5px]">{title}</h3>
+      <div className="relative z-2 my-1 font-display text-[21px] sm:my-1.5 sm:text-[26px]">{value}</div>
+      <div className="relative z-2 mb-2 h-[5px] rounded-md bg-white/30 sm:mb-2.5">
         <div
           className="h-full rounded-md bg-white"
           style={{ width: `${Math.min(Math.max(progress, 0), 100)}%` }}
         />
       </div>
-      <div className="relative z-2 text-[11.5px] opacity-90">{foot}</div>
+      <div className="relative z-2 text-[10.5px] opacity-90 sm:text-[11.5px]">{foot}</div>
     </div>
   );
 }
@@ -106,7 +106,7 @@ export function HeroCard({
 }) {
   return (
     <div
-      className="relative row-span-2 flex min-h-[220px] flex-col overflow-hidden rounded-[20px] p-5 pb-0 text-white sm:min-h-[300px] sm:p-[30px] sm:pb-0"
+      className="relative col-span-2 flex min-h-[220px] flex-col overflow-hidden rounded-[20px] p-5 pb-0 text-white sm:min-h-[300px] sm:p-[30px] sm:pb-0 lg:col-span-1 lg:row-span-2"
       style={{ backgroundImage: "linear-gradient(135deg, var(--accent-500), #5C93FF)" }}
     >
       <h2 className="relative z-2 mb-1.5 font-display text-[15px] sm:mb-2 sm:text-[19px]">إنجاز هذا الأسبوع</h2>
