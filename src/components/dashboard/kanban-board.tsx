@@ -47,6 +47,18 @@ export function KanbanBoard({
   const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Native HTML5 drag-and-drop has no real touch equivalent, so a phone
+  // can't move a card between columns at all without this menu.
+  const [statusMenuTaskId, setStatusMenuTaskId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!statusMenuTaskId) return;
+    function onPointerDown() {
+      setStatusMenuTaskId(null);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [statusMenuTaskId]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -200,15 +212,67 @@ export function KanbanBoard({
                     }}
                     onDragEnd={() => setDraggingId(null)}
                     style={{ animationDelay: `${Math.min(index, 12) * 25}ms` }}
-                    className={`animate-pop-in mb-2.5 rounded-[13px] border border-border border-s-[3px] bg-surface p-3.5 shadow-sm transition-all duration-200 hover:shadow-md ${col.edge} ${
+                    className={`animate-pop-in relative mb-2.5 rounded-[13px] border border-border border-s-[3px] bg-surface p-3.5 shadow-sm transition-all duration-200 hover:shadow-md ${col.edge} ${
                       canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-90"
                     } ${draggingId === task.id ? "scale-[0.97] opacity-40" : ""}`}
                   >
-                    <span
-                      className={`mb-2.5 inline-block rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${PRIORITY_TAG[task.priority]}`}
-                    >
-                      {PRIORITY_LABEL[task.priority]}
-                    </span>
+                    <div className="mb-2.5 flex items-start justify-between gap-2">
+                      <span
+                        className={`inline-block rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${PRIORITY_TAG[task.priority]}`}
+                      >
+                        {PRIORITY_LABEL[task.priority]}
+                      </span>
+
+                      {canDrag && (
+                        <div className="relative shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setStatusMenuTaskId((id) => (id === task.id ? null : task.id));
+                            }}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            aria-label="نقل المهمة إلى حالة أخرى"
+                            aria-expanded={statusMenuTaskId === task.id}
+                            aria-haspopup="menu"
+                            className="flex h-6 w-6 items-center justify-center rounded-full text-faint transition-colors hover:bg-background hover:text-foreground"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                              <circle cx="5" cy="12" r="2" />
+                              <circle cx="12" cy="12" r="2" />
+                              <circle cx="19" cy="12" r="2" />
+                            </svg>
+                          </button>
+
+                          {statusMenuTaskId === task.id && (
+                            <div
+                              role="menu"
+                              aria-label="نقل إلى حالة"
+                              onPointerDown={(e) => e.stopPropagation()}
+                              className="absolute end-0 top-7 z-20 w-[190px] overflow-hidden rounded-[12px] border border-border bg-surface shadow-xl"
+                            >
+                              {COLUMNS.filter((c) => c.status !== task.status).map((c) => (
+                                <button
+                                  key={c.status}
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    setStatusMenuTaskId(null);
+                                    handleDrop(c.status, task.id);
+                                  }}
+                                  className="flex w-full items-center gap-2 px-3 py-2.5 text-start text-[12.5px] font-bold text-foreground transition-colors hover:bg-background"
+                                >
+                                  <span className={`flex h-5 w-5 items-center justify-center rounded-md ${c.dot}`}>
+                                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                                  </span>
+                                  {STATUS_LABEL[c.status]}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     <Link
                       href={`/dashboard/tasks/${task.id}`}
                       className="mb-2 block text-sm font-extrabold leading-6 text-foreground hover:text-accent-600"
