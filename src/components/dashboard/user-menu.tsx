@@ -32,12 +32,6 @@ const ROLE_LABEL: Record<Role, string> = {
   employee: "موظف",
 };
 
-const ROLE_SCOPE: Record<Role, string> = {
-  super_admin: "وصول كامل إلى كل الأقسام والمهام والموظفين.",
-  department_manager: "إدارة مهام قسمك، وعرض أعضائه دون تعديلهم.",
-  employee: "عرض وتحديث المهام المسندة إليك.",
-};
-
 type Theme = "light" | "dark" | "system";
 
 const THEMES: { value: Theme; label: string }[] = [
@@ -73,7 +67,7 @@ export function UserMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [dialog, setDialog] = useState<
-    "password" | "email" | "settings" | "notifications" | "about" | null
+    "password" | "email" | "settings" | "notifications" | null
   >(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -199,13 +193,14 @@ export function UserMenu({
               >
                 تفضيلات الإشعارات
               </MenuButton>
-              <MenuButton
-                onClick={() => pick("about")}
+              <MenuLink
+                href="/dashboard/about"
+                onNavigate={() => setOpen(false)}
                 tint="bg-purple-50 text-purple-500"
                 icon={<InfoIcon className="h-[17px] w-[17px]" />}
               >
                 حول النظام
-              </MenuButton>
+              </MenuLink>
             </div>
 
             <form action={signOut} className="border-t border-border py-1.5">
@@ -237,9 +232,6 @@ export function UserMenu({
         >
           <NotificationPreferencesSettings role={role} />
         </SidePanel>
-      )}
-      {dialog === "about" && (
-        <AboutDialog role={role} fullName={fullName} onClose={closeDialog} />
       )}
     </>
   );
@@ -693,49 +685,3 @@ function SystemNotificationSettings() {
   );
 }
 
-function AboutDialog({
-  role,
-  fullName,
-  onClose,
-}: {
-  role: Role;
-  fullName: string;
-  onClose: () => void;
-}) {
-  return (
-    <Modal title="حول النظام" subtitle="منجز — إدارة المهام والموظفين" onClose={onClose}>
-      <dl className="divide-y divide-border text-sm">
-        <Row label="المستخدم" value={fullName} />
-        <Row label="الدور" value={ROLE_LABEL[role]} />
-        <Row label="نطاق صلاحياتك" value={ROLE_SCOPE[role]} />
-        <Row label="اللغة" value="العربية (RTL)" />
-      </dl>
-
-      <div className="mt-4 flex flex-col gap-2">
-        <Link
-          href="/dashboard/notifications"
-          onClick={onClose}
-          className="rounded-[10px] border border-border py-2.5 text-center text-sm font-bold text-foreground hover:bg-background"
-        >
-          مركز الإشعارات
-        </Link>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-[10px] bg-accent-600 py-2.5 text-sm font-extrabold text-white hover:bg-accent-700"
-        >
-          إغلاق
-        </button>
-      </div>
-    </Modal>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-4 py-2.5">
-      <dt className="shrink-0 font-bold text-muted">{label}</dt>
-      <dd className="text-end text-foreground">{value}</dd>
-    </div>
-  );
-}
