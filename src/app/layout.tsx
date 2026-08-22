@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Noto_Kufi_Arabic } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegister } from "@/components/shared/service-worker-register";
+import { WhatsappFloatingButton } from "@/components/shared/whatsapp-floating-button";
 
 // The ACAS portal uses Noto Kufi Arabic throughout, for headings and body alike.
 const notoKufi = Noto_Kufi_Arabic({
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col overflow-x-hidden bg-background text-foreground font-body">
         {children}
+        <WhatsappFloatingButton />
         <ServiceWorkerRegister />
       </body>
     </html>

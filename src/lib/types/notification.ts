@@ -25,6 +25,7 @@ export type UserNotificationPreferences = {
   digest_mode: "off" | "daily";
   email_digest_enabled: boolean;
   weekly_report_email_enabled: boolean;
+  whatsapp_notifications_enabled: boolean;
 };
 
 export type NotificationCategory = {

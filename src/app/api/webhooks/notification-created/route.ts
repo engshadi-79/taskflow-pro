@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPush } from "@/lib/web-push";
 import { sendExpoPush } from "@/lib/expo-push";
+import { sendWhatsappMessage } from "@/lib/whatsapp/send";
 
 export const dynamic = "force-dynamic";
 
@@ -60,10 +61,17 @@ export async function POST(req: NextRequest) {
   const notification = body.record;
   const supabase = createAdminClient();
 
-  const [{ data: subscriptions }, { data: expoTokens }] = await Promise.all([
-    supabase.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("user_id", notification.user_id),
-    supabase.from("expo_push_tokens").select("id, token").eq("user_id", notification.user_id),
-  ]);
+  const [{ data: subscriptions }, { data: expoTokens }, { data: recipient }, { data: prefs }] =
+    await Promise.all([
+      supabase.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("user_id", notification.user_id),
+      supabase.from("expo_push_tokens").select("id, token").eq("user_id", notification.user_id),
+      supabase.from("users").select("whatsapp, phone").eq("id", notification.user_id).maybeSingle(),
+      supabase
+        .from("user_notification_preferences")
+        .select("whatsapp_notifications_enabled")
+        .eq("user_id", notification.user_id)
+        .maybeSingle(),
+    ]);
 
   let sent = 0;
   const deadIds: string[] = [];
@@ -101,6 +109,20 @@ export async function POST(req: NextRequest) {
           errors.push({ endpoint: `expo:${expoTokens[i].token.slice(-24)}`, message: result.message });
         }
       });
+    })(),
+    (async () => {
+      const whatsappNumber = recipient?.whatsapp || recipient?.phone;
+      if (!whatsappNumber || !prefs?.whatsapp_notifications_enabled) return;
+
+      const result = await sendWhatsappMessage({
+        to: whatsappNumber,
+        message: notification.message,
+      });
+      if (result.ok) {
+        sent++;
+      } else if (result.error) {
+        errors.push({ endpoint: `whatsapp:${whatsappNumber.slice(-4)}`, message: result.error });
+      }
     })(),
   ]);
 

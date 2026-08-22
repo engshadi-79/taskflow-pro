@@ -13,6 +13,7 @@ const DEFAULTS: UserNotificationPreferences = {
   digest_mode: "off",
   email_digest_enabled: false,
   weekly_report_email_enabled: false,
+  whatsapp_notifications_enabled: false,
 };
 
 export type NotificationPreferencesState = { error?: string };
@@ -31,7 +32,7 @@ export async function getNotificationPreferences(): Promise<UserNotificationPref
     supabase
       .from("user_notification_preferences")
       .select(
-        "muted_types, dnd_enabled, dnd_start_time, dnd_end_time, dnd_timezone, digest_mode, email_digest_enabled, weekly_report_email_enabled"
+        "muted_types, dnd_enabled, dnd_start_time, dnd_end_time, dnd_timezone, digest_mode, email_digest_enabled, weekly_report_email_enabled, whatsapp_notifications_enabled"
       )
       .eq("user_id", profile.id)
       .maybeSingle(),
@@ -79,6 +80,7 @@ export async function updateNotificationPreferences(
       ...baseRow,
       email_digest_enabled: input.email_digest_enabled,
       weekly_report_email_enabled: input.weekly_report_email_enabled,
+      whatsapp_notifications_enabled: input.whatsapp_notifications_enabled,
     },
     { onConflict: "user_id" }
   );
