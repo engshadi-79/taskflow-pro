@@ -106,27 +106,27 @@ export function HeroCard({
 }) {
   return (
     <div
-      className="relative row-span-2 flex min-h-[300px] flex-col overflow-hidden rounded-[20px] p-[30px] pb-0 text-white"
+      className="relative row-span-2 flex min-h-[220px] flex-col overflow-hidden rounded-[20px] p-5 pb-0 text-white sm:min-h-[300px] sm:p-[30px] sm:pb-0"
       style={{ backgroundImage: "linear-gradient(135deg, var(--accent-500), #5C93FF)" }}
     >
-      <h2 className="relative z-2 mb-2 font-display text-[19px]">إنجاز هذا الأسبوع</h2>
-      <div className="relative z-2 mb-1.5 font-display text-[34px]">{weekCount} مهمة</div>
-      <div className="relative z-2 mb-5.5 text-[12.5px] opacity-90">
+      <h2 className="relative z-2 mb-1.5 font-display text-[15px] sm:mb-2 sm:text-[19px]">إنجاز هذا الأسبوع</h2>
+      <div className="relative z-2 mb-1 font-display text-[26px] sm:mb-1.5 sm:text-[34px]">{weekCount} مهمة</div>
+      <div className="relative z-2 mb-3.5 text-[11.5px] opacity-90 sm:mb-5.5 sm:text-[12.5px]">
         {deltaPercent >= 0 ? "▲" : "▼"} {Math.abs(deltaPercent)}٪ مقارنة بالأسبوع الماضي
       </div>
-      <div className="relative z-2 mb-5.5 flex gap-8.5">
+      <div className="relative z-2 mb-3.5 flex gap-5 sm:mb-5.5 sm:gap-8.5">
         <div>
-          <span className="block text-xs opacity-85">مهام الفريق</span>
-          <b className="font-display text-base">{teamCompleted} منجزة</b>
+          <span className="block text-[11px] opacity-85 sm:text-xs">مهام الفريق</span>
+          <b className="font-display text-[13px] sm:text-base">{teamCompleted} منجزة</b>
         </div>
         <div>
-          <span className="block text-xs opacity-85">مهام معلّقة</span>
-          <b className="font-display text-base">{teamPending} قيد التنفيذ</b>
+          <span className="block text-[11px] opacity-85 sm:text-xs">مهام معلّقة</span>
+          <b className="font-display text-[13px] sm:text-base">{teamPending} قيد التنفيذ</b>
         </div>
       </div>
       <a
         href="/dashboard/reports"
-        className="relative z-2 mb-6 w-fit rounded-[9px] bg-[#FFC93C] px-5 py-2.5 text-[13px] font-extrabold text-[#1D1F2B]"
+        className="relative z-2 mb-4 w-fit rounded-[9px] bg-[#FFC93C] px-4 py-2 text-[12px] font-extrabold text-[#1D1F2B] sm:mb-6 sm:px-5 sm:py-2.5 sm:text-[13px]"
       >
         عرض التقرير الكامل
       </a>
