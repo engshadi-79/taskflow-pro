@@ -56,9 +56,17 @@ export default async function DecisionsPage({
         subtitle="ماذا حدث، ولماذا، وما الإجراء المقترح — أرقام حقيقية فقط، لا مؤشرات مخترَعة"
         variant="navy"
         icon={<AlertIcon className="h-6 w-6" />}
-        count={`${insights.length} ملاحظة`}
       >
-        <PeriodTabs active={period} basePath="/dashboard/decisions" />
+        {/* 4 pills (3 period tabs + the count) as one 2-column grid on
+            mobile - PageHeader's own count prop would put this count badge
+            on its own line since it's a separate flex item from PeriodTabs'
+            own wrapped group. */}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2.5">
+          <PeriodTabs active={period} basePath="/dashboard/decisions" bare />
+          <span className="rounded-full bg-white/20 px-3.5 py-1.5 text-center text-[13px] font-extrabold backdrop-blur-sm">
+            {insights.length} ملاحظة
+          </span>
+        </div>
       </PageHeader>
 
       {insights.length === 0 ? (

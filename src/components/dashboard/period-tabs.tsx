@@ -8,25 +8,29 @@ const PERIODS: ReportPeriod[] = ["week", "month", "quarter"];
 export function PeriodTabs({
   active,
   basePath = "/dashboard/reports",
+  bare = false,
 }: {
   active: ReportPeriod;
   basePath?: string;
+  /** Skip the wrapping div and return the links alone, for a caller (e.g.
+   * PageHeader's action area) that wants them as direct grid/flex items
+   * alongside its own trailing pills instead of nested inside another one. */
+  bare?: boolean;
 }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      {PERIODS.map((p) => (
-        <Link
-          key={p}
-          href={p === "week" ? basePath : `${basePath}?period=${p}`}
-          className={`rounded-full px-4 py-2 text-[13px] font-bold transition-colors ${
-            active === p
-              ? "bg-accent-600 text-white"
-              : "border border-border bg-surface text-muted hover:bg-background"
-          }`}
-        >
-          {PERIOD_LABEL[p]}
-        </Link>
-      ))}
-    </div>
-  );
+  const links = PERIODS.map((p) => (
+    <Link
+      key={p}
+      href={p === "week" ? basePath : `${basePath}?period=${p}`}
+      className={`rounded-full px-4 py-2 text-center text-[13px] font-bold transition-colors ${
+        active === p
+          ? "bg-accent-600 text-white"
+          : "border border-border bg-surface text-muted hover:bg-background"
+      }`}
+    >
+      {PERIOD_LABEL[p]}
+    </Link>
+  ));
+
+  if (bare) return <>{links}</>;
+  return <div className="flex flex-wrap items-center gap-2">{links}</div>;
 }
