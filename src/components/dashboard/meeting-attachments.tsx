@@ -59,13 +59,13 @@ export function MeetingAttachments({
         {attachments.length === 0 && <p className="text-sm text-muted">لا توجد مرفقات بعد</p>}
       </ul>
 
-      <form action={formAction} className="flex items-center gap-2.5">
+      <form action={formAction} className="flex flex-wrap items-center gap-2.5">
         <input type="hidden" name="meeting_id" value={meetingId} />
         <input
           type="file"
           name="file"
           required
-          className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none focus:border-accent-500"
+          className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none focus:border-accent-500"
         />
         <button
           type="submit"
