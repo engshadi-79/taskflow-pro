@@ -81,3 +81,47 @@ export async function changePassword(
 
   return { success: true };
 }
+
+export type ResetPasswordState = { error?: string };
+
+/**
+ * Only reachable via /auth/update-password, which the reset-email link
+ * lands on after /auth/callback already exchanged its code for a real
+ * session - that recovery session (not knowledge of the old password) is
+ * the proof of identity here, unlike changePassword above which re-checks
+ * the current password for an already-logged-in user.
+ */
+export async function confirmPasswordReset(
+  _prevState: ResetPasswordState,
+  formData: FormData
+): Promise<ResetPasswordState> {
+  const next = formData.get("new_password") as string;
+  const confirm = formData.get("confirm_password") as string;
+
+  if (!next || !confirm) {
+    return { error: "جميع الحقول مطلوبة" };
+  }
+  if (next.length < MIN_PASSWORD_LENGTH) {
+    return { error: `كلمة المرور يجب أن تكون ${MIN_PASSWORD_LENGTH} أحرف على الأقل` };
+  }
+  if (next !== confirm) {
+    return { error: "كلمة المرور وتأكيدها غير متطابقين" };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "انتهت صلاحية الرابط، اطلب رابط إعادة تعيين جديدًا" };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: next });
+
+  if (error) {
+    return { error: "تعذّر تحديث كلمة المرور، حاول مرة أخرى" };
+  }
+
+  redirect("/dashboard");
+}
