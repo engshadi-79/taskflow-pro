@@ -33,19 +33,19 @@ function FinalizeRow({ row }: { row: PendingRow }) {
           الإنجاز {row.completion_score}٪ ({Math.round(KPI_WEIGHTS.completion * 100)}٪) · الالتزام بالوقت {row.on_time_score}٪ ({Math.round(KPI_WEIGHTS.on_time * 100)}٪) · الجودة {row.quality_score}٪ ({Math.round(KPI_WEIGHTS.quality * 100)}٪)
         </span>
       </div>
-      <form action={formAction} className="flex flex-wrap items-end gap-2.5">
-        <label className="block">
+      <form action={formAction} className="grid grid-cols-1 gap-2.5 sm:flex sm:flex-wrap sm:items-end">
+        <label className="block w-full sm:w-auto">
           <span className="mb-1 block text-[11.5px] text-muted">تقييم المدير (0-100، وزنه {Math.round(KPI_WEIGHTS.manager_evaluation * 100)}٪)</span>
-          <input type="number" name="manager_evaluation_score" min={0} max={100} required className={inputClass} />
+          <input type="number" name="manager_evaluation_score" min={0} max={100} required className={`${inputClass} w-full sm:w-auto`} />
         </label>
-        <label className="block flex-1">
+        <label className="block w-full sm:flex-1">
           <span className="mb-1 block text-[11.5px] text-muted">ملاحظة (اختياري)</span>
           <input name="manager_note" className={`${inputClass} w-full`} />
         </label>
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-accent-500 px-3.5 py-1.5 text-[12px] font-bold text-white hover:bg-accent-600 disabled:opacity-60"
+          className="w-full rounded-md bg-accent-500 px-3.5 py-1.5 text-[12px] font-bold text-white hover:bg-accent-600 disabled:opacity-60 sm:w-auto"
         >
           {pending ? "جارٍ الاعتماد..." : "اعتماد"}
         </button>

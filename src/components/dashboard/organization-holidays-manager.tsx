@@ -77,34 +77,36 @@ export function OrganizationHolidaysManager({ holidays }: { holidays: Organizati
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
       {adding && (
-        <div className="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-border bg-background p-3">
-          <label className="block">
+        <div className="mb-4 grid grid-cols-1 gap-2 rounded-md border border-border bg-background p-3 sm:flex sm:flex-wrap sm:items-end">
+          <label className="block w-full sm:w-auto">
             <span className="mb-1 block text-[11.5px] text-muted">التاريخ</span>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputClass} />
           </label>
-          <label className="block flex-1">
+          <label className="block w-full sm:flex-1">
             <span className="mb-1 block text-[11.5px] text-muted">اسم العطلة</span>
             <input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} className={inputClass} />
           </label>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={handleAdd}
-            className="rounded-md bg-accent-500 px-3 py-2 text-[12.5px] font-bold text-white hover:bg-accent-600 disabled:opacity-60"
-          >
-            حفظ
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setAdding(false);
-              setName("");
-              setDate("");
-            }}
-            className="rounded-md border border-border px-3 py-2 text-[12.5px] text-foreground hover:bg-background"
-          >
-            إلغاء
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={handleAdd}
+              className="flex-1 rounded-md bg-accent-500 px-3 py-2 text-[12.5px] font-bold text-white hover:bg-accent-600 disabled:opacity-60 sm:flex-initial"
+            >
+              حفظ
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAdding(false);
+                setName("");
+                setDate("");
+              }}
+              className="flex-1 rounded-md border border-border px-3 py-2 text-[12.5px] text-foreground hover:bg-background sm:flex-initial"
+            >
+              إلغاء
+            </button>
+          </div>
         </div>
       )}
 
