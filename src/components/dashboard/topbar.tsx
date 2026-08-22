@@ -28,7 +28,7 @@ export function Topbar({
   return (
     // z-20 keeps the dropdowns above page content, and still below the
     // z-30 sidebar rail
-    <header className="sticky top-0 z-20 flex h-[70px] shrink-0 items-center justify-between border-b border-border bg-surface px-6">
+    <header className="sticky top-0 z-20 flex h-[70px] shrink-0 items-center justify-between border-b border-border bg-surface px-3 sm:px-6">
       {/* Institutional line, mirroring the ACAS lockup. The mark itself lives
           in the sidebar header, so it is deliberately not repeated here. */}
       <div className="hidden leading-tight sm:block">
@@ -40,23 +40,29 @@ export function Topbar({
         </div>
       </div>
 
-      <div className="flex items-center gap-2.5">
-        <RecentActivityButton userId={userId} initialCount={recentActivityCount} />
+      <div className="flex items-center gap-2 sm:gap-2.5">
+        {/* Secondary actions - all reachable elsewhere too (sidebar links,
+            the floating ChatWidget, /m itself) - hidden below sm so the
+            always-visible group never overflows a phone-width header. */}
+        <div className="hidden items-center gap-2.5 sm:flex">
+          <RecentActivityButton userId={userId} initialCount={recentActivityCount} />
+          <ChatQuickAccessButton />
+          <HelpQuickAccessButton />
+          <Link
+            href="/m"
+            title="تطبيق الجوال"
+            aria-label="تطبيق الجوال"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-50 text-accent-600 transition-colors hover:brightness-95"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="6" y="2" width="12" height="20" rx="2.5" />
+              <path d="M11 18h2" />
+            </svg>
+          </Link>
+        </div>
+
         <CommandPalette role={role} />
         <NotificationBell userId={userId} initialUnreadCount={unreadCount} />
-        <ChatQuickAccessButton />
-        <HelpQuickAccessButton />
-        <Link
-          href="/m"
-          title="تطبيق الجوال"
-          aria-label="تطبيق الجوال"
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-50 text-accent-600 transition-colors hover:brightness-95"
-        >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="6" y="2" width="12" height="20" rx="2.5" />
-            <path d="M11 18h2" />
-          </svg>
-        </Link>
         <ThemeToggle />
 
         <div className="mx-1 hidden h-8 w-px bg-border sm:block" />
