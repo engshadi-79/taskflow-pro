@@ -56,7 +56,7 @@ export default async function SlaReportPage({
 
       <form
         method="get"
-        className="mb-4.5 flex flex-wrap items-end gap-3 rounded-[18px] border border-border bg-surface p-4"
+        className="mb-4.5 grid grid-cols-1 gap-3 rounded-[18px] border border-border bg-surface p-4 sm:flex sm:flex-wrap sm:items-end"
       >
         {profile.role === "super_admin" && (
           <label className="block">
@@ -64,7 +64,7 @@ export default async function SlaReportPage({
             <select
               name="department_id"
               defaultValue={departmentId ?? ""}
-              className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent-500"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent-500 sm:w-auto"
             >
               <option value="">كل الأقسام</option>
               {(departments ?? []).map((d) => (
@@ -80,7 +80,7 @@ export default async function SlaReportPage({
           <select
             name="user_id"
             defaultValue={userId ?? ""}
-            className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent-500 sm:w-auto"
           >
             <option value="">كل الموظفين</option>
             {(employees ?? []).map((e) => (
@@ -92,7 +92,7 @@ export default async function SlaReportPage({
         </label>
         <button
           type="submit"
-          className="rounded-[10px] bg-accent-500 px-4 py-2 text-sm font-extrabold text-white hover:bg-accent-600"
+          className="w-full rounded-[10px] bg-accent-500 px-4 py-2 text-sm font-extrabold text-white hover:bg-accent-600 sm:w-auto"
         >
           تصفية
         </button>
