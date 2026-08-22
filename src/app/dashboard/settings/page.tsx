@@ -37,7 +37,7 @@ export default async function OrganizationSettingsPage() {
   if (!organization) redirect("/dashboard");
 
   return (
-    <div className="max-w-3xl space-y-4.5">
+    <div className="mx-auto max-w-3xl space-y-4.5">
       <PageHeader
         title="إعدادات المؤسسة"
         subtitle="الهوية، ساعات العمل، أيام العطل، والقيم الافتراضية للمهام"

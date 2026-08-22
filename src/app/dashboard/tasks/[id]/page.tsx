@@ -206,7 +206,7 @@ export default async function TaskDetailPage({
     : null;
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="mx-auto max-w-3xl space-y-8">
       <Link
         href="/dashboard/tasks"
         className="inline-block text-[12.5px] font-bold text-accent-600 hover:underline"

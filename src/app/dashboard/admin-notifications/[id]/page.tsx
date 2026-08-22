@@ -63,7 +63,7 @@ export default async function AdminNotificationDetailPage({
     (recipientsRaw as { user_id: string; full_name: string; is_read: boolean; read_at: string | null }[] | null) ?? [];
 
   return (
-    <div className="max-w-3xl space-y-4.5">
+    <div className="mx-auto max-w-3xl space-y-4.5">
       <Link href="/dashboard/admin-notifications" className="text-[12.5px] font-bold text-accent-600 hover:underline">
         ← جميع الإشعارات الإدارية
       </Link>

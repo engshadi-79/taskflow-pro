@@ -112,7 +112,7 @@ export default async function MeetingDetailPage({
     .join(" · ");
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <Link
         href="/dashboard/meetings"
         className="inline-block text-[12.5px] font-bold text-accent-600 hover:underline"

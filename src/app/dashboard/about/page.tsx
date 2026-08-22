@@ -152,7 +152,7 @@ function SocialLink({ href, icon }: { href: string; icon: React.ReactNode }) {
 
 export default function AboutPage() {
   return (
-    <div className="max-w-5xl space-y-4.5">
+    <div className="mx-auto max-w-5xl space-y-4.5">
       <PageHeader
         title="حول نظام منجز"
         subtitle="منصة رقمية متكاملة لإدارة المهام والموظفين والاجتماعات والطلبات الإدارية"

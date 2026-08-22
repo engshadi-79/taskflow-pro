@@ -14,7 +14,7 @@ export default async function DemoSeedPage() {
   if (profile.role !== "super_admin") redirect("/dashboard");
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="font-display text-[20px] text-foreground">سيناريو تجريبي: التمكين الاقتصادي - غزة</h1>
         <p className="mt-1 text-[13px] text-muted">

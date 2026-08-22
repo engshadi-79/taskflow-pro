@@ -32,7 +32,7 @@ export default async function DeveloperSettingsPage() {
   ]);
 
   return (
-    <div className="max-w-3xl space-y-4.5">
+    <div className="mx-auto max-w-3xl space-y-4.5">
       <PageHeader
         title="واجهة API والـ Webhooks"
         subtitle="مفاتيح وصول للأنظمة الخارجية، وإشعارات فورية لخدماتك عند وقوع أحداث في منجز"

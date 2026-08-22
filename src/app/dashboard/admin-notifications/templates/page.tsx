@@ -18,7 +18,7 @@ export default async function AdminNotificationTemplatesPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <div className="max-w-3xl space-y-4.5">
+    <div className="mx-auto max-w-3xl space-y-4.5">
       <Link href="/dashboard/admin-notifications/new" className="text-[12.5px] font-bold text-accent-600 hover:underline">
         ← العودة لإنشاء إشعار
       </Link>

@@ -34,7 +34,7 @@ export default async function PerformancePage() {
   const finalized = evaluations.filter((e) => e.status === "finalized");
 
   return (
-    <div className="max-w-5xl space-y-4.5">
+    <div className="mx-auto max-w-5xl space-y-4.5">
       <PageHeader
         title="الأداء والمؤشرات"
         subtitle="الإنجاز 30٪ + الالتزام بالوقت 25٪ + الجودة 25٪ + تقييم المدير 20٪"

@@ -84,7 +84,7 @@ export default async function ArticleDetailPage({
 
   if (showEditForm) {
     return (
-      <div className="max-w-3xl space-y-6">
+      <div className="mx-auto max-w-3xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <Link href={`/dashboard/knowledge/${article.id}`} className="text-[12.5px] font-bold text-accent-600 hover:underline">
@@ -122,7 +122,7 @@ export default async function ArticleDetailPage({
   const CategoryIcon = categoryRow ? CATEGORY_ICON_MAP[categoryRow.icon] : undefined;
 
   return (
-    <div className="max-w-6xl space-y-4">
+    <div className="mx-auto max-w-6xl space-y-4">
       <ArticleViewTracker articleId={article.id} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <HelpBreadcrumb

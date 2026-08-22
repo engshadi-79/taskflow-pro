@@ -78,7 +78,7 @@ export default async function WorkflowRequestDetailPage({
     request.status === "pending" && request.sla_due_at !== null && new Date(request.sla_due_at) < new Date();
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div>
         <Link href="/dashboard/workflow-requests" className="text-[12.5px] font-bold text-accent-600 hover:underline">
           ← الطلبات

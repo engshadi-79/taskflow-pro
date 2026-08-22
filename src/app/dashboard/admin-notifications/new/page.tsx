@@ -31,7 +31,7 @@ export default async function NewAdminNotificationPage() {
   ]);
 
   return (
-    <div className="max-w-2xl space-y-4.5">
+    <div className="mx-auto max-w-2xl space-y-4.5">
       <PageHeader
         title="إشعار إداري جديد"
         subtitle="اكتب الرسالة، حدّد المستلمين، ثم أرسلها الآن أو جدولها"

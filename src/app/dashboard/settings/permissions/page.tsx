@@ -21,7 +21,7 @@ export default async function PermissionsPage() {
   ]);
 
   return (
-    <div className="max-w-4xl space-y-4.5">
+    <div className="mx-auto max-w-4xl space-y-4.5">
       <Link href="/dashboard/settings" className="text-[12.5px] font-bold text-accent-600 hover:underline">
         ← إعدادات المؤسسة
       </Link>

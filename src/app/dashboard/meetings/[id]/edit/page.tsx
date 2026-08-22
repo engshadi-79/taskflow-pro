@@ -29,7 +29,7 @@ export default async function EditMeetingPage({ params }: { params: Promise<{ id
   ]);
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="font-display text-[22px] text-foreground">تعديل الاجتماع</h1>
       <MeetingForm meeting={meeting} employees={employees ?? []} projects={projects ?? []} />
     </div>

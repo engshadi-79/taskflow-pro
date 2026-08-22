@@ -69,7 +69,7 @@ export default async function ApprovalsPage() {
   }));
 
   return (
-    <div className="max-w-4xl space-y-4.5">
+    <div className="mx-auto max-w-4xl space-y-4.5">
       <PageHeader
         title="مركز الموافقات"
         subtitle="كل ما ينتظر بتّك في مكان واحد - طلبات وسلاسل عمل تلقائية"

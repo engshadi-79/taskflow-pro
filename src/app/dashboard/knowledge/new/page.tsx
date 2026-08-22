@@ -19,7 +19,7 @@ export default async function NewArticlePage() {
   ]);
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="font-display text-[22px] text-foreground">مقال جديد</h1>
       <ArticleForm departments={departments ?? []} projects={projects ?? []} />
     </div>
