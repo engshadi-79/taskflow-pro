@@ -41,20 +41,20 @@ export function WorkflowTemplatesManager({
 
       <form
         action={createAction}
-        className="flex flex-wrap items-end gap-3 rounded-[18px] border border-border bg-surface p-4"
+        className="grid grid-cols-1 gap-3 rounded-[18px] border border-border bg-surface p-4 sm:flex sm:flex-wrap sm:items-end"
       >
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-foreground">اسم نوع الطلب</span>
-          <input name="name" required placeholder="مثال: طلب إجازة" className={inputClass} />
+          <input name="name" required placeholder="مثال: طلب إجازة" className={`${inputClass} w-full sm:w-auto`} />
         </label>
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-foreground">الوصف</span>
-          <input name="description" className={inputClass} />
+          <input name="description" className={`${inputClass} w-full sm:w-auto`} />
         </label>
         <button
           type="submit"
           disabled={creating}
-          className="rounded-[10px] bg-accent-500 px-4 py-2 text-sm font-extrabold text-white hover:bg-accent-600 disabled:opacity-60"
+          className="w-full rounded-[10px] bg-accent-500 px-4 py-2 text-sm font-extrabold text-white hover:bg-accent-600 disabled:opacity-60 sm:w-auto"
         >
           إضافة نوع
         </button>
@@ -139,7 +139,7 @@ function TemplateCard({
         {steps.length === 0 && <p className="text-sm text-muted">لا توجد خطوات بعد</p>}
       </ol>
 
-      <form action={stepAction} className="flex flex-wrap items-end gap-2.5 border-t border-border pt-3">
+      <form action={stepAction} className="grid grid-cols-1 gap-2.5 border-t border-border pt-3 sm:flex sm:flex-wrap sm:items-end">
         <input type="hidden" name="template_id" value={template.id} />
         <input
           type="number"
@@ -147,14 +147,14 @@ function TemplateCard({
           min="1"
           defaultValue={steps.length + 1}
           placeholder="الترتيب"
-          className={`${inputClass} w-20`}
+          className={`${inputClass} w-full sm:w-20`}
         />
-        <input name="name" placeholder="اسم الخطوة" required className={inputClass} />
+        <input name="name" placeholder="اسم الخطوة" required className={`${inputClass} w-full sm:w-auto`} />
         <select
           name="approver_type"
           value={approverType}
           onChange={(e) => setApproverType(e.target.value as ApproverType)}
-          className={inputClass}
+          className={`${inputClass} w-full sm:w-auto`}
         >
           {(Object.keys(APPROVER_TYPE_LABEL) as ApproverType[]).map((type) => (
             <option key={type} value={type}>
@@ -163,7 +163,7 @@ function TemplateCard({
           ))}
         </select>
         {approverType === "specific_user" && (
-          <select name="specific_user_id" defaultValue="" required className={inputClass}>
+          <select name="specific_user_id" defaultValue="" required className={`${inputClass} w-full sm:w-auto`}>
             <option value="" disabled>
               اختر موظفًا
             </option>
@@ -177,7 +177,7 @@ function TemplateCard({
         <button
           type="submit"
           disabled={addingStep}
-          className="rounded-md bg-accent-500 px-3 py-2 text-sm font-medium text-white hover:bg-accent-600 disabled:opacity-60"
+          className="w-full rounded-md bg-accent-500 px-3 py-2 text-sm font-medium text-white hover:bg-accent-600 disabled:opacity-60 sm:w-auto"
         >
           إضافة خطوة
         </button>
