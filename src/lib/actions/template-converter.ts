@@ -1,6 +1,7 @@
 "use server";
 
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { can } from "@/lib/foundation/permissions";
 
@@ -9,7 +10,7 @@ const MAX_ROWS = 5000;
 
 export type ParsedExcelRow = Record<string, string | number | null>;
 
-export type ParseExcelResult =
+export type ParseTemplateResult =
   | { error: string }
   | {
       templateHeaders: string[];
@@ -94,13 +95,48 @@ function extractSheetData(sheet: ExcelJS.Worksheet): { headers: string[]; rows: 
 }
 
 /**
+ * Reads only the header row of the FIRST table found in the .docx (a docx
+ * is a zip; the document body lives at word/document.xml as OOXML). This is
+ * a minimal reader, not a general OOXML parser - it doesn't handle nested
+ * tables or merged cells, which is an acceptable v1 limit since all it needs
+ * is the list of column names the template defines, not the document's
+ * layout or any other content.
+ */
+async function extractHeadersFromDocxTable(buffer: ArrayBuffer): Promise<string[]> {
+  const zip = await JSZip.loadAsync(buffer);
+  const xml = await zip.file("word/document.xml")?.async("string");
+  if (!xml) return [];
+
+  const table = xml.match(/<w:tbl>[\s\S]*?<\/w:tbl>/)?.[0];
+  if (!table) return [];
+
+  const headerRow = table.match(/<w:tr[\s\S]*?<\/w:tr>/)?.[0];
+  if (!headerRow) return [];
+
+  const cells = headerRow.match(/<w:tc>[\s\S]*?<\/w:tc>/g) ?? [];
+  return cells.map((cellXml) => {
+    const textRuns = cellXml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) ?? [];
+    return textRuns
+      .map((run) => run.replace(/<[^>]+>/g, ""))
+      .join("")
+      .trim();
+  });
+}
+
+function isDocxFile(file: File): boolean {
+  return file.name.toLowerCase().endsWith(".docx");
+}
+
+/**
  * Stateless by design: both files are parsed in this one request and never
  * written to Storage or a table - the browser holds the parsed rows/mapping
- * between this call and the generate step (see excel-converter.tsx and
- * /api/reports/convert-excel). Gated behind reports.build, the same
- * permission the custom Report Builder already uses.
+ * between this call and the generate step (see template-converter.tsx and
+ * /api/reports/convert-template). Gated behind reports.build, the same
+ * permission the custom Report Builder already uses. The template file may
+ * be .xlsx (first sheet's header row) or .docx (first table's header row);
+ * the data file is always .xlsx.
  */
-export async function parseExcelFiles(formData: FormData): Promise<ParseExcelResult> {
+export async function parseTemplateAndDataFiles(formData: FormData): Promise<ParseTemplateResult> {
   const profile = await getCurrentProfile();
   if (!profile || !can.buildReports(profile)) {
     return { error: "غير مصرح لك باستخدام هذه الأداة" };
@@ -122,20 +158,27 @@ export async function parseExcelFiles(formData: FormData): Promise<ParseExcelRes
       dataFile.arrayBuffer(),
     ]);
 
-    const templateWorkbook = new ExcelJS.Workbook();
-    await templateWorkbook.xlsx.load(templateBuffer);
-    const templateSheet = templateWorkbook.worksheets[0];
-    if (!templateSheet) return { error: "لم يتم العثور على أي ورقة في ملف القالب" };
+    let templateHeaders: string[];
+    if (isDocxFile(templateFile)) {
+      templateHeaders = await extractHeadersFromDocxTable(templateBuffer);
+      if (templateHeaders.length === 0) {
+        return { error: "لم يتم العثور على جدول به صف عناوين في ملف الوورد" };
+      }
+    } else {
+      const templateWorkbook = new ExcelJS.Workbook();
+      await templateWorkbook.xlsx.load(templateBuffer);
+      const templateSheet = templateWorkbook.worksheets[0];
+      if (!templateSheet) return { error: "لم يتم العثور على أي ورقة في ملف القالب" };
+      templateHeaders = extractSheetData(templateSheet).headers;
+      if (templateHeaders.length === 0) return { error: "ملف القالب لا يحتوي على صف عناوين" };
+    }
 
     const dataWorkbook = new ExcelJS.Workbook();
     await dataWorkbook.xlsx.load(dataBuffer);
     const dataSheet = dataWorkbook.worksheets[0];
     if (!dataSheet) return { error: "لم يتم العثور على أي ورقة في ملف البيانات" };
 
-    const { headers: templateHeaders } = extractSheetData(templateSheet);
     const { headers: dataHeaders, rows: dataRows } = extractSheetData(dataSheet);
-
-    if (templateHeaders.length === 0) return { error: "ملف القالب لا يحتوي على صف عناوين" };
     if (dataHeaders.length === 0) return { error: "ملف البيانات لا يحتوي على صف عناوين" };
 
     return {
@@ -146,6 +189,6 @@ export async function parseExcelFiles(formData: FormData): Promise<ParseExcelRes
       truncated: dataRows.length >= MAX_ROWS,
     };
   } catch {
-    return { error: "تعذر قراءة أحد الملفين - تأكد أنهما بصيغة Excel صحيحة (.xlsx)" };
+    return { error: "تعذر قراءة أحد الملفين - تأكد أن القالب Excel أو Word صحيح وأن ملف البيانات بصيغة Excel (.xlsx)" };
   }
 }

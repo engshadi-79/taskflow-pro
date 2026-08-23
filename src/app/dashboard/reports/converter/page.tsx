@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { can } from "@/lib/foundation/permissions";
-import { ExcelConverter } from "@/components/dashboard/excel-converter";
+import { TemplateConverter } from "@/components/dashboard/template-converter";
 
-export default async function ExcelConverterPage() {
+export default async function TemplateConverterPage() {
   const profile = await getCurrentProfile();
 
   if (!profile) {
@@ -14,5 +14,5 @@ export default async function ExcelConverterPage() {
     redirect("/dashboard/reports");
   }
 
-  return <ExcelConverter />;
+  return <TemplateConverter />;
 }
