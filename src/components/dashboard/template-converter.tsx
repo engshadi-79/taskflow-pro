@@ -56,19 +56,25 @@ export function TemplateConverter() {
     setError(null);
 
     try {
+      const formData = new FormData();
+      // Resent so the server can fill the real template file in place
+      // (keeping its letterhead/logo/styling) instead of building a bare
+      // document - see the route's own comment for when that applies.
+      const templateFile = templateInputRef.current?.files?.[0];
+      if (templateFile) formData.append("templateFile", templateFile);
+      formData.append("templateHeaders", JSON.stringify(parsed.templateHeaders));
+      formData.append("mapping", JSON.stringify(mapping));
+      formData.append("dataRows", JSON.stringify(parsed.dataRows));
+      formData.append("outputFormat", outputFormat);
+
       const response = await fetch("/api/reports/convert-template", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          templateHeaders: parsed.templateHeaders,
-          mapping,
-          dataRows: parsed.dataRows,
-          outputFormat,
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
-        setError("تعذر توليد الملف");
+        const body = await response.json().catch(() => null);
+        setError(body?.error || "تعذر توليد الملف");
         return;
       }
 
@@ -173,6 +179,13 @@ export function TemplateConverter() {
               مخرج Word
             </button>
           </div>
+
+          <p className="mt-2 text-[11px] text-faint">
+            {templateInputRef.current?.files?.[0] &&
+            (outputFormat === "docx") === templateInputRef.current.files[0].name.toLowerCase().endsWith(".docx")
+              ? "المخرج بنفس صيغة القالب، فسيحافظ على تنسيقه وترويسته كما هي."
+              : "المخرج بصيغة مختلفة عن القالب، فسيُنشأ ملف جديد بجدول بسيط بدون تنسيق القالب الأصلي."}
+          </p>
 
           <button
             type="button"
