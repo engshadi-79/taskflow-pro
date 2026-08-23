@@ -234,9 +234,9 @@ export function AiAssistantPanel() {
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label="المساعد الذكي"
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-600 text-white shadow-xl shadow-black/25 transition-transform hover:scale-105"
+        className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-600 text-white shadow-xl shadow-black/25 transition-transform hover:scale-105"
       >
-        {open ? <CloseIcon className="h-5 w-5" /> : <SparklesIcon className="h-6 w-6" />}
+        {open ? <CloseIcon className="h-4 w-4" /> : <SparklesIcon className="h-5 w-5" />}
       </button>
     </div>
   );

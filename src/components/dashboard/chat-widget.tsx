@@ -243,11 +243,11 @@ export function ChatWidget({ currentUserId }: { currentUserId: string }) {
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label="المحادثات"
-        className="relative flex h-14 w-14 items-center justify-center rounded-full bg-teal-600 text-white shadow-xl shadow-black/25 transition-transform hover:scale-105"
+        className="relative flex h-11 w-11 items-center justify-center rounded-full bg-teal-600 text-white shadow-xl shadow-black/25 transition-transform hover:scale-105"
       >
-        {open ? <CloseIcon className="h-5 w-5" /> : <ChatIcon className="h-6 w-6" />}
+        {open ? <CloseIcon className="h-4 w-4" /> : <ChatIcon className="h-5 w-5" />}
         {!open && totalUnread > 0 && (
-          <span className="absolute -top-1 -end-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-red-500 px-1 text-[10px] font-extrabold text-white">
+          <span className="absolute -top-1 -end-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-red-500 px-1 text-[9px] font-extrabold text-white">
             {totalUnread}
           </span>
         )}
