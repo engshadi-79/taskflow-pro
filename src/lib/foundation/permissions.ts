@@ -24,6 +24,7 @@ export const can = {
   manageWorkflowTemplates: (profile: Profile) => hasPermission(profile, "workflows.manage"),
   manageAutomationRules: (profile: Profile) => hasPermission(profile, "automation.manage"),
   manageDepartment: (profile: Profile) => hasPermission(profile, "employees.update"),
+  buildReports: (profile: Profile) => hasPermission(profile, "reports.build"),
 };
 
 // "requests.approve" exists in the permission catalogue and is seeded for
