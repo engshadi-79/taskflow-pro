@@ -317,13 +317,22 @@ export default async function ReportsPage({
         icon={<ChartIcon className="h-6 w-6" />}
       >
         {can.buildReports(profile) && (
-          <Link
-            href="/dashboard/reports/builder"
-            className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-extrabold text-accent-700 transition-transform hover:scale-[1.03]"
-          >
-            <ChartIcon className="h-4 w-4" />
-            منشئ التقارير المخصّصة
-          </Link>
+          <>
+            <Link
+              href="/dashboard/reports/builder"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-extrabold text-accent-700 transition-transform hover:scale-[1.03]"
+            >
+              <ChartIcon className="h-4 w-4" />
+              منشئ التقارير المخصّصة
+            </Link>
+            <Link
+              href="/dashboard/reports/converter"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-extrabold text-accent-700 transition-transform hover:scale-[1.03]"
+            >
+              <DownloadIcon className="h-4 w-4" />
+              تحويل ملف Excel حسب قالب
+            </Link>
+          </>
         )}
         <a
           href="/api/reports/export"
