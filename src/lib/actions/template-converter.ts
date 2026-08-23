@@ -69,18 +69,46 @@ function cellToPlainValue(cell: ExcelJS.Cell): string | number | null {
   return value as string | number;
 }
 
-function extractSheetData(sheet: ExcelJS.Worksheet): { headers: string[]; rows: ParsedExcelRow[] } {
-  const headerRow = sheet.getRow(1);
-  const columnCount = Math.max(sheet.columnCount, headerRow.cellCount);
-  const headers: string[] = [];
-  for (let col = 1; col <= columnCount; col++) {
-    const raw = cellToPlainValue(headerRow.getCell(col));
-    headers.push(raw != null && String(raw).trim() ? String(raw).trim() : `عمود ${col}`);
+function rowValues(sheet: ExcelJS.Worksheet, rowNumber: number, columnCount: number): (string | number | null)[] {
+  const row = sheet.getRow(rowNumber);
+  const values: (string | number | null)[] = [];
+  for (let col = 1; col <= columnCount; col++) values.push(cellToPlainValue(row.getCell(col)));
+  return values;
+}
+
+/** A row with 2+ filled cells that are all the *same* text is a merged/
+ *  repeated title banner ("تقرير نتائج الاختبارات والدرجات" typed into every
+ *  cell across the row), not a header row - real headers have distinct
+ *  labels per column. */
+function looksLikeHeaderRow(values: (string | number | null)[]): boolean {
+  const nonEmpty = values.filter((v) => v != null && String(v).trim() !== "");
+  if (nonEmpty.length < 2) return false;
+  const distinct = new Set(nonEmpty.map((v) => String(v).trim()));
+  return distinct.size > 1;
+}
+
+/** Scans the first few rows for one that looks like real column headers,
+ *  skipping a leading title/banner row - falls back to row 1 (the previous
+ *  fixed assumption) if nothing else looks better within that scan window. */
+function findHeaderRowNumber(sheet: ExcelJS.Worksheet, columnCount: number): number {
+  const maxScan = Math.min(10, Math.max(sheet.rowCount, 1));
+  for (let r = 1; r <= maxScan; r++) {
+    if (looksLikeHeaderRow(rowValues(sheet, r, columnCount))) return r;
   }
+  return 1;
+}
+
+function extractSheetData(sheet: ExcelJS.Worksheet): { headers: string[]; rows: ParsedExcelRow[] } {
+  const columnCount = Math.max(sheet.columnCount, sheet.getRow(1).cellCount);
+  const headerRowNumber = findHeaderRowNumber(sheet, columnCount);
+
+  const headers: string[] = rowValues(sheet, headerRowNumber, columnCount).map((raw, i) =>
+    raw != null && String(raw).trim() ? String(raw).trim() : `عمود ${i + 1}`
+  );
 
   const rows: ParsedExcelRow[] = [];
   sheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1 || rows.length >= MAX_ROWS) return;
+    if (rowNumber <= headerRowNumber || rows.length >= MAX_ROWS) return;
     const record: ParsedExcelRow = {};
     let hasValue = false;
     for (let col = 1; col <= columnCount; col++) {
