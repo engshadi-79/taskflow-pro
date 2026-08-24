@@ -36,6 +36,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("xlsx");
   const [groupByHeader, setGroupByHeader] = useState("");
+  const [autoNumberHeader, setAutoNumberHeader] = useState("");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,6 +91,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
     setParsed(result);
     setMapping(result.suggestedMapping);
     setGroupByHeader("");
+    setAutoNumberHeader("");
   }
 
   async function handleSaveTemplate() {
@@ -167,6 +169,9 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
       formData.append("outputFormat", outputFormat);
       if (outputFormat === "docx" && groupByHeader) {
         formData.append("groupByTemplateHeader", groupByHeader);
+      }
+      if (autoNumberHeader) {
+        formData.append("autoNumberHeader", autoNumberHeader);
       }
 
       const response = await fetch("/api/reports/convert-template", {
@@ -406,6 +411,30 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
               </select>
               <p className="mt-1 text-[11px] text-faint">
                 يرتّب الصفوف بحيث تكون كل مجموعة معًا، ويكرر ترويسة القالب وصف العناوين عند بداية كل مجموعة جديدة.
+              </p>
+            </div>
+          )}
+
+          {(outputFormat === "docx") === templateIsDocx && (
+            <div className="mt-3">
+              <span className="mb-1.5 block text-[12.5px] font-bold text-foreground">
+                ترقيم تلقائي لعمود (اختياري)
+              </span>
+              <select
+                value={autoNumberHeader}
+                onChange={(e) => setAutoNumberHeader(e.target.value)}
+                className={`${inputClass} w-auto`}
+              >
+                <option value="">بدون ترقيم تلقائي</option>
+                {result.templateHeaders.map((header) => (
+                  <option key={header} value={header}>
+                    {header}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-faint">
+                يملأ هذا العمود بأرقام تسلسلية (1، 2، 3...) بدل قيمة من ملف البيانات
+                {groupByHeader ? "، وتبدأ الترقيم من 1 من جديد مع كل مجموعة." : "."}
               </p>
             </div>
           )}

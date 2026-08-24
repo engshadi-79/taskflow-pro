@@ -152,6 +152,21 @@ function mappedValue(header: string, mapping: Record<string, string>, row: Parse
   return row[sourceKey] ?? "";
 }
 
+/** `autoNumberHeader`, when it matches one of the template's own columns
+ *  (typically "م"), replaces whatever that column would otherwise map to
+ *  with a running counter instead - the caller resets `counter` to 1 at
+ *  whatever boundary should restart numbering (once per document, or once
+ *  per group when combined with groupByColumn). */
+function buildRowValues(
+  templateHeaders: string[],
+  mapping: Record<string, string>,
+  row: ParsedExcelRow,
+  autoNumberHeader: string | undefined,
+  counter: number
+): (string | number)[] {
+  return templateHeaders.map((header) => (header === autoNumberHeader ? counter : mappedValue(header, mapping, row)));
+}
+
 /**
  * Fills an uploaded .xlsx TEMPLATE in place - loads the real workbook (so
  * its letterhead, logo, merged title row, column widths, and any other
@@ -163,15 +178,18 @@ export async function fillXlsxTemplate(
   templateBuffer: ArrayBuffer,
   templateHeaders: string[],
   mapping: Record<string, string>,
-  dataRows: ParsedExcelRow[]
+  dataRows: ParsedExcelRow[],
+  options?: { autoNumberHeader?: string }
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(templateBuffer);
   const sheet = workbook.worksheets[0];
   if (!sheet) throw new Error("لم يتم العثور على أي ورقة في ملف القالب");
 
+  let counter = 1;
   for (const row of dataRows) {
-    sheet.addRow(templateHeaders.map((header) => mappedValue(header, mapping, row)));
+    sheet.addRow(buildRowValues(templateHeaders, mapping, row, options?.autoNumberHeader, counter));
+    counter++;
   }
 
   return Buffer.from(await workbook.xlsx.writeBuffer());
@@ -317,7 +335,7 @@ export async function fillDocxTemplate(
   templateHeaders: string[],
   mapping: Record<string, string>,
   dataRows: ParsedExcelRow[],
-  options?: { groupByColumn?: string }
+  options?: { groupByColumn?: string; autoNumberHeader?: string }
 ): Promise<Buffer> {
   const zip = await JSZip.loadAsync(templateBuffer);
   const documentPath = "word/document.xml";
@@ -372,8 +390,12 @@ export async function fillDocxTemplate(
 
   const sections = groups
     .map((groupRows) => {
+      // Numbering restarts at 1 for each group (or once, if ungrouped) -
+      // matches "كل مجموعة ترقيم جديد" rather than a single running count
+      // across the whole document.
+      let counter = 1;
       const generatedRows = groupRows
-        .map((row) => templateHeaders.map((header) => mappedValue(header, mapping, row)))
+        .map((row) => buildRowValues(templateHeaders, mapping, row, options?.autoNumberHeader, counter++))
         .map(buildRow)
         .join("");
       const sectionLetterhead = substitutePlaceholders(letterheadXml, rowToPlaceholderValues(groupRows[0]));
