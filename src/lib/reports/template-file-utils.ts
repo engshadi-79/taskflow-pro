@@ -238,6 +238,22 @@ function extractTextRuns(xml: string): TextRunSpan[] {
   return runs;
 }
 
+/** Exact match first; otherwise falls back to the same normalized/substring
+ *  fuzzy match already used for column mapping (suggestColumnMapping) - a
+ *  template written as "{{المسار}}" should still resolve against a data
+ *  column literally named "مسار" or "المسار الحالي", not just an exact
+ *  "المسار" column. */
+function resolvePlaceholderValue(key: string, values: Record<string, string>): string | undefined {
+  if (key in values) return values[key];
+
+  const normKey = normalizeHeader(key);
+  const matchKey = Object.keys(values).find((k) => {
+    const normK = normalizeHeader(k);
+    return normK === normKey || normK.includes(normKey) || normKey.includes(normK);
+  });
+  return matchKey ? values[matchKey] : undefined;
+}
+
 /**
  * Replaces every {{columnName}} token found anywhere in this XML fragment's
  * visible text with the matching value from `values`, even when Word split
@@ -246,7 +262,8 @@ function extractTextRuns(xml: string): TextRunSpan[] {
  * spellcheck/autocorrect boundaries). Locates each token in the
  * concatenated plain text first, then edits only the run(s) it actually
  * spans, leaving every other run, tag, and attribute untouched. An unknown
- * placeholder key (not present in `values`) is left as literal text.
+ * placeholder key (no exact or fuzzy match in `values`) is left as literal
+ * text.
  */
 function substitutePlaceholders(xml: string, values: Record<string, string>): string {
   const runs = extractTextRuns(xml);
@@ -265,7 +282,8 @@ function substitutePlaceholders(xml: string, values: Record<string, string>): st
 
   while ((match = tokenRegex.exec(flat)) !== null) {
     const key = match[1].trim();
-    if (!(key in values)) continue;
+    const resolved = resolvePlaceholderValue(key, values);
+    if (resolved === undefined) continue;
 
     const start = match.index;
     const end = match.index + match[0].length;
@@ -276,7 +294,7 @@ function substitutePlaceholders(xml: string, values: Record<string, string>): st
 
     const localStart = start - runStartInFlat[startRun]!;
     const localEnd = end - runStartInFlat[endRun]!;
-    const value = values[key]!;
+    const value = resolved;
 
     if (startRun === endRun) {
       const current = newRunText.get(startRun) ?? runs[startRun]!.text;
