@@ -388,8 +388,10 @@ export async function fillDocxTemplate(
 
   const groups = options?.groupByColumn ? groupRowsByColumn(dataRows, options.groupByColumn) : [dataRows];
 
+  const PAGE_BREAK = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+
   const sections = groups
-    .map((groupRows) => {
+    .map((groupRows, index) => {
       // Numbering restarts at 1 for each group (or once, if ungrouped) -
       // matches "كل مجموعة ترقيم جديد" rather than a single running count
       // across the whole document.
@@ -400,7 +402,10 @@ export async function fillDocxTemplate(
         .join("");
       const sectionLetterhead = substitutePlaceholders(letterheadXml, rowToPlaceholderValues(groupRows[0]));
       const sectionTable = `${tableOpenPart}${headerRowXml}${generatedRows}</w:tbl>`;
-      return `${sectionLetterhead}${sectionTable}`;
+      // Every group after the first starts on its own fresh page - only the
+      // very first section is already at the top of page 1 by definition.
+      const pageBreak = index > 0 ? PAGE_BREAK : "";
+      return `${pageBreak}${sectionLetterhead}${sectionTable}`;
     })
     .join("");
 
