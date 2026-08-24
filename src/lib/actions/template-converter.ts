@@ -3,6 +3,7 @@
 import ExcelJS from "exceljs";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { can } from "@/lib/foundation/permissions";
+import { fetchSavedTemplateFile } from "@/lib/actions/saved-templates";
 import {
   extractSheetData,
   extractHeadersFromDocxTable,
@@ -40,31 +41,36 @@ export async function parseTemplateAndDataFiles(formData: FormData): Promise<Par
     return { error: "غير مصرح لك باستخدام هذه الأداة" };
   }
 
+  const savedTemplateId = formData.get("savedTemplateId") as string | null;
   const templateFile = formData.get("templateFile") as File | null;
   const dataFile = formData.get("dataFile") as File | null;
 
-  if (!templateFile || !dataFile) {
-    return { error: "يجب اختيار ملف القالب وملف البيانات معًا" };
+  if ((!templateFile && !savedTemplateId) || !dataFile) {
+    return { error: "يجب اختيار قالب (جديد أو محفوظ) وملف البيانات معًا" };
   }
-  if (templateFile.size > MAX_FILE_BYTES || dataFile.size > MAX_FILE_BYTES) {
-    return { error: "الحد الأقصى لحجم كل ملف 5 ميجابايت" };
+  if (templateFile && templateFile.size > MAX_FILE_BYTES) {
+    return { error: "الحد الأقصى لحجم ملف القالب 5 ميجابايت" };
+  }
+  if (dataFile.size > MAX_FILE_BYTES) {
+    return { error: "الحد الأقصى لحجم ملف البيانات 5 ميجابايت" };
   }
 
   try {
-    const [templateBuffer, dataBuffer] = await Promise.all([
-      templateFile.arrayBuffer(),
-      dataFile.arrayBuffer(),
-    ]);
+    const dataBuffer = await dataFile.arrayBuffer();
 
     let templateHeaders: string[];
-    if (isDocxFile(templateFile)) {
-      templateHeaders = await extractHeadersFromDocxTable(templateBuffer);
+    if (savedTemplateId) {
+      const saved = await fetchSavedTemplateFile(savedTemplateId);
+      if ("error" in saved) return { error: saved.error };
+      templateHeaders = saved.headers;
+    } else if (isDocxFile(templateFile!)) {
+      templateHeaders = await extractHeadersFromDocxTable(await templateFile!.arrayBuffer());
       if (templateHeaders.length === 0) {
         return { error: "لم يتم العثور على جدول به صف عناوين في ملف الوورد" };
       }
     } else {
       const templateWorkbook = new ExcelJS.Workbook();
-      await templateWorkbook.xlsx.load(templateBuffer);
+      await templateWorkbook.xlsx.load(await templateFile!.arrayBuffer());
       const templateSheet = templateWorkbook.worksheets[0];
       if (!templateSheet) return { error: "لم يتم العثور على أي ورقة في ملف القالب" };
       templateHeaders = extractSheetData(templateSheet).headers;

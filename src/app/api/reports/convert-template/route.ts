@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun } from "docx";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { can } from "@/lib/foundation/permissions";
+import { fetchSavedTemplateFile } from "@/lib/actions/saved-templates";
 import {
   fillXlsxTemplate,
   fillDocxTemplate,
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
   }
 
   const formData = await request.formData();
+  const savedTemplateId = formData.get("savedTemplateId") as string | null;
   const templateFile = formData.get("templateFile") as File | null;
   const outputFormat = formData.get("outputFormat") as "xlsx" | "docx" | null;
   const templateHeaders = JSON.parse((formData.get("templateHeaders") as string) || "[]") as string[];
@@ -88,12 +90,27 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const templateIsDocx = templateFile ? isDocxFile(templateFile) : false;
-    const sameFormat = templateFile != null && ((outputFormat === "docx") === templateIsDocx);
+    // Resolve the real template bytes + format from whichever source the
+    // client used (a fresh upload or a saved-template id) before deciding
+    // whether the fill-in-place path applies.
+    let templateBuffer: ArrayBuffer | null = null;
+    let templateIsDocx = false;
+
+    if (savedTemplateId) {
+      const saved = await fetchSavedTemplateFile(savedTemplateId);
+      if ("error" in saved) return NextResponse.json({ error: saved.error }, { status: 400 });
+      templateBuffer = saved.buffer;
+      templateIsDocx = saved.format === "docx";
+    } else if (templateFile) {
+      templateBuffer = await templateFile.arrayBuffer();
+      templateIsDocx = isDocxFile(templateFile);
+    }
+
+    const sameFormat = templateBuffer != null && (outputFormat === "docx") === templateIsDocx;
 
     if (outputFormat === "docx") {
       const buffer = sameFormat
-        ? await fillDocxTemplate(await templateFile!.arrayBuffer(), templateHeaders, mapping, dataRows)
+        ? await fillDocxTemplate(templateBuffer!, templateHeaders, mapping, dataRows)
         : await buildBareDocx(templateHeaders, mapping, dataRows);
       return new NextResponse(new Uint8Array(buffer), {
         headers: {
@@ -104,7 +121,7 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = sameFormat
-      ? await fillXlsxTemplate(await templateFile!.arrayBuffer(), templateHeaders, mapping, dataRows)
+      ? await fillXlsxTemplate(templateBuffer!, templateHeaders, mapping, dataRows)
       : await buildBareXlsx(templateHeaders, mapping, dataRows);
     return new NextResponse(new Uint8Array(buffer), {
       headers: {

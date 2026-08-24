@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { can } from "@/lib/foundation/permissions";
+import { listSavedTemplates } from "@/lib/actions/saved-templates";
 import { TemplateConverter } from "@/components/dashboard/template-converter";
 
 export default async function TemplateConverterPage() {
@@ -14,5 +15,7 @@ export default async function TemplateConverterPage() {
     redirect("/dashboard/reports");
   }
 
-  return <TemplateConverter />;
+  const savedTemplates = await listSavedTemplates();
+
+  return <TemplateConverter initialSavedTemplates={savedTemplates} />;
 }
