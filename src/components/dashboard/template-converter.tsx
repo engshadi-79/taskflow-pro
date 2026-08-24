@@ -35,6 +35,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
   const [parsed, setParsed] = useState<ParseTemplateResult | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("xlsx");
+  const [groupByHeader, setGroupByHeader] = useState("");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,6 +89,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
 
     setParsed(result);
     setMapping(result.suggestedMapping);
+    setGroupByHeader("");
   }
 
   async function handleSaveTemplate() {
@@ -163,6 +165,9 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
       formData.append("mapping", JSON.stringify(mapping));
       formData.append("dataRows", JSON.stringify(parsed.dataRows));
       formData.append("outputFormat", outputFormat);
+      if (outputFormat === "docx" && groupByHeader) {
+        formData.append("groupByTemplateHeader", groupByHeader);
+      }
 
       const response = await fetch("/api/reports/convert-template", {
         method: "POST",
@@ -381,6 +386,29 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
               ? "المخرج بنفس صيغة القالب، فسيحافظ على تنسيقه وترويسته كما هي."
               : "المخرج بصيغة مختلفة عن القالب، فسيُنشأ ملف جديد بجدول بسيط بدون تنسيق القالب الأصلي."}
           </p>
+
+          {outputFormat === "docx" && templateIsDocx && (
+            <div className="mt-3">
+              <span className="mb-1.5 block text-[12.5px] font-bold text-foreground">
+                تجميع الصفوف وتكرار العنوان عند كل مجموعة (اختياري)
+              </span>
+              <select
+                value={groupByHeader}
+                onChange={(e) => setGroupByHeader(e.target.value)}
+                className={`${inputClass} w-auto`}
+              >
+                <option value="">بدون تجميع</option>
+                {result.templateHeaders.map((header) => (
+                  <option key={header} value={header}>
+                    {header}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-faint">
+                يرتّب الصفوف بحيث تكون كل مجموعة معًا، ويكرر ترويسة القالب وصف العناوين عند بداية كل مجموعة جديدة.
+              </p>
+            </div>
+          )}
 
           <button
             type="button"

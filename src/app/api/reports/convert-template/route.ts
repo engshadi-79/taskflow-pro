@@ -81,6 +81,8 @@ export async function POST(request: NextRequest) {
   const templateHeaders = JSON.parse((formData.get("templateHeaders") as string) || "[]") as string[];
   const mapping = JSON.parse((formData.get("mapping") as string) || "{}") as Record<string, string>;
   const dataRows = JSON.parse((formData.get("dataRows") as string) || "[]") as ParsedExcelRow[];
+  const groupByTemplateHeader = (formData.get("groupByTemplateHeader") as string | null) || undefined;
+  const groupByColumn = groupByTemplateHeader ? mapping[groupByTemplateHeader] : undefined;
 
   if (!Array.isArray(templateHeaders) || templateHeaders.length === 0 || !outputFormat) {
     return NextResponse.json({ error: "بيانات غير صالحة" }, { status: 400 });
@@ -110,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     if (outputFormat === "docx") {
       const buffer = sameFormat
-        ? await fillDocxTemplate(templateBuffer!, templateHeaders, mapping, dataRows)
+        ? await fillDocxTemplate(templateBuffer!, templateHeaders, mapping, dataRows, { groupByColumn })
         : await buildBareDocx(templateHeaders, mapping, dataRows);
       return new NextResponse(new Uint8Array(buffer), {
         headers: {

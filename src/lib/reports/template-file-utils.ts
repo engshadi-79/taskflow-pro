@@ -181,6 +181,115 @@ function escapeXml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+function decodeXmlEntities(value: string): string {
+  return value.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+
+/** Stable grouping: preserves each group's first-appearance order and the
+ *  original relative order of rows within a group (not an alphabetical
+ *  sort), so "Group 1 rows, then Group 2 rows" comes out in whatever order
+ *  those groups first appeared in the data file. */
+export function groupRowsByColumn(dataRows: ParsedExcelRow[], column: string): ParsedExcelRow[][] {
+  const order: string[] = [];
+  const buckets = new Map<string, ParsedExcelRow[]>();
+  for (const row of dataRows) {
+    const key = String(row[column] ?? "");
+    if (!buckets.has(key)) {
+      buckets.set(key, []);
+      order.push(key);
+    }
+    buckets.get(key)!.push(row);
+  }
+  return order.map((key) => buckets.get(key)!);
+}
+
+type TextRunSpan = { xmlStart: number; xmlEnd: number; openTag: string; text: string };
+
+function extractTextRuns(xml: string): TextRunSpan[] {
+  const runs: TextRunSpan[] = [];
+  const regex = /<w:t([^>]*)>([^<]*)<\/w:t>/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(xml)) !== null) {
+    runs.push({
+      xmlStart: match.index,
+      xmlEnd: match.index + match[0].length,
+      openTag: `<w:t${match[1]}>`,
+      text: decodeXmlEntities(match[2]),
+    });
+  }
+  return runs;
+}
+
+/**
+ * Replaces every {{columnName}} token found anywhere in this XML fragment's
+ * visible text with the matching value from `values`, even when Word split
+ * the token across multiple adjacent <w:t> runs (a common real-world docx
+ * quirk - editing software frequently breaks a manually-typed run at
+ * spellcheck/autocorrect boundaries). Locates each token in the
+ * concatenated plain text first, then edits only the run(s) it actually
+ * spans, leaving every other run, tag, and attribute untouched. An unknown
+ * placeholder key (not present in `values`) is left as literal text.
+ */
+function substitutePlaceholders(xml: string, values: Record<string, string>): string {
+  const runs = extractTextRuns(xml);
+  if (runs.length === 0) return xml;
+
+  const runStartInFlat: number[] = [];
+  let flat = "";
+  for (const run of runs) {
+    runStartInFlat.push(flat.length);
+    flat += run.text;
+  }
+
+  const tokenRegex = /\{\{([^{}]+)\}\}/g;
+  const newRunText = new Map<number, string>();
+  let match: RegExpExecArray | null;
+
+  while ((match = tokenRegex.exec(flat)) !== null) {
+    const key = match[1].trim();
+    if (!(key in values)) continue;
+
+    const start = match.index;
+    const end = match.index + match[0].length;
+    let startRun = 0;
+    while (startRun < runs.length - 1 && runStartInFlat[startRun + 1]! <= start) startRun++;
+    let endRun = startRun;
+    while (endRun < runs.length - 1 && runStartInFlat[endRun + 1]! < end) endRun++;
+
+    const localStart = start - runStartInFlat[startRun]!;
+    const localEnd = end - runStartInFlat[endRun]!;
+    const value = values[key]!;
+
+    if (startRun === endRun) {
+      const current = newRunText.get(startRun) ?? runs[startRun]!.text;
+      newRunText.set(startRun, current.slice(0, localStart) + value + current.slice(localEnd));
+    } else {
+      newRunText.set(startRun, runs[startRun]!.text.slice(0, localStart) + value);
+      for (let i = startRun + 1; i < endRun; i++) newRunText.set(i, "");
+      newRunText.set(endRun, runs[endRun]!.text.slice(localEnd));
+    }
+  }
+
+  if (newRunText.size === 0) return xml;
+
+  // Apply from the last edited run back to the first so earlier xmlStart/
+  // xmlEnd offsets stay valid as each splice happens (splicing later text
+  // never shifts positions before it).
+  let result = xml;
+  for (const idx of [...newRunText.keys()].sort((a, b) => b - a)) {
+    const run = runs[idx]!;
+    result = result.slice(0, run.xmlStart) + run.openTag + escapeXml(newRunText.get(idx)!) + "</w:t>" + result.slice(run.xmlEnd);
+  }
+  return result;
+}
+
+function rowToPlaceholderValues(row: ParsedExcelRow | undefined): Record<string, string> {
+  const values: Record<string, string> = {};
+  if (!row) return values;
+  for (const [key, value] of Object.entries(row)) values[key] = value == null ? "" : String(value);
+  return values;
+}
+
 /**
  * Fills an uploaded .docx TEMPLATE's table in place - keeps everything in
  * the document outside the table (letterhead, logo, title paragraphs)
@@ -190,12 +299,25 @@ function escapeXml(value: string): string {
  * bare table from scratch. If the template only has a header row and no
  * second "example" row, the header row itself is cloned as the style
  * source - a reasonable fallback, not a perfect one.
+ *
+ * Two optional behaviors, both driven by the raw source data (not the
+ * template-header mapping):
+ * - Any `{{columnName}}` text found in the letterhead is replaced with that
+ *   column's value from the data file (e.g. a template reading "مسار
+ *   {{المسار}}" picks up the real track name instead of whatever static
+ *   text the template author typed).
+ * - `groupByColumn`, when given, splits the data into groups (stable order
+ *   of first appearance) and repeats the letterhead + header row once per
+ *   group before that group's rows - so switching from one group to the
+ *   next reprints the template's own title/heading section, without an
+ *   actual page break.
  */
 export async function fillDocxTemplate(
   templateBuffer: ArrayBuffer,
   templateHeaders: string[],
   mapping: Record<string, string>,
-  dataRows: ParsedExcelRow[]
+  dataRows: ParsedExcelRow[],
+  options?: { groupByColumn?: string }
 ): Promise<Buffer> {
   const zip = await JSZip.loadAsync(templateBuffer);
   const documentPath = "word/document.xml";
@@ -205,6 +327,17 @@ export async function fillDocxTemplate(
   const tableXml = xml.match(/<w:tbl>[\s\S]*?<\/w:tbl>/)?.[0];
   if (!tableXml) throw new Error("لم يتم العثور على جدول في ملف القالب");
 
+  const tableStart = xml.indexOf(tableXml);
+  const tableEnd = tableStart + tableXml.length;
+
+  // <w:body> itself must appear exactly once - only the letterhead content
+  // *after* it (and before the table) is safe to repeat per group.
+  const bodyOpenMatch = xml.match(/<w:body[^>]*>/);
+  const bodyContentStart = bodyOpenMatch ? bodyOpenMatch.index! + bodyOpenMatch[0].length : 0;
+  const documentOpenXml = xml.slice(0, bodyContentStart);
+  const letterheadXml = xml.slice(bodyContentStart, tableStart);
+  const trailingXml = xml.slice(tableEnd);
+
   const rowMatches = tableXml.match(/<w:tr[\s\S]*?<\/w:tr>/g) ?? [];
   if (rowMatches.length === 0) throw new Error("لم يتم العثور على صفوف في جدول القالب");
 
@@ -212,6 +345,7 @@ export async function fillDocxTemplate(
   const styleRowXml: string = rowMatches.length > 1 ? rowMatches[rowMatches.length - 1]! : headerRowXml;
   const styleCells = styleRowXml.match(/<w:tc>[\s\S]*?<\/w:tc>/g) ?? [];
   const rowOpenTag = styleRowXml.match(/^<w:tr[^>]*>/)?.[0] ?? "<w:tr>";
+  const tableOpenPart = tableXml.slice(0, tableXml.indexOf(headerRowXml));
 
   function buildRow(values: (string | number)[]): string {
     const cellsXml = styleCells.map((cellXml, i) => {
@@ -234,14 +368,21 @@ export async function fillDocxTemplate(
     return `${rowOpenTag}${cellsXml.join("")}</w:tr>`;
   }
 
-  const generatedRows = dataRows
-    .map((row) => templateHeaders.map((header) => mappedValue(header, mapping, row)))
-    .map(buildRow)
+  const groups = options?.groupByColumn ? groupRowsByColumn(dataRows, options.groupByColumn) : [dataRows];
+
+  const sections = groups
+    .map((groupRows) => {
+      const generatedRows = groupRows
+        .map((row) => templateHeaders.map((header) => mappedValue(header, mapping, row)))
+        .map(buildRow)
+        .join("");
+      const sectionLetterhead = substitutePlaceholders(letterheadXml, rowToPlaceholderValues(groupRows[0]));
+      const sectionTable = `${tableOpenPart}${headerRowXml}${generatedRows}</w:tbl>`;
+      return `${sectionLetterhead}${sectionTable}`;
+    })
     .join("");
 
-  const tableOpenPart = tableXml.slice(0, tableXml.indexOf(headerRowXml));
-  const newTable = `${tableOpenPart}${headerRowXml}${generatedRows}</w:tbl>`;
-  const newXml = xml.replace(tableXml, newTable);
+  const newXml = `${documentOpenXml}${sections}${trailingXml}`;
 
   zip.file(documentPath, newXml);
   return zip.generateAsync({ type: "nodebuffer" });
