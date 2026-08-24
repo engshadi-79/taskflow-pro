@@ -17,6 +17,16 @@ const inputClass =
 type OutputFormat = "xlsx" | "docx";
 type TemplateMode = "upload" | "saved";
 
+// Must match computeGroupKey's separator in template-file-utils.ts exactly -
+// duplicated here (rather than imported) so this client component doesn't
+// pull ExcelJS/JSZip into the browser bundle.
+const GROUP_KEY_SEPARATOR = " ||| ";
+function computeGroupKey(columns: string[], row: Record<string, string | number | null>): string {
+  return columns.map((c) => String(row[c] ?? "")).join(GROUP_KEY_SEPARATOR);
+}
+
+const WEEKDAY_NAMES = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+
 export function TemplateConverter({ initialSavedTemplates }: { initialSavedTemplates: SavedTemplateRow[] }) {
   const templateInputRef = useRef<HTMLInputElement>(null);
   const dataInputRef = useRef<HTMLInputElement>(null);
@@ -36,6 +46,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("xlsx");
   const [groupByHeader, setGroupByHeader] = useState("");
+  const [groupByHeader2, setGroupByHeader2] = useState("");
   const [autoNumberHeader, setAutoNumberHeader] = useState("");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +55,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
   const [datesMonth, setDatesMonth] = useState(new Date().getMonth() + 1);
   const [datesYear, setDatesYear] = useState(new Date().getFullYear());
   const [datesWeekdays, setDatesWeekdays] = useState<number[]>([]);
+  const [groupWeekdays, setGroupWeekdays] = useState<Record<string, number[]>>({});
 
   // The <select> below has no empty placeholder option, so if selectedSavedId
   // ever drifts from the current savedTemplates list (e.g. right after the
@@ -96,7 +108,10 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
     setParsed(result);
     setMapping(result.suggestedMapping);
     setGroupByHeader("");
+    setGroupByHeader2("");
     setAutoNumberHeader("");
+    setGroupWeekdays({});
+    setDatesWeekdays([]);
   }
 
   async function handleSaveTemplate() {
@@ -151,6 +166,11 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
     });
   }
 
+  // Word only ever groups by one column; Excel can group by a combination
+  // (track + group together) since one output file can span several tracks.
+  const activeGroupColumns =
+    outputFormat === "xlsx" ? [groupByHeader, groupByHeader2].filter(Boolean) : [groupByHeader].filter(Boolean);
+
   async function handleGenerate() {
     if (!parsed || "error" in parsed) return;
 
@@ -172,16 +192,24 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
       formData.append("mapping", JSON.stringify(mapping));
       formData.append("dataRows", JSON.stringify(parsed.dataRows));
       formData.append("outputFormat", outputFormat);
-      if (groupByHeader) {
-        formData.append("groupByDataHeader", groupByHeader);
+      if (activeGroupColumns.length > 0) {
+        if (outputFormat === "xlsx") {
+          formData.append("groupByColumns", JSON.stringify(activeGroupColumns));
+        } else {
+          formData.append("groupByDataHeader", groupByHeader);
+        }
       }
       if (autoNumberHeader) {
         formData.append("autoNumberHeader", autoNumberHeader);
       }
-      if (datesEnabled && outputFormat === "xlsx" && datesWeekdays.length > 0) {
+      if (datesEnabled && outputFormat === "xlsx") {
         formData.append("sessionDatesMonth", String(datesMonth));
         formData.append("sessionDatesYear", String(datesYear));
-        formData.append("sessionDatesWeekdays", JSON.stringify(datesWeekdays));
+        if (activeGroupColumns.length > 0) {
+          formData.append("sessionDatesWeekdaysByGroup", JSON.stringify(groupWeekdays));
+        } else if (datesWeekdays.length > 0) {
+          formData.append("sessionDatesWeekdays", JSON.stringify(datesWeekdays));
+        }
       }
 
       const response = await fetch("/api/reports/convert-template", {
@@ -211,8 +239,29 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
   const templateIsDocx = mode === "upload" ? templateInputRef.current?.files?.[0]?.name.toLowerCase().endsWith(".docx") ?? false : selectedSavedTemplate?.file_format === "docx";
   const sameFormat = (outputFormat === "docx") === templateIsDocx;
 
+  // Distinct real combinations found in the uploaded data for whichever
+  // grouping column(s) are selected, so the "days per group" list is built
+  // from the actual values in this file rather than typed in by hand.
+  const distinctGroups: { key: string; label: string }[] = [];
+  if (result && activeGroupColumns.length > 0) {
+    const seen = new Map<string, string>();
+    for (const row of result.dataRows) {
+      const key = computeGroupKey(activeGroupColumns, row);
+      if (!seen.has(key)) seen.set(key, activeGroupColumns.map((c) => String(row[c] ?? "")).join(" - "));
+    }
+    distinctGroups.push(...Array.from(seen.entries()).map(([key, label]) => ({ key, label })));
+  }
+
   function toggleWeekday(day: number) {
     setDatesWeekdays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()));
+  }
+
+  function toggleGroupWeekday(key: string, day: number) {
+    setGroupWeekdays((prev) => {
+      const current = prev[key] ?? [];
+      const next = current.includes(day) ? current.filter((d) => d !== day) : [...current, day].sort();
+      return { ...prev, [key]: next };
+    });
   }
 
   return (
@@ -412,22 +461,49 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
               <span className="mb-1.5 block text-[12.5px] font-bold text-foreground">
                 تجميع الصفوف وتكرار العنوان عند كل مجموعة (اختياري)
               </span>
-              <select
-                value={groupByHeader}
-                onChange={(e) => setGroupByHeader(e.target.value)}
-                className={`${inputClass} w-auto`}
-              >
-                <option value="">بدون تجميع</option>
-                {result.dataHeaders.map((header) => (
-                  <option key={header} value={header}>
-                    {header}
-                  </option>
-                ))}
-              </select>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={groupByHeader}
+                  onChange={(e) => {
+                    setGroupByHeader(e.target.value);
+                    setGroupWeekdays({});
+                  }}
+                  className={`${inputClass} w-auto`}
+                >
+                  <option value="">بدون تجميع</option>
+                  {result.dataHeaders.map((header) => (
+                    <option key={header} value={header}>
+                      {header}
+                    </option>
+                  ))}
+                </select>
+                {outputFormat === "xlsx" && groupByHeader && (
+                  <select
+                    value={groupByHeader2}
+                    onChange={(e) => {
+                      setGroupByHeader2(e.target.value);
+                      setGroupWeekdays({});
+                    }}
+                    className={`${inputClass} w-auto`}
+                  >
+                    <option value="">+ مستوى تجميع ثانٍ (اختياري، مثلًا المجموعة)</option>
+                    {result.dataHeaders
+                      .filter((h) => h !== groupByHeader)
+                      .map((header) => (
+                        <option key={header} value={header}>
+                          {header}
+                        </option>
+                      ))}
+                  </select>
+                )}
+              </div>
               <p className="mt-1 text-[11px] text-faint">
                 اختر عمود المجموعة من ملف البيانات نفسه (وليس من أعمدة القالب) - يفيد هذا حتى لو كانت المجموعة تظهر
-                بالقالب فقط داخل عنوان مثل {"{{المجموعة}}"} وليست عمودًا مستقلًا في الجدول. يرتّب الصفوف بحيث تكون كل
-                مجموعة معًا، ويكرر ترويسة القالب عند بداية كل مجموعة جديدة
+                بالقالب فقط داخل عنوان مثل {"{{المجموعة}}"} وليست عمودًا مستقلًا في الجدول.
+                {outputFormat === "xlsx"
+                  ? " أضف مستوى ثانٍ لو أردت تقسيمًا مركّبًا (مثلًا مسار + مجموعة معًا)، فيظهر كل مسار ومجموعة كقسم مستقل."
+                  : ""}{" "}
+                يرتّب الصفوف بحيث تكون كل مجموعة معًا، ويكرر ترويسة القالب عند بداية كل مجموعة جديدة
                 {outputFormat === "xlsx" ? " مع فاصل صفحة حقيقي بين كل مجموعة والتي تليها." : "."}
               </p>
             </div>
@@ -468,21 +544,48 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
                       className={`${inputClass} w-24`}
                     />
                   </div>
-                  <div className="flex flex-wrap gap-2.5">
-                    {["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"].map((name, day) => (
-                      <label key={day} className="flex items-center gap-1 text-[12px] font-bold text-foreground">
-                        <input
-                          type="checkbox"
-                          checked={datesWeekdays.includes(day)}
-                          onChange={() => toggleWeekday(day)}
-                          className="h-3.5 w-3.5"
-                        />
-                        {name}
-                      </label>
-                    ))}
-                  </div>
+                  {distinctGroups.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-bold text-foreground">
+                        حدد أيام الأسبوع الخاصة بكل مجموعة موجودة فعليًا في ملف البيانات:
+                      </p>
+                      {distinctGroups.map(({ key, label }) => (
+                        <div key={key} className="rounded-[8px] border border-border p-2">
+                          <p className="mb-1 text-[12px] font-extrabold text-foreground">{label}</p>
+                          <div className="flex flex-wrap gap-2.5">
+                            {WEEKDAY_NAMES.map((name, day) => (
+                              <label key={day} className="flex items-center gap-1 text-[11.5px] font-bold text-foreground">
+                                <input
+                                  type="checkbox"
+                                  checked={(groupWeekdays[key] ?? []).includes(day)}
+                                  onChange={() => toggleGroupWeekday(key, day)}
+                                  className="h-3.5 w-3.5"
+                                />
+                                {name}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2.5">
+                      {WEEKDAY_NAMES.map((name, day) => (
+                        <label key={day} className="flex items-center gap-1 text-[12px] font-bold text-foreground">
+                          <input
+                            type="checkbox"
+                            checked={datesWeekdays.includes(day)}
+                            onChange={() => toggleWeekday(day)}
+                            className="h-3.5 w-3.5"
+                          />
+                          {name}
+                        </label>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-[11px] text-faint">
-                    يحسب أول 7 تواريخ من هذا الشهر توافق الأيام المحددة، ويستبدل بها صف التواريخ الموجود في القالب.
+                    يحسب أول 7 تواريخ من هذا الشهر توافق الأيام المحددة لكل مجموعة، ويستبدل بها صف التواريخ الموجود في
+                    القالب في القسم الخاص بتلك المجموعة.
                   </p>
                 </div>
               )}

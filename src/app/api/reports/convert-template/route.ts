@@ -85,18 +85,26 @@ export async function POST(request: NextRequest) {
   // template's group title (e.g. "{{المسار}} - {{المجموعة}}") is often only
   // a placeholder in a banner row, not an actual mapped table column, so
   // there may be no template header to route the grouping key through.
+  // Word only ever groups by one column; Excel can group by a combination
+  // (e.g. track + group together) since one output can hold several tracks.
   const groupByColumn = (formData.get("groupByDataHeader") as string | null) || undefined;
+  const groupByColumnsRaw = formData.get("groupByColumns") as string | null;
+  const groupByColumns = groupByColumnsRaw ? (JSON.parse(groupByColumnsRaw) as string[]) : undefined;
   const autoNumberHeader = (formData.get("autoNumberHeader") as string | null) || undefined;
 
   const sessionDatesMonth = formData.get("sessionDatesMonth") as string | null;
   const sessionDatesYear = formData.get("sessionDatesYear") as string | null;
   const sessionDatesWeekdays = formData.get("sessionDatesWeekdays") as string | null;
+  const sessionDatesWeekdaysByGroup = formData.get("sessionDatesWeekdaysByGroup") as string | null;
   const sessionDates =
-    sessionDatesMonth && sessionDatesYear && sessionDatesWeekdays
+    sessionDatesMonth && sessionDatesYear
       ? {
           month: Number(sessionDatesMonth),
           year: Number(sessionDatesYear),
-          weekdays: JSON.parse(sessionDatesWeekdays) as number[],
+          weekdays: sessionDatesWeekdays ? (JSON.parse(sessionDatesWeekdays) as number[]) : undefined,
+          weekdaysByGroup: sessionDatesWeekdaysByGroup
+            ? (JSON.parse(sessionDatesWeekdaysByGroup) as Record<string, number[]>)
+            : undefined,
         }
       : undefined;
 
@@ -139,7 +147,7 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = sameFormat
-      ? await fillXlsxTemplate(templateBuffer!, templateHeaders, mapping, dataRows, { groupByColumn, autoNumberHeader, sessionDates })
+      ? await fillXlsxTemplate(templateBuffer!, templateHeaders, mapping, dataRows, { groupByColumns, autoNumberHeader, sessionDates })
       : await buildBareXlsx(templateHeaders, mapping, dataRows);
     return new NextResponse(new Uint8Array(buffer), {
       headers: {

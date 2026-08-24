@@ -305,6 +305,30 @@ function substituteCellPlaceholdersInRow(
   }
 }
 
+/** Resolves which weekdays apply to one group: a per-group override keyed by
+ *  the same compound key groupByColumns/computeGroupKey produce, falling
+ *  back to a single flat weekday list when the whole file shares one
+ *  schedule (no grouping, or every group meets on the same days). Throws a
+ *  clear, named error rather than silently falling back to nothing, since a
+ *  missing schedule would otherwise generate wrong dates without any sign
+ *  something was misconfigured. */
+function resolveGroupWeekdays(
+  sessionDates: { weekdays?: number[]; weekdaysByGroup?: Record<string, number[]> },
+  groupByColumns: string[] | undefined,
+  groupRow: ParsedExcelRow | undefined
+): number[] {
+  const groupKey = groupByColumns?.length ? computeGroupKey(groupByColumns, groupRow ?? {}) : undefined;
+  const weekdays = (groupKey ? sessionDates.weekdaysByGroup?.[groupKey] : undefined) ?? sessionDates.weekdays;
+  if (!weekdays || weekdays.length === 0) {
+    throw new Error(
+      groupKey
+        ? `لم يتم تحديد أيام الأسبوع لهذه المجموعة: ${groupKey.replace(/ \|\|\| /g, " - ")}`
+        : "لم يتم تحديد أيام الأسبوع لتوليد التواريخ"
+    );
+  }
+  return weekdays;
+}
+
 /**
  * Fills an uploaded .xlsx TEMPLATE in place - loads the real workbook (so
  * its letterhead, logo, merged title row, column widths, and any other
@@ -322,10 +346,15 @@ function substituteCellPlaceholdersInRow(
  * real print page break, so it's consistent with the Word version instead
  * of a plain-text separator.
  *
+ * `groupByColumns` groups by the *combination* of several data columns at
+ * once (e.g. track + group together), so each section is one specific
+ * track/group pair rather than mixing rows that only share one of the two.
+ *
  * `sessionDates`, when given, overwrites a pre-formatted date-header row
- * (found above the column-header row) with freshly computed dates before
- * anything else runs, so every later-duplicated copy of the header block
- * already carries the right dates.
+ * (found above the column-header row) with freshly computed dates - done
+ * separately for every group's own header-block copy (not once globally),
+ * since different groups can meet on different weekdays via
+ * `weekdaysByGroup` while still sharing the same month/year.
  */
 export async function fillXlsxTemplate(
   templateBuffer: ArrayBuffer,
@@ -333,9 +362,14 @@ export async function fillXlsxTemplate(
   mapping: Record<string, string>,
   dataRows: ParsedExcelRow[],
   options?: {
-    groupByColumn?: string;
+    groupByColumns?: string[];
     autoNumberHeader?: string;
-    sessionDates?: { month: number; year: number; weekdays: number[] };
+    sessionDates?: {
+      month: number;
+      year: number;
+      weekdays?: number[];
+      weekdaysByGroup?: Record<string, number[]>;
+    };
   }
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
@@ -346,13 +380,10 @@ export async function fillXlsxTemplate(
   const columnCount = Math.max(sheet.columnCount, sheet.getRow(1).cellCount, templateHeaders.length);
   const headerRowNumber = findHeaderRowNumber(sheet, columnCount);
 
-  let extraPlaceholders: Record<string, string> = {};
+  let dateRowNumber: number | null = null;
   if (options?.sessionDates) {
-    const dateRowNumber = findDateRowNumber(sheet, columnCount, headerRowNumber);
+    dateRowNumber = findDateRowNumber(sheet, columnCount, headerRowNumber);
     if (dateRowNumber == null) throw new Error("لم يتم العثور على صف تواريخ في هذا القالب");
-    const labels = computeSessionDates(options.sessionDates.month, options.sessionDates.year, options.sessionDates.weekdays);
-    applyDatesToRow(sheet, dateRowNumber, columnCount, labels);
-    extraPlaceholders = sessionDatePlaceholders(options.sessionDates.month, options.sessionDates.year, options.sessionDates.weekdays);
   }
 
   let blockEndRow = headerRowNumber;
@@ -399,18 +430,27 @@ export async function fillXlsxTemplate(
     for (let col = 1; col <= columnCount; col++) newRow.getCell(col).style = dataCellStyles[col - 1]!;
   }
 
-  function placeholderValuesFor(row: ParsedExcelRow | undefined): Record<string, string> {
-    return { ...rowToPlaceholderValues(row), ...extraPlaceholders };
+  function placeholderValuesFor(row: ParsedExcelRow | undefined, extra: Record<string, string>): Record<string, string> {
+    return { ...rowToPlaceholderValues(row), ...extra };
   }
 
-  const groups = options?.groupByColumn ? groupRowsByColumn(dataRows, options.groupByColumn) : [dataRows];
+  const groups = options?.groupByColumns?.length ? groupRowsByColumns(dataRows, options.groupByColumns) : [dataRows];
 
   groups.forEach((groupRows, index) => {
+    let extraPlaceholders: Record<string, string> = {};
+    let dateLabels: string[] | null = null;
+    if (options?.sessionDates) {
+      const weekdays = resolveGroupWeekdays(options.sessionDates, options.groupByColumns, groupRows[0]);
+      dateLabels = computeSessionDates(options.sessionDates.month, options.sessionDates.year, weekdays);
+      extraPlaceholders = sessionDatePlaceholders(options.sessionDates.month, options.sessionDates.year, weekdays);
+    }
+
     if (index === 0) {
       // The original block is still sitting untouched at the top of the
       // sheet - substitute its placeholders in place rather than
       // duplicating a fresh copy of it.
-      for (let r = 1; r <= blockEndRow; r++) substituteCellPlaceholdersInRow(sheet, r, columnCount, placeholderValuesFor(groupRows[0]));
+      for (let r = 1; r <= blockEndRow; r++) substituteCellPlaceholdersInRow(sheet, r, columnCount, placeholderValuesFor(groupRows[0], extraPlaceholders));
+      if (dateLabels) applyDatesToRow(sheet, dateRowNumber!, columnCount, dateLabels);
     } else {
       // Every group after the first starts on its own fresh printed page -
       // only the very first section is already at the top of page 1.
@@ -424,8 +464,9 @@ export async function fillXlsxTemplate(
       const rowOffset = insertStartRow - 1;
       for (const range of blockMerges) sheet.mergeCells(shiftMergeRange(range, rowOffset));
       for (let r = insertStartRow; r <= insertStartRow + blockEndRow - 1; r++) {
-        substituteCellPlaceholdersInRow(sheet, r, columnCount, placeholderValuesFor(groupRows[0]));
+        substituteCellPlaceholdersInRow(sheet, r, columnCount, placeholderValuesFor(groupRows[0], extraPlaceholders));
       }
+      if (dateLabels) applyDatesToRow(sheet, insertStartRow + dateRowNumber! - 1, columnCount, dateLabels);
     }
 
     let counter = 1;
@@ -452,6 +493,32 @@ export function groupRowsByColumn(dataRows: ParsedExcelRow[], column: string): P
   const buckets = new Map<string, ParsedExcelRow[]>();
   for (const row of dataRows) {
     const key = String(row[column] ?? "");
+    if (!buckets.has(key)) {
+      buckets.set(key, []);
+      order.push(key);
+    }
+    buckets.get(key)!.push(row);
+  }
+  return order.map((key) => buckets.get(key)!);
+}
+
+const GROUP_KEY_SEPARATOR = " ||| ";
+
+/** Compound key for grouping by more than one data column at once (e.g.
+ *  track + group together, so each output section is one specific
+ *  track/group combination) - also used as the lookup key for a per-group
+ *  weekday schedule, so the client and server must compute it identically. */
+export function computeGroupKey(columns: string[], row: ParsedExcelRow): string {
+  return columns.map((column) => String(row[column] ?? "")).join(GROUP_KEY_SEPARATOR);
+}
+
+/** Same stable-order grouping as groupRowsByColumn, but keyed on the
+ *  combination of several columns' values instead of just one. */
+export function groupRowsByColumns(dataRows: ParsedExcelRow[], columns: string[]): ParsedExcelRow[][] {
+  const order: string[] = [];
+  const buckets = new Map<string, ParsedExcelRow[]>();
+  for (const row of dataRows) {
+    const key = computeGroupKey(columns, row);
     if (!buckets.has(key)) {
       buckets.set(key, []);
       order.push(key);
