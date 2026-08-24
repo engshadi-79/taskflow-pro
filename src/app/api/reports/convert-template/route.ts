@@ -92,15 +92,15 @@ export async function POST(request: NextRequest) {
   const groupByColumns = groupByColumnsRaw ? (JSON.parse(groupByColumnsRaw) as string[]) : undefined;
   const autoNumberHeader = (formData.get("autoNumberHeader") as string | null) || undefined;
 
-  const sessionDatesMonth = formData.get("sessionDatesMonth") as string | null;
-  const sessionDatesYear = formData.get("sessionDatesYear") as string | null;
+  const sessionDatesStartDate = formData.get("sessionDatesStartDate") as string | null;
+  const sessionDatesEndDate = formData.get("sessionDatesEndDate") as string | null;
   const sessionDatesWeekdays = formData.get("sessionDatesWeekdays") as string | null;
   const sessionDatesWeekdaysByGroup = formData.get("sessionDatesWeekdaysByGroup") as string | null;
   const sessionDates =
-    sessionDatesMonth && sessionDatesYear
+    sessionDatesStartDate && sessionDatesEndDate
       ? {
-          month: Number(sessionDatesMonth),
-          year: Number(sessionDatesYear),
+          startDate: sessionDatesStartDate,
+          endDate: sessionDatesEndDate,
           weekdays: sessionDatesWeekdays ? (JSON.parse(sessionDatesWeekdays) as number[]) : undefined,
           weekdaysByGroup: sessionDatesWeekdaysByGroup
             ? (JSON.parse(sessionDatesWeekdaysByGroup) as Record<string, number[]>)

@@ -52,8 +52,8 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
   const [error, setError] = useState<string | null>(null);
 
   const [datesEnabled, setDatesEnabled] = useState(false);
-  const [datesMonth, setDatesMonth] = useState(new Date().getMonth() + 1);
-  const [datesYear, setDatesYear] = useState(new Date().getFullYear());
+  const [datesStartDate, setDatesStartDate] = useState("");
+  const [datesEndDate, setDatesEndDate] = useState("");
   const [datesWeekdays, setDatesWeekdays] = useState<number[]>([]);
   const [groupWeekdays, setGroupWeekdays] = useState<Record<string, number[]>>({});
 
@@ -202,9 +202,9 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
       if (autoNumberHeader) {
         formData.append("autoNumberHeader", autoNumberHeader);
       }
-      if (datesEnabled && outputFormat === "xlsx") {
-        formData.append("sessionDatesMonth", String(datesMonth));
-        formData.append("sessionDatesYear", String(datesYear));
+      if (datesEnabled && outputFormat === "xlsx" && datesStartDate && datesEndDate) {
+        formData.append("sessionDatesStartDate", datesStartDate);
+        formData.append("sessionDatesEndDate", datesEndDate);
         if (activeGroupColumns.length > 0) {
           formData.append("sessionDatesWeekdaysByGroup", JSON.stringify(groupWeekdays));
         } else if (datesWeekdays.length > 0) {
@@ -530,27 +530,30 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
               {datesEnabled && (
                 <div className="mt-2.5 space-y-2.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      value={datesMonth}
-                      onChange={(e) => setDatesMonth(Number(e.target.value))}
-                      className={`${inputClass} w-auto`}
-                    >
-                      {[
-                        "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-                        "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
-                      ].map((name, i) => (
-                        <option key={name} value={i + 1}>
-                          {name}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      value={datesYear}
-                      onChange={(e) => setDatesYear(Number(e.target.value))}
-                      className={`${inputClass} w-24`}
-                    />
+                    <label className="flex items-center gap-1.5 text-[12px] font-bold text-foreground">
+                      من تاريخ
+                      <input
+                        type="date"
+                        value={datesStartDate}
+                        onChange={(e) => setDatesStartDate(e.target.value)}
+                        className={`${inputClass} w-auto`}
+                      />
+                    </label>
+                    <label className="flex items-center gap-1.5 text-[12px] font-bold text-foreground">
+                      إلى تاريخ
+                      <input
+                        type="date"
+                        value={datesEndDate}
+                        onChange={(e) => setDatesEndDate(e.target.value)}
+                        className={`${inputClass} w-auto`}
+                      />
+                    </label>
                   </div>
+                  <p className="text-[11px] text-faint">
+                    يمكن تحديد أي مدى تريده (مثلًا نصف الشهر الأول 01/08 إلى 15/08) لا الشهر كاملًا بالضرورة - يحسب أول
+                    7 تواريخ داخل هذا المدى توافق الأيام المحددة لكل مجموعة، ويستبدل بها صف التواريخ الموجود في القالب
+                    في القسم الخاص بتلك المجموعة.
+                  </p>
                   {distinctGroups.length > 0 ? (
                     <div className="space-y-2">
                       <p className="text-[11px] font-bold text-foreground">
@@ -590,10 +593,6 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
                       ))}
                     </div>
                   )}
-                  <p className="text-[11px] text-faint">
-                    يحسب أول 7 تواريخ من هذا الشهر توافق الأيام المحددة لكل مجموعة، ويستبدل بها صف التواريخ الموجود في
-                    القالب في القسم الخاص بتلك المجموعة.
-                  </p>
                 </div>
               )}
             </div>

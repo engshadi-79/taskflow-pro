@@ -116,26 +116,42 @@ export function findDateRowNumber(sheet: ExcelJS.Worksheet, columnCount: number,
 
 const ARABIC_WEEKDAY_NAMES = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
-/** Pure calendar walk: collects the first `count` days in `month`/`year`
- *  whose weekday (0=Sunday..6=Saturday, matching Date#getDay()) is in
- *  `weekdays`, formatted to match the template's own "DD/MM\nWeekday" text
- *  pattern exactly. Stays within the given month - throws rather than
- *  silently overflowing into the next month if there aren't enough matches. */
-export function computeSessionDates(month: number, year: number, weekdays: number[], count = 7): string[] {
+/** "YYYY-MM-DD" (what an <input type="date"> sends) parsed as a LOCAL date,
+ *  not via `new Date(iso)` - that parses as UTC midnight, which shifts to
+ *  the previous day once read back through local getDate()/getDay() in any
+ *  timezone behind UTC. */
+function parseIsoDateLocal(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y!, m! - 1, d!);
+}
+
+/** Pure calendar walk: collects up to `maxCount` days between `startDate`
+ *  and `endDate` (inclusive, both "YYYY-MM-DD") whose weekday (0=Sunday..
+ *  6=Saturday, matching Date#getDay()) is in `weekdays`, formatted to match
+ *  the template's own "DD/MM\nWeekday" text pattern exactly. A short or
+ *  oddly-aligned range (e.g. exactly half a month) can legitimately contain
+ *  fewer matching days than the template's column count - that's fine, the
+ *  caller fills only as many date cells as were found; this only throws
+ *  when the range contains *no* matching day at all, since that's the one
+ *  case that's unambiguously a misconfiguration (wrong weekday(s) picked
+ *  for this range). */
+export function computeSessionDates(startDate: string, endDate: string, weekdays: number[], maxCount = 7): string[] {
   const weekdaySet = new Set(weekdays);
-  const daysInMonth = new Date(year, month, 0).getDate();
+  const end = parseIsoDateLocal(endDate);
   const labels: string[] = [];
 
-  for (let day = 1; day <= daysInMonth && labels.length < count; day++) {
-    const date = new Date(year, month - 1, day);
-    if (!weekdaySet.has(date.getDay())) continue;
-    const dd = String(day).padStart(2, "0");
-    const mm = String(month).padStart(2, "0");
-    labels.push(`${dd}/${mm}\n${ARABIC_WEEKDAY_NAMES[date.getDay()]}`);
+  const cursor = parseIsoDateLocal(startDate);
+  while (cursor <= end && labels.length < maxCount) {
+    if (weekdaySet.has(cursor.getDay())) {
+      const dd = String(cursor.getDate()).padStart(2, "0");
+      const mm = String(cursor.getMonth() + 1).padStart(2, "0");
+      labels.push(`${dd}/${mm}\n${ARABIC_WEEKDAY_NAMES[cursor.getDay()]}`);
+    }
+    cursor.setDate(cursor.getDate() + 1);
   }
 
-  if (labels.length < count) {
-    throw new Error(`لا يوجد عدد كافٍ من الأيام المطابقة في هذا الشهر (تم إيجاد ${labels.length} من أصل ${count})`);
+  if (labels.length === 0) {
+    throw new Error("لا يوجد أي يوم يوافق الأيام المحددة ضمن هذا المدى الزمني");
   }
   return labels;
 }
@@ -147,34 +163,43 @@ const ARABIC_MONTH_NAMES = [
 
 /** {{الشهر}}/{{السنة}}/{{الأيام}} describe the whole generation run, not any
  *  one data row, so they can't come from rowToPlaceholderValues - computed
- *  once and merged into every group's placeholder values instead. */
-function sessionDatePlaceholders(month: number, year: number, weekdays: number[]): Record<string, string> {
+ *  once and merged into every group's placeholder values instead. Derived
+ *  from the range's start date - a range spanning two calendar months still
+ *  resolves to just the starting one, an accepted v1 simplification. */
+function sessionDatePlaceholders(startDate: string, weekdays: number[]): Record<string, string> {
+  const start = parseIsoDateLocal(startDate);
   return {
-    الشهر: ARABIC_MONTH_NAMES[month - 1] ?? String(month),
-    السنة: String(year),
+    الشهر: ARABIC_MONTH_NAMES[start.getMonth()] ?? String(start.getMonth() + 1),
+    السنة: String(start.getFullYear()),
     الأيام: [...weekdays].sort((a, b) => a - b).map((d) => ARABIC_WEEKDAY_NAMES[d]).join(" - "),
   };
 }
 
-/** Overwrites a session-date row's own existing non-empty cells, left to
- *  right, with freshly computed labels - only `.value`, never `.style`, so
- *  each cell's existing formatting survives untouched. Throws if the
- *  template's date row doesn't have exactly as many cells as labels, since
- *  that means the template's layout doesn't match what was requested. */
-function applyDatesToRow(sheet: ExcelJS.Worksheet, rowNumber: number, columnCount: number, labels: string[]): void {
+/** Finds a session-date row's own existing non-empty cells (its physical
+ *  column positions), independent of however many labels will end up being
+ *  written into them - shared by the upfront column-count check and the
+ *  actual write. */
+function dateRowTargetColumns(sheet: ExcelJS.Worksheet, rowNumber: number, columnCount: number): number[] {
   const row = sheet.getRow(rowNumber);
-  const targetCols: number[] = [];
+  const cols: number[] = [];
   for (let col = 1; col <= columnCount; col++) {
     const value = cellToPlainValue(row.getCell(col));
-    if (value != null && String(value).trim() !== "") targetCols.push(col);
+    if (value != null && String(value).trim() !== "") cols.push(col);
   }
-  if (targetCols.length !== labels.length) {
-    throw new Error(
-      `صف التواريخ في القالب يحتوي ${targetCols.length} عمودًا بينما المطلوب ${labels.length} - تأكد من تطابق القالب`
-    );
-  }
+  return cols;
+}
+
+/** Overwrites a session-date row's own existing non-empty cells, left to
+ *  right, with freshly computed labels - only `.value`, never `.style`, so
+ *  each cell's existing formatting survives untouched. When there are
+ *  fewer labels than cells (a short date range didn't fill every column),
+ *  the remaining cells are blanked rather than left holding the template's
+ *  original dummy dates. */
+function applyDatesToRow(sheet: ExcelJS.Worksheet, rowNumber: number, columnCount: number, labels: string[]): void {
+  const row = sheet.getRow(rowNumber);
+  const targetCols = dateRowTargetColumns(sheet, rowNumber, columnCount);
   targetCols.forEach((col, i) => {
-    row.getCell(col).value = labels[i]!;
+    row.getCell(col).value = i < labels.length ? labels[i]! : "";
   });
 }
 
@@ -354,7 +379,9 @@ function resolveGroupWeekdays(
  * (found above the column-header row) with freshly computed dates - done
  * separately for every group's own header-block copy (not once globally),
  * since different groups can meet on different weekdays via
- * `weekdaysByGroup` while still sharing the same month/year.
+ * `weekdaysByGroup` while still sharing the same `startDate`/`endDate`
+ * range (e.g. generating just the first half of a month's sheet, then the
+ * second half as its own separate run).
  */
 export async function fillXlsxTemplate(
   templateBuffer: ArrayBuffer,
@@ -365,8 +392,8 @@ export async function fillXlsxTemplate(
     groupByColumns?: string[];
     autoNumberHeader?: string;
     sessionDates?: {
-      month: number;
-      year: number;
+      startDate: string;
+      endDate: string;
       weekdays?: number[];
       weekdaysByGroup?: Record<string, number[]>;
     };
@@ -381,9 +408,11 @@ export async function fillXlsxTemplate(
   const headerRowNumber = findHeaderRowNumber(sheet, columnCount);
 
   let dateRowNumber: number | null = null;
+  let dateColumnCount = 0;
   if (options?.sessionDates) {
     dateRowNumber = findDateRowNumber(sheet, columnCount, headerRowNumber);
     if (dateRowNumber == null) throw new Error("لم يتم العثور على صف تواريخ في هذا القالب");
+    dateColumnCount = dateRowTargetColumns(sheet, dateRowNumber, columnCount).length;
   }
 
   let blockEndRow = headerRowNumber;
@@ -441,8 +470,8 @@ export async function fillXlsxTemplate(
     let dateLabels: string[] | null = null;
     if (options?.sessionDates) {
       const weekdays = resolveGroupWeekdays(options.sessionDates, options.groupByColumns, groupRows[0]);
-      dateLabels = computeSessionDates(options.sessionDates.month, options.sessionDates.year, weekdays);
-      extraPlaceholders = sessionDatePlaceholders(options.sessionDates.month, options.sessionDates.year, weekdays);
+      dateLabels = computeSessionDates(options.sessionDates.startDate, options.sessionDates.endDate, weekdays, dateColumnCount);
+      extraPlaceholders = sessionDatePlaceholders(options.sessionDates.startDate, weekdays);
     }
 
     if (index === 0) {
