@@ -38,7 +38,17 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const selectedSavedTemplate = savedTemplates.find((t) => t.id === selectedSavedId);
+  // The <select> below has no empty placeholder option, so if selectedSavedId
+  // ever drifts from the current savedTemplates list (e.g. right after the
+  // very first save, before its id was recorded), the browser still shows
+  // the first <option> as chosen while the real state has nothing selected -
+  // deriving the effective id from the actual list closes that gap for good
+  // instead of only patching each place savedTemplates changes.
+  const effectiveSavedId =
+    selectedSavedId && savedTemplates.some((t) => t.id === selectedSavedId)
+      ? selectedSavedId
+      : savedTemplates[0]?.id ?? "";
+  const selectedSavedTemplate = savedTemplates.find((t) => t.id === effectiveSavedId);
 
   async function handleParse() {
     const dataFile = dataInputRef.current?.files?.[0];
@@ -56,11 +66,11 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
       }
       formData.append("templateFile", templateFile);
     } else {
-      if (!selectedSavedId) {
+      if (!effectiveSavedId) {
         setError("اختر قالبًا محفوظًا");
         return;
       }
-      formData.append("savedTemplateId", selectedSavedId);
+      formData.append("savedTemplateId", effectiveSavedId);
     }
     formData.append("dataFile", dataFile);
 
@@ -110,14 +120,26 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
     setSaveName("");
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
-    setSavedTemplates(await listSavedTemplates());
+
+    const refreshed = await listSavedTemplates();
+    setSavedTemplates(refreshed);
+    // The <select> below has no empty option, so leaving selectedSavedId at
+    // its old value (often "" the very first time) makes the browser fall
+    // back to displaying the first <option> as if chosen while the actual
+    // state stays empty - "اختر قالبًا محفوظًا" then fires on generate even
+    // though a template visibly appears selected. Point it at the template
+    // that was just saved (always first, listed newest-first) explicitly.
+    if (result.id) setSelectedSavedId(result.id);
   }
 
   async function handleDeleteSaved(id: string) {
     if (!confirm("حذف هذا القالب المحفوظ؟")) return;
     await deleteSavedTemplate(id);
-    setSavedTemplates((prev) => prev.filter((t) => t.id !== id));
-    if (selectedSavedId === id) setSelectedSavedId("");
+    setSavedTemplates((prev) => {
+      const next = prev.filter((t) => t.id !== id);
+      if (selectedSavedId === id) setSelectedSavedId(next[0]?.id ?? "");
+      return next;
+    });
   }
 
   async function handleGenerate() {
@@ -134,8 +156,8 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
       if (mode === "upload") {
         const templateFile = templateInputRef.current?.files?.[0];
         if (templateFile) formData.append("templateFile", templateFile);
-      } else if (selectedSavedId) {
-        formData.append("savedTemplateId", selectedSavedId);
+      } else if (effectiveSavedId) {
+        formData.append("savedTemplateId", effectiveSavedId);
       }
       formData.append("templateHeaders", JSON.stringify(parsed.templateHeaders));
       formData.append("mapping", JSON.stringify(mapping));
@@ -210,7 +232,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
               ) : (
                 <div className="flex items-center gap-2">
                   <select
-                    value={selectedSavedId}
+                    value={effectiveSavedId}
                     onChange={(e) => setSelectedSavedId(e.target.value)}
                     className={inputClass}
                   >
@@ -220,10 +242,10 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
                       </option>
                     ))}
                   </select>
-                  {selectedSavedId && (
+                  {effectiveSavedId && (
                     <button
                       type="button"
-                      onClick={() => handleDeleteSaved(selectedSavedId)}
+                      onClick={() => handleDeleteSaved(effectiveSavedId)}
                       className="shrink-0 text-[11.5px] font-bold text-red-500 hover:underline"
                     >
                       حذف
