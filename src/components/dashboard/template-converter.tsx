@@ -497,6 +497,13 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
                   </select>
                 )}
               </div>
+              {outputFormat === "xlsx" && groupByHeader && !groupByHeader2 && (
+                <p className="mt-1.5 rounded-[8px] bg-amber-50 px-2.5 py-2 text-[11.5px] font-bold text-amber-800">
+                  ⚠ اخترت مستوى تجميع واحد فقط ({groupByHeader}). لو كانت الصفوف التي تشترك في نفس القيمة تنتمي لأعمدة
+                  أخرى مختلفة (مثل مسارات مختلفة)، سيتم دمجها كلها في قسم واحد بغض النظر عن ذلك العمود الآخر، وسيظهر
+                  عنوان القسم بقيمة أول صف فقط لا كل الصفوف. أضف المستوى الثاني بالأسفل لو أردت فصلها أيضًا.
+                </p>
+              )}
               <p className="mt-1 text-[11px] text-faint">
                 اختر عمود المجموعة من ملف البيانات نفسه (وليس من أعمدة القالب) - يفيد هذا حتى لو كانت المجموعة تظهر
                 بالقالب فقط داخل عنوان مثل {"{{المجموعة}}"} وليست عمودًا مستقلًا في الجدول.
