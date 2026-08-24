@@ -50,6 +50,7 @@ function cellToPlainValue(cell: ExcelJS.Cell): string | number | null {
   if (value == null) return null;
   if (value instanceof Date) return value.toISOString().slice(0, 10);
   if (typeof value === "object") {
+    if ("error" in value) return null;
     if ("richText" in value && Array.isArray(value.richText)) {
       return value.richText.map((part) => part.text).join("");
     }
@@ -78,15 +79,103 @@ function looksLikeHeaderRow(values: (string | number | null)[]): boolean {
   return distinct.size > 1;
 }
 
+const DATE_CELL_PATTERN = /^\d{1,2}\/\d{1,2}/;
+
+/** A row of pre-formatted session-date headers ("02/08\nالأحد" per cell) has
+ *  distinct values just like a real header row, but it isn't one - a
+ *  template can have both (a date row above the real column-header row, as
+ *  in the attendance-sheet template), so this must be excluded from header
+ *  candidacy explicitly rather than relying on "first distinct row wins". */
+function looksLikeDateRow(values: (string | number | null)[]): boolean {
+  const nonEmpty = values.filter((v) => v != null && String(v).trim() !== "");
+  const dateLike = nonEmpty.filter((v) => DATE_CELL_PATTERN.test(String(v).trim()));
+  return dateLike.length >= 3;
+}
+
 /** Scans the first few rows for one that looks like real column headers,
- *  skipping a leading title/banner row - falls back to row 1 if nothing
- *  else looks better within that scan window. */
+ *  skipping a leading title/banner row and any session-date row - falls
+ *  back to row 1 if nothing else looks better within that scan window. */
 export function findHeaderRowNumber(sheet: ExcelJS.Worksheet, columnCount: number): number {
   const maxScan = Math.min(10, Math.max(sheet.rowCount, 1));
   for (let r = 1; r <= maxScan; r++) {
-    if (looksLikeHeaderRow(rowValues(sheet, r, columnCount))) return r;
+    const values = rowValues(sheet, r, columnCount);
+    if (looksLikeHeaderRow(values) && !looksLikeDateRow(values)) return r;
   }
   return 1;
+}
+
+/** Scans the rows above the detected header for a pre-formatted session-date
+ *  row (e.g. "02/08\nالأحد" per cell) - returns null when the template has
+ *  none, meaning the date-generation feature simply doesn't apply to it. */
+export function findDateRowNumber(sheet: ExcelJS.Worksheet, columnCount: number, headerRowNumber: number): number | null {
+  for (let r = 1; r < headerRowNumber; r++) {
+    if (looksLikeDateRow(rowValues(sheet, r, columnCount))) return r;
+  }
+  return null;
+}
+
+const ARABIC_WEEKDAY_NAMES = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+
+/** Pure calendar walk: collects the first `count` days in `month`/`year`
+ *  whose weekday (0=Sunday..6=Saturday, matching Date#getDay()) is in
+ *  `weekdays`, formatted to match the template's own "DD/MM\nWeekday" text
+ *  pattern exactly. Stays within the given month - throws rather than
+ *  silently overflowing into the next month if there aren't enough matches. */
+export function computeSessionDates(month: number, year: number, weekdays: number[], count = 7): string[] {
+  const weekdaySet = new Set(weekdays);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const labels: string[] = [];
+
+  for (let day = 1; day <= daysInMonth && labels.length < count; day++) {
+    const date = new Date(year, month - 1, day);
+    if (!weekdaySet.has(date.getDay())) continue;
+    const dd = String(day).padStart(2, "0");
+    const mm = String(month).padStart(2, "0");
+    labels.push(`${dd}/${mm}\n${ARABIC_WEEKDAY_NAMES[date.getDay()]}`);
+  }
+
+  if (labels.length < count) {
+    throw new Error(`لا يوجد عدد كافٍ من الأيام المطابقة في هذا الشهر (تم إيجاد ${labels.length} من أصل ${count})`);
+  }
+  return labels;
+}
+
+const ARABIC_MONTH_NAMES = [
+  "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+  "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+];
+
+/** {{الشهر}}/{{السنة}}/{{الأيام}} describe the whole generation run, not any
+ *  one data row, so they can't come from rowToPlaceholderValues - computed
+ *  once and merged into every group's placeholder values instead. */
+function sessionDatePlaceholders(month: number, year: number, weekdays: number[]): Record<string, string> {
+  return {
+    الشهر: ARABIC_MONTH_NAMES[month - 1] ?? String(month),
+    السنة: String(year),
+    الأيام: [...weekdays].sort((a, b) => a - b).map((d) => ARABIC_WEEKDAY_NAMES[d]).join(" - "),
+  };
+}
+
+/** Overwrites a session-date row's own existing non-empty cells, left to
+ *  right, with freshly computed labels - only `.value`, never `.style`, so
+ *  each cell's existing formatting survives untouched. Throws if the
+ *  template's date row doesn't have exactly as many cells as labels, since
+ *  that means the template's layout doesn't match what was requested. */
+function applyDatesToRow(sheet: ExcelJS.Worksheet, rowNumber: number, columnCount: number, labels: string[]): void {
+  const row = sheet.getRow(rowNumber);
+  const targetCols: number[] = [];
+  for (let col = 1; col <= columnCount; col++) {
+    const value = cellToPlainValue(row.getCell(col));
+    if (value != null && String(value).trim() !== "") targetCols.push(col);
+  }
+  if (targetCols.length !== labels.length) {
+    throw new Error(
+      `صف التواريخ في القالب يحتوي ${targetCols.length} عمودًا بينما المطلوب ${labels.length} - تأكد من تطابق القالب`
+    );
+  }
+  targetCols.forEach((col, i) => {
+    row.getCell(col).value = labels[i]!;
+  });
 }
 
 export function extractSheetData(sheet: ExcelJS.Worksheet): { headers: string[]; rows: ParsedExcelRow[] } {
@@ -167,30 +256,181 @@ function buildRowValues(
   return templateHeaders.map((header) => (header === autoNumberHeader ? counter : mappedValue(header, mapping, row)));
 }
 
+type CellSnapshot = { value: ExcelJS.CellValue; style: Partial<ExcelJS.Style> };
+
+function snapshotRow(sheet: ExcelJS.Worksheet, rowNumber: number, columnCount: number): CellSnapshot[] {
+  const row = sheet.getRow(rowNumber);
+  const cells: CellSnapshot[] = [];
+  for (let col = 1; col <= columnCount; col++) {
+    const cell = row.getCell(col);
+    cells.push({ value: cell.value, style: { ...cell.style } });
+  }
+  return cells;
+}
+
+/** Shifts both row numbers of an "A1:B3"-style merge range by `rowOffset`,
+ *  leaving the column letters untouched - used to reproduce a captured
+ *  merge at wherever a duplicated header block lands further down the
+ *  sheet. Returns the range unchanged if it doesn't match the expected
+ *  shape (defensive - should never happen for merges read back from
+ *  ExcelJS itself). */
+function shiftMergeRange(range: string, rowOffset: number): string {
+  const match = range.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+  if (!match) return range;
+  const [, colA, rowA, colB, rowB] = match;
+  return `${colA}${Number(rowA) + rowOffset}:${colB}${Number(rowB) + rowOffset}`;
+}
+
+/** Cell-level counterpart to substitutePlaceholders (which operates on raw
+ *  Word OOXML text runs) - replaces {{columnName}} tokens found in any
+ *  cell's own text within one row, in place, leaving cells with no token
+ *  untouched. Applied per-row (not per-workbook) because each repeated
+ *  header-block copy needs its own group's values substituted in. */
+function substituteCellPlaceholdersInRow(
+  sheet: ExcelJS.Worksheet,
+  rowNumber: number,
+  columnCount: number,
+  values: Record<string, string>
+): void {
+  const row = sheet.getRow(rowNumber);
+  for (let col = 1; col <= columnCount; col++) {
+    const cell = row.getCell(col);
+    const raw = cellToPlainValue(cell);
+    if (typeof raw !== "string" || !raw.includes("{{")) continue;
+    const replaced = raw.replace(/\{\{([^{}]+)\}\}/g, (full, key: string) => {
+      const resolved = resolvePlaceholderValue(key.trim(), values);
+      return resolved === undefined ? full : resolved;
+    });
+    if (replaced !== raw) cell.value = replaced;
+  }
+}
+
 /**
  * Fills an uploaded .xlsx TEMPLATE in place - loads the real workbook (so
  * its letterhead, logo, merged title row, column widths, and any other
- * existing formatting survive untouched) and appends one new row per data
- * row directly after the sheet's existing content, instead of building a
- * brand-new bare workbook from scratch.
+ * existing formatting survive untouched), removes whatever example rows the
+ * template shipped below its header, and rebuilds the body from the real
+ * data.
+ *
+ * Mirrors fillDocxTemplate's grouping/placeholder design (see its own
+ * comment) but with ExcelJS's row/cell/merge APIs instead of raw OOXML
+ * string slicing: the template's own header block (its header row, plus any
+ * immediately-following row that still contains a {{...}} placeholder - a
+ * group-title row placed right after the headers, for example) repeats once
+ * per group. The first group reuses that block in place; each later group
+ * gets a freshly duplicated copy (values + styles + merges) followed by a
+ * real print page break, so it's consistent with the Word version instead
+ * of a plain-text separator.
+ *
+ * `sessionDates`, when given, overwrites a pre-formatted date-header row
+ * (found above the column-header row) with freshly computed dates before
+ * anything else runs, so every later-duplicated copy of the header block
+ * already carries the right dates.
  */
 export async function fillXlsxTemplate(
   templateBuffer: ArrayBuffer,
   templateHeaders: string[],
   mapping: Record<string, string>,
   dataRows: ParsedExcelRow[],
-  options?: { autoNumberHeader?: string }
+  options?: {
+    groupByColumn?: string;
+    autoNumberHeader?: string;
+    sessionDates?: { month: number; year: number; weekdays: number[] };
+  }
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(templateBuffer);
   const sheet = workbook.worksheets[0];
   if (!sheet) throw new Error("لم يتم العثور على أي ورقة في ملف القالب");
 
-  let counter = 1;
-  for (const row of dataRows) {
-    sheet.addRow(buildRowValues(templateHeaders, mapping, row, options?.autoNumberHeader, counter));
-    counter++;
+  const columnCount = Math.max(sheet.columnCount, sheet.getRow(1).cellCount, templateHeaders.length);
+  const headerRowNumber = findHeaderRowNumber(sheet, columnCount);
+
+  let extraPlaceholders: Record<string, string> = {};
+  if (options?.sessionDates) {
+    const dateRowNumber = findDateRowNumber(sheet, columnCount, headerRowNumber);
+    if (dateRowNumber == null) throw new Error("لم يتم العثور على صف تواريخ في هذا القالب");
+    const labels = computeSessionDates(options.sessionDates.month, options.sessionDates.year, options.sessionDates.weekdays);
+    applyDatesToRow(sheet, dateRowNumber, columnCount, labels);
+    extraPlaceholders = sessionDatePlaceholders(options.sessionDates.month, options.sessionDates.year, options.sessionDates.weekdays);
   }
+
+  let blockEndRow = headerRowNumber;
+  while (blockEndRow < sheet.rowCount) {
+    const nextRowValues = rowValues(sheet, blockEndRow + 1, columnCount);
+    const hasPlaceholder = nextRowValues.some((v) => typeof v === "string" && /\{\{[^{}]+\}\}/.test(v));
+    if (!hasPlaceholder) break;
+    blockEndRow++;
+  }
+  const firstDataRow = blockEndRow + 1;
+
+  // Style source for generated data rows: the template's own first example
+  // row if it shipped with one, otherwise fall back to the header row's own
+  // styling (mirrors fillDocxTemplate's equivalent fallback).
+  const styleSourceRow = firstDataRow <= sheet.rowCount ? firstDataRow : headerRowNumber;
+  const dataCellStyles: Partial<ExcelJS.Style>[] = [];
+  for (let col = 1; col <= columnCount; col++) {
+    dataCellStyles.push({ ...sheet.getRow(styleSourceRow).getCell(col).style });
+  }
+
+  const blockSnapshot: CellSnapshot[][] = [];
+  for (let r = 1; r <= blockEndRow; r++) blockSnapshot.push(snapshotRow(sheet, r, columnCount));
+  const blockMerges = (sheet.model.merges ?? []).filter((range) => {
+    const match = range.match(/^[A-Z]+(\d+):[A-Z]+(\d+)$/);
+    return match != null && Number(match[2]) <= blockEndRow;
+  });
+
+  // Drop whatever example rows the template shipped below its header - the
+  // real uploaded roster replaces them entirely, it doesn't append after.
+  // ExcelJS's spliceRows silently no-ops when the deleted range runs all the
+  // way to the sheet's own last row (it only shifts rows that exist *after*
+  // the deleted range down to fill the gap, so with nothing after there's
+  // nothing to shift) - confirmed directly against this ExcelJS version, so
+  // the internal row array is truncated explicitly as well to actually drop
+  // the trailing rows instead of leaving them in place.
+  if (firstDataRow <= sheet.rowCount) {
+    sheet.spliceRows(firstDataRow, sheet.rowCount - firstDataRow + 1);
+    (sheet as unknown as { _rows: unknown[] })._rows.length = firstDataRow - 1;
+  }
+
+  function addDataRow(row: ParsedExcelRow, counter: number): void {
+    const values = buildRowValues(templateHeaders, mapping, row, options?.autoNumberHeader, counter);
+    const newRow = sheet.addRow(values);
+    for (let col = 1; col <= columnCount; col++) newRow.getCell(col).style = dataCellStyles[col - 1]!;
+  }
+
+  function placeholderValuesFor(row: ParsedExcelRow | undefined): Record<string, string> {
+    return { ...rowToPlaceholderValues(row), ...extraPlaceholders };
+  }
+
+  const groups = options?.groupByColumn ? groupRowsByColumn(dataRows, options.groupByColumn) : [dataRows];
+
+  groups.forEach((groupRows, index) => {
+    if (index === 0) {
+      // The original block is still sitting untouched at the top of the
+      // sheet - substitute its placeholders in place rather than
+      // duplicating a fresh copy of it.
+      for (let r = 1; r <= blockEndRow; r++) substituteCellPlaceholdersInRow(sheet, r, columnCount, placeholderValuesFor(groupRows[0]));
+    } else {
+      // Every group after the first starts on its own fresh printed page -
+      // only the very first section is already at the top of page 1.
+      sheet.getRow(sheet.rowCount).addPageBreak();
+
+      const insertStartRow = sheet.rowCount + 1;
+      for (const cells of blockSnapshot) {
+        const newRow = sheet.addRow(cells.map((c) => c.value));
+        cells.forEach((c, i) => (newRow.getCell(i + 1).style = c.style));
+      }
+      const rowOffset = insertStartRow - 1;
+      for (const range of blockMerges) sheet.mergeCells(shiftMergeRange(range, rowOffset));
+      for (let r = insertStartRow; r <= insertStartRow + blockEndRow - 1; r++) {
+        substituteCellPlaceholdersInRow(sheet, r, columnCount, placeholderValuesFor(groupRows[0]));
+      }
+    }
+
+    let counter = 1;
+    for (const row of groupRows) addDataRow(row, counter++);
+  });
 
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }

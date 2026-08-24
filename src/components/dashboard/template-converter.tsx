@@ -40,6 +40,11 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [datesEnabled, setDatesEnabled] = useState(false);
+  const [datesMonth, setDatesMonth] = useState(new Date().getMonth() + 1);
+  const [datesYear, setDatesYear] = useState(new Date().getFullYear());
+  const [datesWeekdays, setDatesWeekdays] = useState<number[]>([]);
+
   // The <select> below has no empty placeholder option, so if selectedSavedId
   // ever drifts from the current savedTemplates list (e.g. right after the
   // very first save, before its id was recorded), the browser still shows
@@ -167,11 +172,16 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
       formData.append("mapping", JSON.stringify(mapping));
       formData.append("dataRows", JSON.stringify(parsed.dataRows));
       formData.append("outputFormat", outputFormat);
-      if (outputFormat === "docx" && groupByHeader) {
+      if (groupByHeader) {
         formData.append("groupByTemplateHeader", groupByHeader);
       }
       if (autoNumberHeader) {
         formData.append("autoNumberHeader", autoNumberHeader);
+      }
+      if (datesEnabled && outputFormat === "xlsx" && datesWeekdays.length > 0) {
+        formData.append("sessionDatesMonth", String(datesMonth));
+        formData.append("sessionDatesYear", String(datesYear));
+        formData.append("sessionDatesWeekdays", JSON.stringify(datesWeekdays));
       }
 
       const response = await fetch("/api/reports/convert-template", {
@@ -199,6 +209,11 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
 
   const result = parsed && !("error" in parsed) ? parsed : null;
   const templateIsDocx = mode === "upload" ? templateInputRef.current?.files?.[0]?.name.toLowerCase().endsWith(".docx") ?? false : selectedSavedTemplate?.file_format === "docx";
+  const sameFormat = (outputFormat === "docx") === templateIsDocx;
+
+  function toggleWeekday(day: number) {
+    setDatesWeekdays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()));
+  }
 
   return (
     <div className="max-w-3xl space-y-4.5">
@@ -387,12 +402,12 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
           </div>
 
           <p className="mt-2 text-[11px] text-faint">
-            {(outputFormat === "docx") === templateIsDocx
+            {sameFormat
               ? "المخرج بنفس صيغة القالب، فسيحافظ على تنسيقه وترويسته كما هي."
               : "المخرج بصيغة مختلفة عن القالب، فسيُنشأ ملف جديد بجدول بسيط بدون تنسيق القالب الأصلي."}
           </p>
 
-          {outputFormat === "docx" && templateIsDocx && (
+          {sameFormat && (
             <div className="mt-3">
               <span className="mb-1.5 block text-[12.5px] font-bold text-foreground">
                 تجميع الصفوف وتكرار العنوان عند كل مجموعة (اختياري)
@@ -410,12 +425,69 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
                 ))}
               </select>
               <p className="mt-1 text-[11px] text-faint">
-                يرتّب الصفوف بحيث تكون كل مجموعة معًا، ويكرر ترويسة القالب وصف العناوين عند بداية كل مجموعة جديدة.
+                يرتّب الصفوف بحيث تكون كل مجموعة معًا، ويكرر ترويسة القالب وصف العناوين عند بداية كل مجموعة جديدة
+                {outputFormat === "xlsx" ? " مع فاصل صفحة حقيقي بين كل مجموعة والتي تليها." : "."}
               </p>
             </div>
           )}
 
-          {(outputFormat === "docx") === templateIsDocx && (
+          {sameFormat && outputFormat === "xlsx" && (
+            <div className="mt-3 rounded-[10px] border border-border p-3">
+              <label className="flex items-center gap-2 text-[12.5px] font-bold text-foreground">
+                <input
+                  type="checkbox"
+                  checked={datesEnabled}
+                  onChange={(e) => setDatesEnabled(e.target.checked)}
+                  className="h-3.5 w-3.5"
+                />
+                توليد تواريخ الحضور تلقائيًا (اختياري)
+              </label>
+              {datesEnabled && (
+                <div className="mt-2.5 space-y-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={datesMonth}
+                      onChange={(e) => setDatesMonth(Number(e.target.value))}
+                      className={`${inputClass} w-auto`}
+                    >
+                      {[
+                        "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+                        "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+                      ].map((name, i) => (
+                        <option key={name} value={i + 1}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      value={datesYear}
+                      onChange={(e) => setDatesYear(Number(e.target.value))}
+                      className={`${inputClass} w-24`}
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2.5">
+                    {["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"].map((name, day) => (
+                      <label key={day} className="flex items-center gap-1 text-[12px] font-bold text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={datesWeekdays.includes(day)}
+                          onChange={() => toggleWeekday(day)}
+                          className="h-3.5 w-3.5"
+                        />
+                        {name}
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-faint">
+                    يحسب أول 7 تواريخ من هذا الشهر توافق الأيام المحددة، ويستبدل بها صف التواريخ الموجود في القالب.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {sameFormat && (
             <div className="mt-3">
               <span className="mb-1.5 block text-[12.5px] font-bold text-foreground">
                 ترقيم تلقائي لعمود (اختياري)

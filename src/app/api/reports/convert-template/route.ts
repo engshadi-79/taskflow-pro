@@ -85,6 +85,18 @@ export async function POST(request: NextRequest) {
   const autoNumberHeader = (formData.get("autoNumberHeader") as string | null) || undefined;
   const groupByColumn = groupByTemplateHeader ? mapping[groupByTemplateHeader] : undefined;
 
+  const sessionDatesMonth = formData.get("sessionDatesMonth") as string | null;
+  const sessionDatesYear = formData.get("sessionDatesYear") as string | null;
+  const sessionDatesWeekdays = formData.get("sessionDatesWeekdays") as string | null;
+  const sessionDates =
+    sessionDatesMonth && sessionDatesYear && sessionDatesWeekdays
+      ? {
+          month: Number(sessionDatesMonth),
+          year: Number(sessionDatesYear),
+          weekdays: JSON.parse(sessionDatesWeekdays) as number[],
+        }
+      : undefined;
+
   if (!Array.isArray(templateHeaders) || templateHeaders.length === 0 || !outputFormat) {
     return NextResponse.json({ error: "بيانات غير صالحة" }, { status: 400 });
   }
@@ -133,7 +145,7 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = sameFormat
-      ? await fillXlsxTemplate(templateBuffer!, templateHeaders, mapping, dataRows, { autoNumberHeader })
+      ? await fillXlsxTemplate(templateBuffer!, templateHeaders, mapping, dataRows, { groupByColumn, autoNumberHeader, sessionDates })
       : await buildBareXlsx(templateHeaders, mapping, dataRows);
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
