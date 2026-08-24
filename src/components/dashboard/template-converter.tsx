@@ -173,7 +173,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
       formData.append("dataRows", JSON.stringify(parsed.dataRows));
       formData.append("outputFormat", outputFormat);
       if (groupByHeader) {
-        formData.append("groupByTemplateHeader", groupByHeader);
+        formData.append("groupByDataHeader", groupByHeader);
       }
       if (autoNumberHeader) {
         formData.append("autoNumberHeader", autoNumberHeader);
@@ -418,14 +418,16 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
                 className={`${inputClass} w-auto`}
               >
                 <option value="">بدون تجميع</option>
-                {result.templateHeaders.map((header) => (
+                {result.dataHeaders.map((header) => (
                   <option key={header} value={header}>
                     {header}
                   </option>
                 ))}
               </select>
               <p className="mt-1 text-[11px] text-faint">
-                يرتّب الصفوف بحيث تكون كل مجموعة معًا، ويكرر ترويسة القالب وصف العناوين عند بداية كل مجموعة جديدة
+                اختر عمود المجموعة من ملف البيانات نفسه (وليس من أعمدة القالب) - يفيد هذا حتى لو كانت المجموعة تظهر
+                بالقالب فقط داخل عنوان مثل {"{{المجموعة}}"} وليست عمودًا مستقلًا في الجدول. يرتّب الصفوف بحيث تكون كل
+                مجموعة معًا، ويكرر ترويسة القالب عند بداية كل مجموعة جديدة
                 {outputFormat === "xlsx" ? " مع فاصل صفحة حقيقي بين كل مجموعة والتي تليها." : "."}
               </p>
             </div>

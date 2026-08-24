@@ -81,9 +81,12 @@ export async function POST(request: NextRequest) {
   const templateHeaders = JSON.parse((formData.get("templateHeaders") as string) || "[]") as string[];
   const mapping = JSON.parse((formData.get("mapping") as string) || "{}") as Record<string, string>;
   const dataRows = JSON.parse((formData.get("dataRows") as string) || "[]") as ParsedExcelRow[];
-  const groupByTemplateHeader = (formData.get("groupByTemplateHeader") as string | null) || undefined;
+  // Grouped by a raw data-file column directly, not a template column - a
+  // template's group title (e.g. "{{المسار}} - {{المجموعة}}") is often only
+  // a placeholder in a banner row, not an actual mapped table column, so
+  // there may be no template header to route the grouping key through.
+  const groupByColumn = (formData.get("groupByDataHeader") as string | null) || undefined;
   const autoNumberHeader = (formData.get("autoNumberHeader") as string | null) || undefined;
-  const groupByColumn = groupByTemplateHeader ? mapping[groupByTemplateHeader] : undefined;
 
   const sessionDatesMonth = formData.get("sessionDatesMonth") as string | null;
   const sessionDatesYear = formData.get("sessionDatesYear") as string | null;
@@ -99,15 +102,6 @@ export async function POST(request: NextRequest) {
 
   if (!Array.isArray(templateHeaders) || templateHeaders.length === 0 || !outputFormat) {
     return NextResponse.json({ error: "بيانات غير صالحة" }, { status: 400 });
-  }
-  // A silently-ignored grouping request (e.g. that template column was left
-  // unmapped to any data column) would look exactly like "grouping did
-  // nothing" from the user's side - surface it instead.
-  if (groupByTemplateHeader && !groupByColumn) {
-    return NextResponse.json(
-      { error: `اربط عمود "${groupByTemplateHeader}" بعمود من ملف البيانات أولًا قبل التجميع به` },
-      { status: 400 }
-    );
   }
   if (templateFile && templateFile.size > MAX_FILE_BYTES) {
     return NextResponse.json({ error: "حجم ملف القالب أكبر من الحد المسموح" }, { status: 400 });
