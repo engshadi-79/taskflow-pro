@@ -39,8 +39,12 @@ export default async function DashboardLayout({
     getCurrentOrganization(),
   ]);
 
+  const isPlatformOwner =
+    !!process.env.PLATFORM_OWNER_EMAIL &&
+    profile.email?.toLowerCase() === process.env.PLATFORM_OWNER_EMAIL.toLowerCase();
+
   return (
-    <SidebarShell role={profile.role} logoUrl={organization?.logo_url}>
+    <SidebarShell role={profile.role} logoUrl={organization?.logo_url} isPlatformOwner={isPlatformOwner}>
       <Topbar
         userId={profile.id}
         fullName={profile.full_name}

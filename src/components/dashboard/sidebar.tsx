@@ -254,6 +254,12 @@ const ORG_SETTINGS: NavItem = {
   icon: "gear",
   tone: "indigo",
 };
+const PLATFORM_ORGS: NavItem = {
+  href: "/dashboard/platform",
+  label: "مؤسسات المنصة",
+  icon: "briefcase",
+  tone: "indigo",
+};
 
 const NAV_BY_ROLE: Record<Role, NavSection[]> = {
   super_admin: [
@@ -298,6 +304,7 @@ const PANEL = 248;
 export function Sidebar({
   role,
   logoUrl,
+  isPlatformOwner = false,
   mobileOpen = false,
   onMobileClose,
 }: {
@@ -305,12 +312,23 @@ export function Sidebar({
   /** The organization's uploaded logo (Settings > الهوية) - falls back to
    * the static "م" mark below when none is set. */
   logoUrl?: string | null;
+  /** True only for the one account matching PLATFORM_OWNER_EMAIL - adds a
+   * section visible to that account alone, regardless of its role, since
+   * super_admin itself is scoped per organization (see requirePlatformOwner
+   * in src/lib/actions/guards.ts). */
+  isPlatformOwner?: boolean;
   /** Controls the <md drawer only - the lg hover-expand rail below is
    * unaffected and keeps managing its own `open` state independently. */
   mobileOpen?: boolean;
   onMobileClose?: () => void;
 }) {
-  const sections = NAV_BY_ROLE[role];
+  const sections = useMemo(
+    () =>
+      isPlatformOwner
+        ? [...NAV_BY_ROLE[role], { label: "المنصة", items: [PLATFORM_ORGS] }]
+        : NAV_BY_ROLE[role],
+    [role, isPlatformOwner]
+  );
   const pathname = usePathname();
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
