@@ -94,6 +94,7 @@ export function PlatformOrganizationsManager({ organizations }: { organizations:
           <tr className="border-b border-border text-[11px] font-extrabold uppercase tracking-wide text-faint">
             <th className="px-4 py-3">الاسم</th>
             <th className="px-4 py-3">الخطة</th>
+            <th className="px-4 py-3">متبقٍ من التجربة</th>
             <th className="px-4 py-3">الأعضاء</th>
             <th className="px-4 py-3">تاريخ التسجيل</th>
             <th className="px-4 py-3">طلب ترقية</th>
@@ -104,7 +105,7 @@ export function PlatformOrganizationsManager({ organizations }: { organizations:
           {organizations.map((org) => (
             <tr key={org.id} className="border-b border-border align-top last:border-0">
               {editingId === org.id || deletingId === org.id ? (
-                <td colSpan={6} className="px-4 py-2">
+                <td colSpan={7} className="px-4 py-2">
                   {editingId === org.id && <EditRow org={org} onCancel={() => setEditingId(null)} />}
                   {deletingId === org.id && <DeleteRow org={org} onCancel={() => setDeletingId(null)} />}
                 </td>
@@ -119,6 +120,23 @@ export function PlatformOrganizationsManager({ organizations }: { organizations:
                     >
                       {PLAN_LABEL[org.plan_type]}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {org.trial_days_remaining === null ? (
+                      <span className="text-faint">غير محدود</span>
+                    ) : org.trial_days_remaining === 0 ? (
+                      <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-700">
+                        انتهت
+                      </span>
+                    ) : (
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                          org.trial_days_remaining <= 3 ? "bg-amber-50 text-amber-700" : "bg-background text-muted"
+                        }`}
+                      >
+                        {org.trial_days_remaining} يوم
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-muted">{org.member_count}</td>
                   <td className="px-4 py-3 text-muted">
@@ -159,7 +177,7 @@ export function PlatformOrganizationsManager({ organizations }: { organizations:
           ))}
           {organizations.length === 0 && (
             <tr>
-              <td colSpan={6} className="px-4 py-6 text-center text-muted">
+              <td colSpan={7} className="px-4 py-6 text-center text-muted">
                 لا توجد مؤسسات مسجّلة بعد
               </td>
             </tr>

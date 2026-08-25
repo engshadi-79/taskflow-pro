@@ -2,6 +2,7 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlatformOwner } from "@/lib/actions/guards";
+import { trialDaysRemaining } from "@/lib/plans";
 import type { Organization, PlanType } from "@/lib/types/organization";
 
 /** organizations_select RLS already scopes this to exactly the caller's
@@ -46,6 +47,8 @@ export type PlatformOrganizationRow = {
   created_at: string;
   member_count: number;
   pending_upgrade_request: boolean;
+  /** null for a paid organization - no trial clock applies to it at all. */
+  trial_days_remaining: number | null;
 };
 
 /**
@@ -85,5 +88,6 @@ export async function getAllOrganizationsForOwner(): Promise<PlatformOrganizatio
     ...org,
     member_count: memberCounts.get(org.id) ?? 0,
     pending_upgrade_request: pendingOrgIds.has(org.id),
+    trial_days_remaining: trialDaysRemaining(org),
   }));
 }

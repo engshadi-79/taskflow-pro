@@ -31,3 +31,14 @@ export function isTrialExpired(organization: Pick<Organization, "plan_type" | "c
   const ageMs = Date.now() - new Date(organization.created_at).getTime();
   return ageMs > TRIAL_DAYS * 24 * 60 * 60 * 1000;
 }
+
+/** `null` for a paid organization (no trial clock at all) - otherwise the
+ *  whole days left, floored so "13.9 days" reads as 13 remaining rather than
+ *  rounding up to a day it hasn't actually reached yet, clamped at 0 once
+ *  expired instead of going negative. */
+export function trialDaysRemaining(organization: Pick<Organization, "plan_type" | "created_at">): number | null {
+  if (organization.plan_type !== "free") return null;
+  const ageMs = Date.now() - new Date(organization.created_at).getTime();
+  const remainingMs = TRIAL_DAYS * 24 * 60 * 60 * 1000 - ageMs;
+  return Math.max(0, Math.floor(remainingMs / (24 * 60 * 60 * 1000)));
+}
