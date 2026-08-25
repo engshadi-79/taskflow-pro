@@ -306,6 +306,50 @@ function shiftMergeRange(range: string, rowOffset: number): string {
   return `${colA}${Number(rowA) + rowOffset}:${colB}${Number(rowB) + rowOffset}`;
 }
 
+type AnchorSnapshot = { nativeCol: number; nativeColOff: number; nativeRow: number; nativeRowOff: number };
+type ImageSnapshot = { imageId: number; tl: AnchorSnapshot; br: AnchorSnapshot | null; editAs: string | undefined };
+
+/** Captures any image (a logo in the letterhead, typically) anchored within
+ *  the header block, in ExcelJS's own native-anchor shape - snapshotRow only
+ *  ever sees cell values/styles, so an image would otherwise only survive in
+ *  the first group's copy of the block, not any duplicated one. */
+function toAnchorSnapshot(anchor: ExcelJS.Anchor): AnchorSnapshot {
+  return {
+    nativeCol: anchor.nativeCol,
+    nativeColOff: anchor.nativeColOff,
+    nativeRow: anchor.nativeRow,
+    nativeRowOff: anchor.nativeRowOff,
+  };
+}
+
+function snapshotBlockImages(sheet: ExcelJS.Worksheet, blockEndRow: number): ImageSnapshot[] {
+  return sheet
+    .getImages()
+    .filter((img) => img.range.tl.nativeRow < blockEndRow)
+    .map((img) => ({
+      imageId: Number(img.imageId),
+      tl: toAnchorSnapshot(img.range.tl),
+      br: img.range.br ? toAnchorSnapshot(img.range.br) : null,
+      editAs: (img.range as unknown as { editAs?: string }).editAs,
+    }));
+}
+
+/** Re-anchors each captured image `rowOffset` rows down for a duplicated
+ *  group copy - ExcelJS's Anchor constructor accepts this native-offset
+ *  shape directly (confirmed against this ExcelJS version), even though its
+ *  own addImage() types only advertise the simpler {col,row} position or a
+ *  real Anchor instance. */
+function addShiftedImages(sheet: ExcelJS.Worksheet, images: ImageSnapshot[], rowOffset: number): void {
+  for (const img of images) {
+    const range = {
+      tl: { ...img.tl, nativeRow: img.tl.nativeRow + rowOffset },
+      br: img.br ? { ...img.br, nativeRow: img.br.nativeRow + rowOffset } : undefined,
+      editAs: img.editAs,
+    };
+    sheet.addImage(img.imageId, range as unknown as Parameters<ExcelJS.Worksheet["addImage"]>[1]);
+  }
+}
+
 /** Cell-level counterpart to substitutePlaceholders (which operates on raw
  *  Word OOXML text runs) - replaces {{columnName}} tokens found in any
  *  cell's own text within one row, in place, leaving cells with no token
@@ -439,6 +483,12 @@ export async function fillXlsxTemplate(
     const match = range.match(/^[A-Z]+(\d+):[A-Z]+(\d+)$/);
     return match != null && Number(match[2]) <= blockEndRow;
   });
+  // A logo/letterhead image anchored within the header block (e.g. an
+  // organization logo placed over the title cells) is tracked separately
+  // from cell values/styles - snapshotRow never sees it, so it has to be
+  // captured and re-anchored explicitly for every duplicated group copy,
+  // or only the very first group would keep it.
+  const blockImages = snapshotBlockImages(sheet, blockEndRow);
 
   // Drop whatever example rows the template shipped below its header - the
   // real uploaded roster replaces them entirely, it doesn't append after.
@@ -492,6 +542,7 @@ export async function fillXlsxTemplate(
       }
       const rowOffset = insertStartRow - 1;
       for (const range of blockMerges) sheet.mergeCells(shiftMergeRange(range, rowOffset));
+      addShiftedImages(sheet, blockImages, rowOffset);
       for (let r = insertStartRow; r <= insertStartRow + blockEndRow - 1; r++) {
         substituteCellPlaceholdersInRow(sheet, r, columnCount, placeholderValuesFor(groupRows[0], extraPlaceholders));
       }
