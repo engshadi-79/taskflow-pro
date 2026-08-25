@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { Role } from "@/lib/types/roles";
 
@@ -44,12 +45,16 @@ export function PresenceTracker({
   avatarUrl: string | null;
 }) {
   const pathname = usePathname();
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const subscribedRef = useRef(false);
 
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase.channel(`presence:org:${organizationId}`, {
       config: { presence: { key: userId } },
     });
+    channelRef.current = channel;
+    subscribedRef.current = false;
 
     channel
       .on("presence", { event: "sync" }, () => {
@@ -69,17 +74,32 @@ export function PresenceTracker({
       })
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
+          subscribedRef.current = true;
           channel.track({ userId, fullName, role, departmentName, avatarUrl, pathname });
         }
       });
 
     return () => {
+      subscribedRef.current = false;
+      channelRef.current = null;
       supabase.removeChannel(channel);
     };
-    // re-tracking on every pathname change keeps "current page" fresh for
-    // anyone viewing the online-now list, without a manual refresh
+    // Keyed only on (organizationId, userId) - deliberately NOT on pathname.
+    // This used to also re-run on every navigation, tearing the channel down
+    // and opening a fresh one on the exact same `presence:org:<id>` topic;
+    // that race (old unsubscribe still in flight while the new one
+    // subscribes) was the same class of bug described above for two
+    // simultaneous owners, and left the widget stuck showing 0 after any
+    // navigation (e.g. right after adding a user) until a full page reload.
+    // Pathname updates now go through track() below on the same long-lived
+    // channel instead.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [organizationId, userId, pathname]);
+  }, [organizationId, userId]);
+
+  useEffect(() => {
+    if (!subscribedRef.current || !channelRef.current) return;
+    channelRef.current.track({ userId, fullName, role, departmentName, avatarUrl, pathname });
+  }, [pathname, userId, fullName, role, departmentName, avatarUrl]);
 
   return null;
 }
