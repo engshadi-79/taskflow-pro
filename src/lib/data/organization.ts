@@ -1,7 +1,8 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Organization } from "@/lib/types/organization";
+import { requirePlatformOwner } from "@/lib/actions/guards";
+import type { Organization, PlanType } from "@/lib/types/organization";
 
 /** organizations_select RLS already scopes this to exactly the caller's
  * own org - no .eq() needed, there's only ever one visible row.
@@ -36,4 +37,53 @@ export async function getPublicOrganizationBranding(): Promise<{ name: string; l
     .limit(1)
     .single();
   return data;
+}
+
+export type PlatformOrganizationRow = {
+  id: string;
+  name: string;
+  plan_type: PlanType;
+  created_at: string;
+  member_count: number;
+  pending_upgrade_request: boolean;
+};
+
+/**
+ * Cross-tenant list, for the platform owner only (requirePlatformOwner) -
+ * every regular read in this app goes through RLS scoped to the caller's
+ * own organization, so seeing every organization at once needs the
+ * service-role client and its own explicit gate, same shape as
+ * getPublicOrganizationBranding's use of it above.
+ */
+export async function getAllOrganizationsForOwner(): Promise<PlatformOrganizationRow[] | { error: string }> {
+  try {
+    await requirePlatformOwner();
+  } catch {
+    return { error: "غير مصرح لك بهذا الإجراء" };
+  }
+
+  const supabase = createAdminClient();
+
+  const [{ data: orgs, error: orgsError }, { data: users }, { data: pendingRequests }] = await Promise.all([
+    supabase
+      .from("organizations")
+      .select("id, name, plan_type, created_at")
+      .order("created_at", { ascending: false }),
+    supabase.from("users").select("organization_id"),
+    supabase.from("plan_upgrade_requests").select("organization_id").eq("status", "pending"),
+  ]);
+
+  if (orgsError || !orgs) return { error: "تعذّر تحميل قائمة المؤسسات" };
+
+  const memberCounts = new Map<string, number>();
+  for (const user of users ?? []) {
+    memberCounts.set(user.organization_id, (memberCounts.get(user.organization_id) ?? 0) + 1);
+  }
+  const pendingOrgIds = new Set((pendingRequests ?? []).map((r) => r.organization_id));
+
+  return orgs.map((org) => ({
+    ...org,
+    member_count: memberCounts.get(org.id) ?? 0,
+    pending_upgrade_request: pendingOrgIds.has(org.id),
+  }));
 }
