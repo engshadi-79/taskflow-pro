@@ -209,6 +209,13 @@ export const XCircleIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const PinIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 21s-7-6.5-7-11a7 7 0 1 1 14 0c0 4.5-7 11-7 11Z" />
+    <circle cx="12" cy="10" r="2.5" />
+  </Svg>
+);
+
 export const EyeIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12Z" />

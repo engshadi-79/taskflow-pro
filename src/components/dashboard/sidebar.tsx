@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatedBackground } from "@/components/shared/animated-background";
@@ -21,6 +21,7 @@ import {
   GearIcon,
   GridIcon,
   HelpIcon,
+  PinIcon,
   SearchIcon,
   UserIcon,
   UsersIcon,
@@ -301,6 +302,30 @@ function isItemActive(href: string, pathname: string) {
 const RAIL = 76;
 const PANEL = 248;
 
+const PINNED_KEY = "sidebar-pinned";
+const PINNED_EVENT = "sidebar-pinned-change";
+
+// Same useSyncExternalStore approach as theme-toggle.tsx, so the read is
+// never a synchronous setState-in-effect (React flags that as a lint error
+// even for one-time mount sync). "storage" covers other tabs; the custom
+// event covers this tab's own writes, which "storage" never fires for.
+function subscribePinned(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener(PINNED_EVENT, callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener(PINNED_EVENT, callback);
+  };
+}
+
+function getPinnedSnapshot() {
+  return localStorage.getItem(PINNED_KEY) === "true";
+}
+
+function getPinnedServerSnapshot() {
+  return false;
+}
+
 export function Sidebar({
   role,
   logoUrl,
@@ -333,8 +358,14 @@ export function Sidebar({
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState(false);
-  // the mobile drawer always shows full labels/search, regardless of hover
-  const effectiveOpen = open || mobileOpen;
+  const pinned = useSyncExternalStore(subscribePinned, getPinnedSnapshot, getPinnedServerSnapshot);
+  // the mobile drawer always shows full labels/search, regardless of hover -
+  // pinned keeps it open the same way, overriding the hover-driven `open`
+  function togglePinned() {
+    localStorage.setItem(PINNED_KEY, String(!pinned));
+    window.dispatchEvent(new Event(PINNED_EVENT));
+  }
+  const effectiveOpen = open || mobileOpen || pinned;
 
   const visible = useMemo(() => {
     const q = query.trim();
@@ -406,12 +437,29 @@ export function Sidebar({
             </span>
           )}
           {effectiveOpen && <span className="whitespace-nowrap">نظام منجز</span>}
+          {/* Only meaningful on the lg+ hover-expand rail - the <lg drawer
+              already has an explicit open/close toggle (the hamburger +
+              this same close button), unrelated to hover collapse. */}
+          {effectiveOpen && (
+            <button
+              type="button"
+              onClick={togglePinned}
+              aria-pressed={pinned}
+              aria-label={pinned ? "إلغاء تثبيت القائمة" : "تثبيت القائمة مفتوحة"}
+              title={pinned ? "إلغاء تثبيت القائمة" : "تثبيت القائمة مفتوحة"}
+              className={`ms-auto hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-white/10 lg:flex ${
+                pinned ? "text-accent-400" : "text-white/60 hover:text-white"
+              }`}
+            >
+              <PinIcon className="h-4 w-4" />
+            </button>
+          )}
           {/* only meaningful for the <md drawer - md+ never sets mobileOpen */}
           <button
             type="button"
             onClick={onMobileClose}
             aria-label="إغلاق القائمة"
-            className="ms-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white md:hidden"
+            className={`${effectiveOpen ? "" : "ms-auto"} flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white md:hidden`}
           >
             <CloseIcon className="h-5 w-5" />
           </button>
