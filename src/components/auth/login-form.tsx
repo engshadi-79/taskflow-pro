@@ -1,11 +1,12 @@
 "use client";
 
 import { useActionState, useRef, useState, useSyncExternalStore } from "react";
-import { signIn, type SignInState } from "@/lib/actions/auth";
+import { signIn, signUpWithEmail, type SignInState, type SignUpState } from "@/lib/actions/auth";
 import { AnimatedBackground } from "@/components/shared/animated-background";
 import { createClient } from "@/lib/supabase/client";
 
 const initialState: SignInState = {};
+const initialSignUpState: SignUpState = {};
 
 // Reading window.location.search directly during render would mismatch the
 // server's HTML (which has no window), so this goes through
@@ -51,6 +52,7 @@ type GoogleMode = "join" | "create";
 
 export function LoginForm({ orgLogoUrl }: { orgLogoUrl: string | null }) {
   const [state, formAction, pending] = useActionState(signIn, initialState);
+  const [signUpState, signUpAction, signUpPending] = useActionState(signUpWithEmail, initialSignUpState);
   const [googlePending, setGooglePending] = useState(false);
   const [googleMode, setGoogleMode] = useState<GoogleMode>("join");
   const [newOrgName, setNewOrgName] = useState("");
@@ -285,6 +287,54 @@ export function LoginForm({ orgLogoUrl }: { orgLogoUrl: string | null }) {
               <GoogleLogo />
               {googlePending ? "جارٍ التحويل..." : "المتابعة عبر Google"}
             </button>
+
+            {googleMode === "create" && (
+              <>
+                <div className="mt-5 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs font-medium text-faint">أو</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+
+                {signUpState?.needsConfirmation ? (
+                  <p className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2.5 text-center text-sm font-bold text-green-700">
+                    تحقق من بريدك الإلكتروني لتأكيد الحساب وإكمال إنشاء المؤسسة.
+                  </p>
+                ) : (
+                  <form action={signUpAction} className="mt-3 space-y-2.5">
+                    <input type="hidden" name="org_name" value={newOrgName} />
+                    <input
+                      name="email"
+                      type="email"
+                      required
+                      autoComplete="email"
+                      placeholder="البريد الإلكتروني"
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
+                    />
+                    <input
+                      name="password"
+                      type="password"
+                      required
+                      autoComplete="new-password"
+                      placeholder="كلمة المرور (8 أحرف على الأقل)"
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
+                    />
+                    {signUpState?.error && (
+                      <p className="text-sm text-red-600" role="alert">
+                        {signUpState.error}
+                      </p>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={signUpPending || creatingWithoutName}
+                      className="w-full rounded-[10px] border border-border bg-surface px-3 py-2.5 text-sm font-bold text-foreground transition-colors hover:bg-background disabled:opacity-60"
+                    >
+                      {signUpPending ? "جارٍ الإنشاء..." : "إنشاء الحساب بالبريد وكلمة المرور"}
+                    </button>
+                  </form>
+                )}
+              </>
+            )}
 
             <p className="mt-5 text-center text-xs leading-5 text-faint">
               {googleMode === "create"

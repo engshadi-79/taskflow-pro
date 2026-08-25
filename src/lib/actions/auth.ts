@@ -29,6 +29,62 @@ export async function signOut() {
   redirect("/login");
 }
 
+export type SignUpState = { error?: string; needsConfirmation?: boolean };
+
+/**
+ * Email/password counterpart to the Google "إنشاء مؤسسة جديدة" path in
+ * login-form.tsx - same destination (claim_new_organization), different
+ * front door. Supabase's default project setting requires confirming the
+ * address before a session exists, so `new_org` rides through
+ * `emailRedirectTo` exactly like it rides through the Google OAuth
+ * `redirectTo` today: the confirmation link lands on the very same
+ * /auth/callback route, which already knows how to read `new_org` and call
+ * claim_new_organization() after exchanging the code for a session - no
+ * changes needed there. If email confirmation happens to be disabled on the
+ * project, signUp() returns a session immediately, so that path is handled
+ * here directly instead of leaving the user stuck on a redundant "check
+ * your email" screen for a mail that was never sent.
+ */
+export async function signUpWithEmail(
+  _prevState: SignUpState,
+  formData: FormData
+): Promise<SignUpState> {
+  const email = (formData.get("email") as string)?.trim();
+  const password = formData.get("password") as string;
+  const orgName = (formData.get("org_name") as string)?.trim();
+
+  if (!email || !password || !orgName) {
+    return { error: "جميع الحقول مطلوبة" };
+  }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return { error: `كلمة المرور يجب أن تكون ${MIN_PASSWORD_LENGTH} أحرف على الأقل` };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${getAppUrl()}/auth/callback?new_org=${encodeURIComponent(orgName)}`,
+    },
+  });
+
+  if (error) {
+    return { error: "تعذّر إنشاء الحساب، حاول مرة أخرى" };
+  }
+
+  if (data.session) {
+    await supabase.rpc("claim_new_organization", { p_org_name: orgName });
+    redirect("/dashboard");
+  }
+
+  // Supabase returns an empty identities[] instead of an error for an email
+  // that's already registered (anti-enumeration) - the same "check your
+  // email" message correctly covers both a genuine new signup and this
+  // case, without confirming to the caller which one happened.
+  return { needsConfirmation: true };
+}
+
 export type ChangePasswordState = { error?: string; success?: boolean };
 
 const MIN_PASSWORD_LENGTH = 8;
