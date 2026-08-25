@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { getCurrentOrganization } from "@/lib/data/organization";
 import { createClient } from "@/lib/supabase/server";
+import { isTrialExpired } from "@/lib/plans";
 import { SidebarShell } from "@/components/dashboard/sidebar-shell";
 import { Topbar } from "@/components/dashboard/topbar";
 import { AiAssistantPanel } from "@/components/dashboard/ai-assistant-panel";
@@ -42,6 +43,12 @@ export default async function DashboardLayout({
   const isPlatformOwner =
     !!process.env.PLATFORM_OWNER_EMAIL &&
     profile.email?.toLowerCase() === process.env.PLATFORM_OWNER_EMAIL.toLowerCase();
+
+  // The owner's own account never gets locked out by another organization's
+  // trial clock, even while testing across several free orgs over time.
+  if (!isPlatformOwner && organization && isTrialExpired(organization)) {
+    redirect("/trial-expired");
+  }
 
   return (
     <SidebarShell role={profile.role} logoUrl={organization?.logo_url} isPlatformOwner={isPlatformOwner}>
