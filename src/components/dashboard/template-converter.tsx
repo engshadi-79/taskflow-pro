@@ -26,6 +26,10 @@ function computeGroupKey(columns: string[], row: Record<string, string | number 
 }
 
 const WEEKDAY_NAMES = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+// Display order only (Saturday first) - the values themselves stay the real
+// Date#getDay() numbers (0=Sunday..6=Saturday) that computeSessionDates
+// expects; only the order checkboxes are laid out in changes.
+const WEEKDAY_DISPLAY_ORDER = [6, 0, 1, 2, 3, 4, 5];
 
 export function TemplateConverter({ initialSavedTemplates }: { initialSavedTemplates: SavedTemplateRow[] }) {
   const templateInputRef = useRef<HTMLInputElement>(null);
@@ -563,7 +567,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
                         <div key={key} className="rounded-[8px] border border-border p-2">
                           <p className="mb-1 text-[12px] font-extrabold text-foreground">{label}</p>
                           <div className="flex flex-wrap gap-2.5">
-                            {WEEKDAY_NAMES.map((name, day) => (
+                            {WEEKDAY_DISPLAY_ORDER.map((day) => (
                               <label key={day} className="flex items-center gap-1 text-[11.5px] font-bold text-foreground">
                                 <input
                                   type="checkbox"
@@ -571,7 +575,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
                                   onChange={() => toggleGroupWeekday(key, day)}
                                   className="h-3.5 w-3.5"
                                 />
-                                {name}
+                                {WEEKDAY_NAMES[day]}
                               </label>
                             ))}
                           </div>
@@ -580,7 +584,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
                     </div>
                   ) : (
                     <div className="flex flex-wrap gap-2.5">
-                      {WEEKDAY_NAMES.map((name, day) => (
+                      {WEEKDAY_DISPLAY_ORDER.map((day) => (
                         <label key={day} className="flex items-center gap-1 text-[12px] font-bold text-foreground">
                           <input
                             type="checkbox"
@@ -588,7 +592,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
                             onChange={() => toggleWeekday(day)}
                             className="h-3.5 w-3.5"
                           />
-                          {name}
+                          {WEEKDAY_NAMES[day]}
                         </label>
                       ))}
                     </div>
