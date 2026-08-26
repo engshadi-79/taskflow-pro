@@ -21,6 +21,16 @@ type ChatMessage = {
 
 const MAX_HISTORY_TURNS = 10;
 
+/**
+ * Lets a component anywhere else in the dashboard (e.g. a decision card's
+ * "اسأل المساعد عن هذا" button) open this panel with a ready-made question,
+ * without prop-drilling or a context provider - AiAssistantPanel is mounted
+ * once at the dashboard layout level, a sibling of every page's own
+ * content, not an ancestor. Same window CustomEvent pattern already used
+ * for presence-tracker.tsx -> online-now-widget.tsx.
+ */
+export const ASK_ASSISTANT_EVENT = "monjez:ai-assistant-ask";
+
 export function AiAssistantPanel() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -42,8 +52,27 @@ export function AiAssistantPanel() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, sending]);
 
-  async function send() {
-    const text = input.trim();
+  // send closes over messages/sending, both of which change on every
+  // render - keeping this ref current lets the ASK_ASSISTANT_EVENT
+  // listener below (registered once, via an empty deps array so it isn't
+  // re-subscribed on every keystroke) always call the *latest* send
+  // instead of a stale closure that would keep reading `sending` as
+  // whatever it was at mount time forever.
+  const sendRef = useRef<(overrideText?: string) => Promise<void>>(async () => {});
+
+  useEffect(() => {
+    function onAsk(e: Event) {
+      const question = (e as CustomEvent<string>).detail;
+      if (!question) return;
+      setOpen(true);
+      void sendRef.current(question);
+    }
+    window.addEventListener(ASK_ASSISTANT_EVENT, onAsk);
+    return () => window.removeEventListener(ASK_ASSISTANT_EVENT, onAsk);
+  }, []);
+
+  async function send(overrideText?: string) {
+    const text = (overrideText ?? input).trim();
     if (!text || sending) return;
 
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: "user", content: text };
@@ -89,6 +118,14 @@ export function AiAssistantPanel() {
       setSending(false);
     }
   }
+
+  // Keeps sendRef pointing at the latest send (which closes over
+  // messages/sending/input) after every render - writing to a ref during
+  // render itself is flagged by react-hooks/refs, an effect with no deps
+  // is the sanctioned place for this "always current callback" pattern.
+  useEffect(() => {
+    sendRef.current = send;
+  });
 
   function updateSuggestion(messageId: string, suggestionId: string, status: "confirmed" | "rejected") {
     setMessages((prev) =>

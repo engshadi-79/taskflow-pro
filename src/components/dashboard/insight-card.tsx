@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
-import { AlertIcon, CheckCircleIcon, InfoIcon } from "@/components/shared/icons";
+import { AlertIcon, CheckCircleIcon, InfoIcon, SparklesIcon } from "@/components/shared/icons";
 import { SEVERITY_LABEL, type Insight } from "@/lib/types/decisions";
+import { ASK_ASSISTANT_EVENT } from "@/components/dashboard/ai-assistant-panel";
 
 const SEVERITY_STYLE: Record<Insight["severity"], { border: string; badge: string; icon: React.ReactNode }> = {
   critical: {
@@ -39,12 +42,28 @@ export function InsightCard({ insight }: { insight: Insight }) {
       </div>
       <h3 className="mb-1.5 font-display text-[15px] text-foreground">{insight.title}</h3>
       <p className="mb-3.5 text-[13px] leading-6 text-muted">{insight.explanation}</p>
-      <Link
-        href={insight.action_href}
-        className="inline-flex items-center gap-1 text-[12.5px] font-bold text-accent-600 hover:underline"
-      >
-        {insight.action_label} ←
-      </Link>
+      <div className="flex flex-wrap items-center gap-3.5">
+        <Link
+          href={insight.action_href}
+          className="inline-flex items-center gap-1 text-[12.5px] font-bold text-accent-600 hover:underline"
+        >
+          {insight.action_label} ←
+        </Link>
+        <button
+          type="button"
+          onClick={() =>
+            window.dispatchEvent(
+              new CustomEvent(ASK_ASSISTANT_EVENT, {
+                detail: `اشرح لي أكثر عن هذا التغيير واقترح إجراءً: ${insight.title}. ${insight.explanation}`,
+              })
+            )
+          }
+          className="inline-flex items-center gap-1 text-[12.5px] font-bold text-muted hover:text-accent-600 hover:underline"
+        >
+          <SparklesIcon className="h-3.5 w-3.5" />
+          اسأل المساعد عن هذا
+        </button>
+      </div>
     </div>
   );
 }
