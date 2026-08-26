@@ -169,6 +169,15 @@ const ARABIC_MONTH_NAMES = [
   "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
 ];
 
+/** Sorting position for a weekday (0=Sunday..6=Saturday, Date#getDay()'s own
+ *  numbering) within a week that starts on Saturday - only used for
+ *  DISPLAY ordering of the {{الأيام}} label, never for the actual calendar
+ *  walk in computeSessionDates, which is date-based and has no "week start"
+ *  concept to begin with. */
+function weekPositionFromSaturday(weekday: number): number {
+  return (weekday + 1) % 7;
+}
+
 /** {{الشهر}}/{{السنة}}/{{الأيام}} describe the whole generation run, not any
  *  one data row, so they can't come from rowToPlaceholderValues - computed
  *  once and merged into every group's placeholder values instead. Derived
@@ -179,7 +188,10 @@ function sessionDatePlaceholders(startDate: string, weekdays: number[]): Record<
   return {
     الشهر: ARABIC_MONTH_NAMES[start.getMonth()] ?? String(start.getMonth() + 1),
     السنة: String(start.getFullYear()),
-    الأيام: [...weekdays].sort((a, b) => a - b).map((d) => ARABIC_WEEKDAY_NAMES[d]).join(" - "),
+    الأيام: [...weekdays]
+      .sort((a, b) => weekPositionFromSaturday(a) - weekPositionFromSaturday(b))
+      .map((d) => ARABIC_WEEKDAY_NAMES[d])
+      .join(" - "),
   };
 }
 
