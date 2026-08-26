@@ -118,3 +118,37 @@ export async function approvePlanUpgrade(
   revalidatePath("/dashboard/platform");
   return { success: true };
 }
+
+export type ResetPasswordState = { error?: string; success?: boolean };
+
+/**
+ * Owner-only equivalent of resetEmployeePassword (users.ts) but for ANY
+ * organization's super_admin, not just an employee within the caller's own
+ * org - support needs a way in when a customer is locked out and can't
+ * receive/click a reset email. Sets the password directly via the admin
+ * API; there is no way to read back the old one either way (Supabase only
+ * ever stores a one-way hash).
+ */
+export async function resetOrganizationPassword(
+  _prevState: ResetPasswordState,
+  formData: FormData
+): Promise<ResetPasswordState> {
+  try {
+    await requirePlatformOwner();
+  } catch {
+    return { error: "غير مصرح لك بهذا الإجراء" };
+  }
+
+  const userId = formData.get("user_id") as string;
+  const newPassword = formData.get("new_password") as string;
+  if (!userId) return { error: "تعذّر تحديد حساب المدير العام لهذه المؤسسة" };
+  if (!newPassword || newPassword.length < 8) {
+    return { error: "كلمة المرور يجب ألا تقل عن 8 أحرف" };
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.auth.admin.updateUserById(userId, { password: newPassword });
+  if (error) return { error: "تعذّر تغيير كلمة المرور" };
+
+  return { success: true };
+}

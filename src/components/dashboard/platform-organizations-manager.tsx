@@ -5,9 +5,11 @@ import {
   updateOrganizationAsOwner,
   deleteOrganizationAsOwner,
   approvePlanUpgrade,
+  resetOrganizationPassword,
   type UpdateOrgState,
   type DeleteOrgState,
   type ApprovePlanUpgradeState,
+  type ResetPasswordState,
 } from "@/lib/actions/platform";
 import { PLAN_LABEL, PAYMENT_METHOD_LABEL } from "@/lib/plans";
 import type { PlatformOrganizationRow, PendingUpgradeRequest } from "@/lib/data/organization";
@@ -18,6 +20,7 @@ const inputClass =
 const initialUpdateState: UpdateOrgState = {};
 const initialDeleteState: DeleteOrgState = {};
 const initialApproveState: ApprovePlanUpgradeState = {};
+const initialResetPasswordState: ResetPasswordState = {};
 
 function PendingUpgradeCell({ organizationId, request }: { organizationId: string; request: PendingUpgradeRequest }) {
   const [state, formAction, pending] = useActionState(approvePlanUpgrade, initialApproveState);
@@ -114,9 +117,42 @@ function DeleteRow({ org, onCancel }: { org: PlatformOrganizationRow; onCancel: 
   );
 }
 
+function ResetPasswordRow({ org, onCancel }: { org: PlatformOrganizationRow; onCancel: () => void }) {
+  const [state, formAction, pending] = useActionState(resetOrganizationPassword, initialResetPasswordState);
+
+  if (!org.super_admin_user_id) {
+    return <p className="text-[12.5px] font-bold text-red-700">لا يوجد مدير عام لهذه المؤسسة حتى الآن.</p>;
+  }
+
+  return (
+    <form action={formAction} className="space-y-2 rounded-[10px] border border-border bg-background p-3">
+      <input type="hidden" name="user_id" value={org.super_admin_user_id} />
+      <p className="text-[12.5px] font-bold text-foreground">
+        تعيين كلمة مرور جديدة لمدير «{org.name}» ({org.super_admin_email}) - شاركها معه بنفسك بعد الحفظ.
+      </p>
+      <input name="new_password" placeholder="كلمة المرور الجديدة (٨ أحرف على الأقل)" className={inputClass} />
+      {state.error && <p className="text-[11.5px] font-bold text-red-700">{state.error}</p>}
+      {state.success && <p className="text-[11.5px] font-bold text-green-700">تم تعيين كلمة المرور الجديدة.</p>}
+      <div className="flex items-center gap-2">
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded-[8px] bg-accent-600 px-3 py-1.5 text-[12px] font-bold text-white hover:bg-accent-700 disabled:opacity-60"
+        >
+          {pending ? "جارٍ الحفظ..." : "حفظ كلمة المرور"}
+        </button>
+        <button type="button" onClick={onCancel} className="text-[12px] font-bold text-muted hover:underline">
+          إغلاق
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export function PlatformOrganizationsManager({ organizations }: { organizations: PlatformOrganizationRow[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
 
   return (
     <div className="overflow-x-auto rounded-[16px] border border-border bg-surface">
@@ -124,6 +160,7 @@ export function PlatformOrganizationsManager({ organizations }: { organizations:
         <thead>
           <tr className="border-b border-border text-[11px] font-extrabold uppercase tracking-wide text-faint">
             <th className="px-4 py-3">الاسم</th>
+            <th className="px-4 py-3">البريد الإلكتروني</th>
             <th className="px-4 py-3">الخطة</th>
             <th className="px-4 py-3">متبقٍ من التجربة</th>
             <th className="px-4 py-3">الأعضاء</th>
@@ -135,14 +172,18 @@ export function PlatformOrganizationsManager({ organizations }: { organizations:
         <tbody>
           {organizations.map((org) => (
             <tr key={org.id} className="border-b border-border align-top last:border-0">
-              {editingId === org.id || deletingId === org.id ? (
-                <td colSpan={7} className="px-4 py-2">
+              {editingId === org.id || deletingId === org.id || resettingPasswordId === org.id ? (
+                <td colSpan={8} className="px-4 py-2">
                   {editingId === org.id && <EditRow org={org} onCancel={() => setEditingId(null)} />}
                   {deletingId === org.id && <DeleteRow org={org} onCancel={() => setDeletingId(null)} />}
+                  {resettingPasswordId === org.id && (
+                    <ResetPasswordRow org={org} onCancel={() => setResettingPasswordId(null)} />
+                  )}
                 </td>
               ) : (
                 <>
                   <td className="px-4 py-3 font-bold text-foreground">{org.name}</td>
+                  <td className="px-4 py-3 text-muted">{org.super_admin_email ?? "—"}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
@@ -194,6 +235,13 @@ export function PlatformOrganizationsManager({ organizations }: { organizations:
                     </button>
                     <button
                       type="button"
+                      onClick={() => setResettingPasswordId(org.id)}
+                      className="text-[12px] font-bold text-foreground hover:underline"
+                    >
+                      كلمة المرور
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setDeletingId(org.id)}
                       className="text-[12px] font-bold text-red-600 hover:underline"
                     >
@@ -206,7 +254,7 @@ export function PlatformOrganizationsManager({ organizations }: { organizations:
           ))}
           {organizations.length === 0 && (
             <tr>
-              <td colSpan={7} className="px-4 py-6 text-center text-muted">
+              <td colSpan={8} className="px-4 py-6 text-center text-muted">
                 لا توجد مؤسسات مسجّلة بعد
               </td>
             </tr>

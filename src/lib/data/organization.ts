@@ -58,6 +58,11 @@ export type PlatformOrganizationRow = {
   pending_upgrade_request: PendingUpgradeRequest | null;
   /** null for a paid organization - no trial clock applies to it at all. */
   trial_days_remaining: number | null;
+  /** The org's super_admin - who resetOrganizationPassword (platform.ts)
+   *  resets the password for. Null in the unlikely case an org somehow has
+   *  no super_admin row (e.g. mid-signup). */
+  super_admin_email: string | null;
+  super_admin_user_id: string | null;
 };
 
 /**
@@ -81,7 +86,7 @@ export async function getAllOrganizationsForOwner(): Promise<PlatformOrganizatio
       .from("organizations")
       .select("id, name, plan_type, created_at")
       .order("created_at", { ascending: false }),
-    supabase.from("users").select("organization_id"),
+    supabase.from("users").select("id, email, role, organization_id"),
     supabase
       .from("plan_upgrade_requests")
       .select("id, organization_id, payment_method, payment_reference, note, created_at")
@@ -92,8 +97,12 @@ export async function getAllOrganizationsForOwner(): Promise<PlatformOrganizatio
   if (orgsError || !orgs) return { error: "تعذّر تحميل قائمة المؤسسات" };
 
   const memberCounts = new Map<string, number>();
+  const superAdminByOrg = new Map<string, { email: string; id: string }>();
   for (const user of users ?? []) {
     memberCounts.set(user.organization_id, (memberCounts.get(user.organization_id) ?? 0) + 1);
+    if (user.role === "super_admin" && !superAdminByOrg.has(user.organization_id)) {
+      superAdminByOrg.set(user.organization_id, { email: user.email, id: user.id });
+    }
   }
   // Already ordered created_at desc above - keep only the first (latest) per org.
   const pendingByOrg = new Map<string, PendingUpgradeRequest>();
@@ -114,5 +123,7 @@ export async function getAllOrganizationsForOwner(): Promise<PlatformOrganizatio
     member_count: memberCounts.get(org.id) ?? 0,
     pending_upgrade_request: pendingByOrg.get(org.id) ?? null,
     trial_days_remaining: trialDaysRemaining(org),
+    super_admin_email: superAdminByOrg.get(org.id)?.email ?? null,
+    super_admin_user_id: superAdminByOrg.get(org.id)?.id ?? null,
   }));
 }
