@@ -7,10 +7,19 @@ export type ApiKey = {
   created_at: string;
 };
 
+export type WebhookKind = "generic" | "slack" | "teams";
+
+export const WEBHOOK_KIND_LABEL: Record<WebhookKind, string> = {
+  generic: "عام (JSON + توقيع HMAC)",
+  slack: "Slack",
+  teams: "Microsoft Teams",
+};
+
 export type WebhookEndpoint = {
   id: string;
   url: string;
   events: string[];
+  kind: WebhookKind;
   is_active: boolean;
   created_at: string;
 };

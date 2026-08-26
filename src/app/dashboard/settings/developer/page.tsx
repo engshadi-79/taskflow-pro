@@ -20,7 +20,7 @@ export default async function DeveloperSettingsPage() {
       .returns<ApiKey[]>(),
     supabase
       .from("webhook_endpoints")
-      .select("id, url, events, is_active, created_at")
+      .select("id, url, events, kind, is_active, created_at")
       .order("created_at", { ascending: false })
       .returns<WebhookEndpoint[]>(),
     supabase

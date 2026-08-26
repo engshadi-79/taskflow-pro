@@ -50,6 +50,7 @@ export async function revokeApiKey(id: string): Promise<DeveloperState> {
 }
 
 const VALID_EVENTS = ["task.created", "task.status_changed", "task.completed"];
+const VALID_KINDS = ["generic", "slack", "teams"];
 
 export async function createWebhookEndpoint(
   _prevState: DeveloperState,
@@ -58,6 +59,8 @@ export async function createWebhookEndpoint(
   const profile = await requireRole(["super_admin"]);
   const url = (formData.get("url") as string)?.trim();
   const events = formData.getAll("events").map(String).filter((e) => VALID_EVENTS.includes(e));
+  const kindInput = formData.get("kind") as string;
+  const kind = VALID_KINDS.includes(kindInput) ? kindInput : "generic";
 
   if (!url || !/^https:\/\//.test(url)) {
     return { error: "رابط الوجهة يجب أن يبدأ بـ https://" };
@@ -74,6 +77,7 @@ export async function createWebhookEndpoint(
     url,
     secret,
     events,
+    kind,
     created_by: profile.id,
   });
 

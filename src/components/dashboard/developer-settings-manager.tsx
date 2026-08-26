@@ -9,7 +9,15 @@ import {
   toggleWebhookEndpoint,
   type DeveloperState,
 } from "@/lib/actions/developer";
-import { EVENT_LABEL, WEBHOOK_EVENTS, type ApiKey, type WebhookDelivery, type WebhookEndpoint } from "@/lib/types/developer";
+import {
+  EVENT_LABEL,
+  WEBHOOK_EVENTS,
+  WEBHOOK_KIND_LABEL,
+  type ApiKey,
+  type WebhookDelivery,
+  type WebhookEndpoint,
+  type WebhookKind,
+} from "@/lib/types/developer";
 
 const initialState: DeveloperState = {};
 const inputClass =
@@ -102,17 +110,21 @@ function ApiKeysSection({ apiKeys }: { apiKeys: ApiKey[] }) {
   );
 }
 
+const WEBHOOK_KIND_HINT: Record<WebhookKind, string> = {
+  generic: "عند وقوع الحدث، يُرسَل طلب POST موقَّع (HMAC-SHA256، ترويسة X-Monjez-Signature) فورًا إلى الرابط — محاولة واحدة، بلا إعادة محاولة تلقائية.",
+  slack: "أنشئ Incoming Webhook من إعدادات تطبيقات Slack (Apps → Incoming Webhooks) والصق رابطه هنا.",
+  teams: "أنشئ اتصال Webhook من إعدادات القناة في Teams (Connectors أو Workflows) والصق رابطه هنا.",
+};
+
 function WebhooksSection({ endpoints, deliveries }: { endpoints: WebhookEndpoint[]; deliveries: WebhookDelivery[] }) {
   const [state, formAction, pending] = useActionState(createWebhookEndpoint, initialState);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [kind, setKind] = useState<WebhookKind>("generic");
 
   return (
     <div className="rounded-[18px] border border-border bg-surface p-6">
       <h2 className="mb-1 text-sm font-extrabold text-foreground">وجهات Webhook</h2>
-      <p className="mb-4 text-[12.5px] text-muted">
-        عند وقوع الحدث، يُرسَل طلب POST موقَّع (HMAC-SHA256، ترويسة{" "}
-        <code dir="ltr">X-Monjez-Signature</code>) فورًا إلى الرابط — محاولة واحدة، بلا إعادة محاولة تلقائية.
-      </p>
+      <p className="mb-4 text-[12.5px] text-muted">{WEBHOOK_KIND_HINT[kind]}</p>
 
       {state.secret && (
         <div className="mb-4 rounded-[10px] border border-accent-300 bg-accent-50 p-3.5">
@@ -126,6 +138,18 @@ function WebhooksSection({ endpoints, deliveries }: { endpoints: WebhookEndpoint
       )}
 
       <form action={formAction} className="mb-4 space-y-2.5">
+        <select
+          name="kind"
+          value={kind}
+          onChange={(e) => setKind(e.target.value as WebhookKind)}
+          className={inputClass}
+        >
+          {Object.entries(WEBHOOK_KIND_LABEL).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
         <input name="url" type="url" placeholder="https://example.com/webhooks/monjez" required className={inputClass} />
         <div className="flex flex-wrap gap-3">
           {WEBHOOK_EVENTS.map((evt) => (
@@ -149,7 +173,12 @@ function WebhooksSection({ endpoints, deliveries }: { endpoints: WebhookEndpoint
         {endpoints.map((e) => (
           <div key={e.id} className="rounded-[10px] border border-border px-3.5 py-2.5">
             <div className="flex items-center justify-between gap-3">
-              <code dir="ltr" className="truncate text-[12.5px] text-foreground">{e.url}</code>
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="shrink-0 rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-bold text-accent-600">
+                  {WEBHOOK_KIND_LABEL[e.kind]}
+                </span>
+                <code dir="ltr" className="truncate text-[12.5px] text-foreground">{e.url}</code>
+              </div>
               <div className="flex shrink-0 items-center gap-2.5">
                 <button
                   type="button"
