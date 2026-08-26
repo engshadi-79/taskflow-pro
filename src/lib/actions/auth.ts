@@ -85,6 +85,51 @@ export async function signUpWithEmail(
   return { needsConfirmation: true };
 }
 
+/**
+ * Email/password redemption of an organization invite (P16) - a separate
+ * action rather than overloading signUpWithEmail (which hard-requires
+ * org_name for the "create a new org" flow). Same shape otherwise: `invite`
+ * rides through emailRedirectTo exactly like `new_org` does, and
+ * /auth/callback already knows how to read it and call
+ * redeem_organization_invite() after exchanging the code for a session.
+ */
+export async function signUpWithInvite(
+  _prevState: SignUpState,
+  formData: FormData
+): Promise<SignUpState> {
+  const email = (formData.get("email") as string)?.trim();
+  const password = formData.get("password") as string;
+  const code = (formData.get("code") as string)?.trim();
+
+  if (!email || !password || !code) {
+    return { error: "جميع الحقول مطلوبة" };
+  }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return { error: `كلمة المرور يجب أن تكون ${MIN_PASSWORD_LENGTH} أحرف على الأقل` };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${getAppUrl()}/auth/callback?invite=${encodeURIComponent(code)}`,
+    },
+  });
+
+  if (error) {
+    return { error: "تعذّر إنشاء الحساب، حاول مرة أخرى" };
+  }
+
+  if (data.session) {
+    const { error: redeemError } = await supabase.rpc("redeem_organization_invite", { p_code: code });
+    if (redeemError) return { error: redeemError.message };
+    redirect("/dashboard");
+  }
+
+  return { needsConfirmation: true };
+}
+
 export type ChangePasswordState = { error?: string; success?: boolean };
 
 const MIN_PASSWORD_LENGTH = 8;

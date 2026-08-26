@@ -15,6 +15,7 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const newOrgName = searchParams.get("new_org");
+  const inviteCode = searchParams.get("invite");
   const next = searchParams.get("next") || "/dashboard";
 
   if (code) {
@@ -36,6 +37,12 @@ export async function GET(request: Request) {
         // self-signup - a replayed/stale link or an existing account with
         // this param on it is a safe no-op, not an escalation.
         await supabase.rpc("claim_new_organization", { p_org_name: newOrgName });
+      }
+      if (inviteCode) {
+        // Same best-effort shape as claim_new_organization above - see
+        // redeem_organization_invite() in organization_invites.sql for why
+        // a stale/replayed/already-used link is a safe no-op.
+        await supabase.rpc("redeem_organization_invite", { p_code: inviteCode });
       }
       return NextResponse.redirect(`${origin}${next}`);
     }
