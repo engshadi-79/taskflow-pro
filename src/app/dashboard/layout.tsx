@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { getCurrentOrganization } from "@/lib/data/organization";
+import { getEnabledFeatureKeys } from "@/lib/data/feature-flags";
 import { createClient } from "@/lib/supabase/server";
 import { isTrialExpired } from "@/lib/plans";
 import { SidebarShell } from "@/components/dashboard/sidebar-shell";
@@ -29,16 +30,19 @@ export default async function DashboardLayout({
   }
 
   const supabase = await createClient();
-  const [{ count: unreadCount }, { data: department }, { data: recentActivity }, organization] = await Promise.all([
-    supabase.from("notifications").select("*", { count: "exact", head: true }).eq("is_read", false),
-    profile.department_id
-      ? supabase.from("departments").select("name").eq("id", profile.department_id).single()
-      : Promise.resolve({ data: null }),
-    // capped at 30 to match RecentActivityButton's own panel limit, so the
-    // badge count and the list it opens always agree
-    supabase.from("activity_log").select("id").eq("user_id", profile.id).order("created_at", { ascending: false }).limit(30),
-    getCurrentOrganization(),
-  ]);
+  const [{ count: unreadCount }, { data: department }, { data: recentActivity }, organization, enabledFeatureKeys] =
+    await Promise.all([
+      supabase.from("notifications").select("*", { count: "exact", head: true }).eq("is_read", false),
+      profile.department_id
+        ? supabase.from("departments").select("name").eq("id", profile.department_id).single()
+        : Promise.resolve({ data: null }),
+      // capped at 30 to match RecentActivityButton's own panel limit, so the
+      // badge count and the list it opens always agree
+      supabase.from("activity_log").select("id").eq("user_id", profile.id).order("created_at", { ascending: false }).limit(30),
+      getCurrentOrganization(),
+      getEnabledFeatureKeys(profile.organization_id),
+    ]);
+  const enabledFeatures = [...enabledFeatureKeys];
 
   const isPlatformOwner =
     !!process.env.PLATFORM_OWNER_EMAIL &&
@@ -51,7 +55,12 @@ export default async function DashboardLayout({
   }
 
   return (
-    <SidebarShell role={profile.role} logoUrl={organization?.logo_url} isPlatformOwner={isPlatformOwner}>
+    <SidebarShell
+      role={profile.role}
+      logoUrl={organization?.logo_url}
+      isPlatformOwner={isPlatformOwner}
+      enabledFeatures={enabledFeatures}
+    >
       <Topbar
         userId={profile.id}
         fullName={profile.full_name}
@@ -64,7 +73,7 @@ export default async function DashboardLayout({
       />
       <main className="flex-1 overflow-y-auto p-6">{children}</main>
       <ChatWidget currentUserId={profile.id} />
-      <AiAssistantPanel />
+      {enabledFeatures.includes("ai_assistant") && <AiAssistantPanel />}
       <PresenceTracker
         organizationId={profile.organization_id}
         userId={profile.id}

@@ -119,6 +119,36 @@ export async function approvePlanUpgrade(
   return { success: true };
 }
 
+export type SetFeatureOverrideState = { error?: string };
+
+/** Always writes an explicit override row (never deletes-to-default) -
+ *  supports both turning an on-by-default feature off for one org, and
+ *  turning a future off-by-default feature on for one org. See
+ *  supabase/feature_flags.sql. Direct-args shape (not prevState/formData) -
+ *  same style as toggleWebhookEndpoint, called straight from an onClick. */
+export async function setOrganizationFeatureOverride(
+  organizationId: string,
+  featureKey: string,
+  enabled: boolean
+): Promise<SetFeatureOverrideState> {
+  try {
+    await requirePlatformOwner();
+  } catch {
+    return { error: "غير مصرح لك بهذا الإجراء" };
+  }
+  if (!organizationId || !featureKey) return { error: "بيانات غير صالحة" };
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("organization_feature_overrides")
+    .upsert({ organization_id: organizationId, feature_key: featureKey, enabled }, { onConflict: "organization_id,feature_key" });
+
+  if (error) return { error: "تعذّر تحديث الميزة" };
+
+  revalidatePath("/dashboard/platform");
+  return {};
+}
+
 export type ResetPasswordState = { error?: string; success?: boolean };
 
 /**

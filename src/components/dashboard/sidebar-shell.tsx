@@ -16,11 +16,13 @@ export function SidebarShell({
   role,
   logoUrl,
   isPlatformOwner,
+  enabledFeatures,
   children,
 }: {
   role: Role;
   logoUrl?: string | null;
   isPlatformOwner?: boolean;
+  enabledFeatures?: string[];
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -31,6 +33,7 @@ export function SidebarShell({
         role={role}
         logoUrl={logoUrl}
         isPlatformOwner={isPlatformOwner}
+        enabledFeatures={enabledFeatures}
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
       />

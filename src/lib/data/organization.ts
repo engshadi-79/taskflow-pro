@@ -63,6 +63,9 @@ export type PlatformOrganizationRow = {
    *  no super_admin row (e.g. mid-signup). */
   super_admin_email: string | null;
   super_admin_user_id: string | null;
+  /** Explicit per-feature overrides for this org - a missing key means the
+   *  feature_flags catalogue's own default_enabled applies. */
+  feature_overrides: Record<string, boolean>;
 };
 
 /**
@@ -81,18 +84,20 @@ export async function getAllOrganizationsForOwner(): Promise<PlatformOrganizatio
 
   const supabase = createAdminClient();
 
-  const [{ data: orgs, error: orgsError }, { data: users }, { data: pendingRequests }] = await Promise.all([
-    supabase
-      .from("organizations")
-      .select("id, name, plan_type, created_at")
-      .order("created_at", { ascending: false }),
-    supabase.from("users").select("id, email, role, organization_id"),
-    supabase
-      .from("plan_upgrade_requests")
-      .select("id, organization_id, payment_method, payment_reference, note, created_at")
-      .eq("status", "pending")
-      .order("created_at", { ascending: false }),
-  ]);
+  const [{ data: orgs, error: orgsError }, { data: users }, { data: pendingRequests }, { data: featureOverrides }] =
+    await Promise.all([
+      supabase
+        .from("organizations")
+        .select("id, name, plan_type, created_at")
+        .order("created_at", { ascending: false }),
+      supabase.from("users").select("id, email, role, organization_id"),
+      supabase
+        .from("plan_upgrade_requests")
+        .select("id, organization_id, payment_method, payment_reference, note, created_at")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      supabase.from("organization_feature_overrides").select("organization_id, feature_key, enabled"),
+    ]);
 
   if (orgsError || !orgs) return { error: "تعذّر تحميل قائمة المؤسسات" };
 
@@ -118,6 +123,13 @@ export async function getAllOrganizationsForOwner(): Promise<PlatformOrganizatio
     }
   }
 
+  const overridesByOrg = new Map<string, Record<string, boolean>>();
+  for (const o of featureOverrides ?? []) {
+    const forOrg = overridesByOrg.get(o.organization_id) ?? {};
+    forOrg[o.feature_key] = o.enabled;
+    overridesByOrg.set(o.organization_id, forOrg);
+  }
+
   return orgs.map((org) => ({
     ...org,
     member_count: memberCounts.get(org.id) ?? 0,
@@ -125,5 +137,6 @@ export async function getAllOrganizationsForOwner(): Promise<PlatformOrganizatio
     trial_days_remaining: trialDaysRemaining(org),
     super_admin_email: superAdminByOrg.get(org.id)?.email ?? null,
     super_admin_user_id: superAdminByOrg.get(org.id)?.id ?? null,
+    feature_overrides: overridesByOrg.get(org.id) ?? {},
   }));
 }

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
+import { getEnabledFeatureKeys } from "@/lib/data/feature-flags";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
 import { PeriodTabs } from "@/components/dashboard/period-tabs";
@@ -17,6 +18,9 @@ export default async function DecisionsPage({
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
   if (profile.role === "employee") redirect("/dashboard");
+
+  const enabledFeatures = await getEnabledFeatureKeys(profile.organization_id);
+  const aiAssistantEnabled = enabledFeatures.has("ai_assistant");
 
   const params = await searchParams;
   const period = parsePeriod(params.period);
@@ -81,7 +85,7 @@ export default async function DecisionsPage({
       ) : (
         <div className="mb-4.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
           {insights.map((insight) => (
-            <InsightCard key={insight.id} insight={insight} />
+            <InsightCard key={insight.id} insight={insight} aiAssistantEnabled={aiAssistantEnabled} />
           ))}
         </div>
       )}

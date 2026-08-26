@@ -6,6 +6,7 @@ import {
   deleteOrganizationAsOwner,
   approvePlanUpgrade,
   resetOrganizationPassword,
+  setOrganizationFeatureOverride,
   type UpdateOrgState,
   type DeleteOrgState,
   type ApprovePlanUpgradeState,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/actions/platform";
 import { PLAN_LABEL, PAYMENT_METHOD_LABEL } from "@/lib/plans";
 import type { PlatformOrganizationRow, PendingUpgradeRequest } from "@/lib/data/organization";
+import type { FeatureFlag } from "@/lib/data/feature-flags";
 
 const inputClass =
   "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500";
@@ -149,10 +151,66 @@ function ResetPasswordRow({ org, onCancel }: { org: PlatformOrganizationRow; onC
   );
 }
 
-export function PlatformOrganizationsManager({ organizations }: { organizations: PlatformOrganizationRow[] }) {
+function FeatureFlagsRow({
+  org,
+  featureCatalogue,
+  onCancel,
+}: {
+  org: PlatformOrganizationRow;
+  featureCatalogue: FeatureFlag[];
+  onCancel: () => void;
+}) {
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div className="space-y-2 rounded-[10px] border border-border bg-background p-3">
+      <p className="text-[12.5px] font-bold text-foreground">
+        الميزات المفعّلة لمؤسسة «{org.name}» - إلغاء التفعيل هنا لا يغيّر الميزة لباقي المؤسسات.
+      </p>
+      <div className="space-y-1.5">
+        {featureCatalogue.map((flag) => {
+          const enabled = org.feature_overrides[flag.key] ?? flag.default_enabled;
+          return (
+            <label key={flag.key} className="flex items-center gap-2 text-[12.5px] text-foreground">
+              <input
+                type="checkbox"
+                checked={enabled}
+                disabled={busyKey === flag.key}
+                onChange={async (e) => {
+                  setBusyKey(flag.key);
+                  setError(null);
+                  const result = await setOrganizationFeatureOverride(org.id, flag.key, e.target.checked);
+                  if (result.error) setError(result.error);
+                  setBusyKey(null);
+                }}
+                className="h-4 w-4 accent-accent-600"
+              />
+              <span className="font-bold">{flag.label}</span>
+              <span className="text-faint">— {flag.description}</span>
+            </label>
+          );
+        })}
+      </div>
+      {error && <p className="text-[11.5px] font-bold text-red-600">{error}</p>}
+      <button type="button" onClick={onCancel} className="text-[12px] font-bold text-muted hover:underline">
+        إغلاق
+      </button>
+    </div>
+  );
+}
+
+export function PlatformOrganizationsManager({
+  organizations,
+  featureCatalogue,
+}: {
+  organizations: PlatformOrganizationRow[];
+  featureCatalogue: FeatureFlag[];
+}) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
+  const [managingFeaturesId, setManagingFeaturesId] = useState<string | null>(null);
 
   return (
     <div className="overflow-x-auto rounded-[16px] border border-border bg-surface">
@@ -172,12 +230,22 @@ export function PlatformOrganizationsManager({ organizations }: { organizations:
         <tbody>
           {organizations.map((org) => (
             <tr key={org.id} className="border-b border-border align-top last:border-0">
-              {editingId === org.id || deletingId === org.id || resettingPasswordId === org.id ? (
+              {editingId === org.id ||
+              deletingId === org.id ||
+              resettingPasswordId === org.id ||
+              managingFeaturesId === org.id ? (
                 <td colSpan={8} className="px-4 py-2">
                   {editingId === org.id && <EditRow org={org} onCancel={() => setEditingId(null)} />}
                   {deletingId === org.id && <DeleteRow org={org} onCancel={() => setDeletingId(null)} />}
                   {resettingPasswordId === org.id && (
                     <ResetPasswordRow org={org} onCancel={() => setResettingPasswordId(null)} />
+                  )}
+                  {managingFeaturesId === org.id && (
+                    <FeatureFlagsRow
+                      org={org}
+                      featureCatalogue={featureCatalogue}
+                      onCancel={() => setManagingFeaturesId(null)}
+                    />
                   )}
                 </td>
               ) : (
@@ -239,6 +307,13 @@ export function PlatformOrganizationsManager({ organizations }: { organizations:
                       className="text-[12px] font-bold text-foreground hover:underline"
                     >
                       كلمة المرور
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setManagingFeaturesId(org.id)}
+                      className="text-[12px] font-bold text-foreground hover:underline"
+                    >
+                      الميزات
                     </button>
                     <button
                       type="button"

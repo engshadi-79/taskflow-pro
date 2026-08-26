@@ -29,7 +29,13 @@ const SEVERITY_STYLE: Record<Insight["severity"], { border: string; badge: strin
 };
 
 /** One "ماذا حدث / لماذا / ما الإجراء" card - see src/lib/decisions/insights.ts. */
-export function InsightCard({ insight }: { insight: Insight }) {
+export function InsightCard({
+  insight,
+  aiAssistantEnabled = true,
+}: {
+  insight: Insight;
+  aiAssistantEnabled?: boolean;
+}) {
   const style = SEVERITY_STYLE[insight.severity];
 
   return (
@@ -49,20 +55,22 @@ export function InsightCard({ insight }: { insight: Insight }) {
         >
           {insight.action_label} ←
         </Link>
-        <button
-          type="button"
-          onClick={() =>
-            window.dispatchEvent(
-              new CustomEvent(ASK_ASSISTANT_EVENT, {
-                detail: `اشرح لي أكثر عن هذا التغيير واقترح إجراءً: ${insight.title}. ${insight.explanation}`,
-              })
-            )
-          }
-          className="inline-flex items-center gap-1 text-[12.5px] font-bold text-muted hover:text-accent-600 hover:underline"
-        >
-          <SparklesIcon className="h-3.5 w-3.5" />
-          اسأل المساعد عن هذا
-        </button>
+        {aiAssistantEnabled && (
+          <button
+            type="button"
+            onClick={() =>
+              window.dispatchEvent(
+                new CustomEvent(ASK_ASSISTANT_EVENT, {
+                  detail: `اشرح لي أكثر عن هذا التغيير واقترح إجراءً: ${insight.title}. ${insight.explanation}`,
+                })
+              )
+            }
+            className="inline-flex items-center gap-1 text-[12.5px] font-bold text-muted hover:text-accent-600 hover:underline"
+          >
+            <SparklesIcon className="h-3.5 w-3.5" />
+            اسأل المساعد عن هذا
+          </button>
+        )}
       </div>
     </div>
   );

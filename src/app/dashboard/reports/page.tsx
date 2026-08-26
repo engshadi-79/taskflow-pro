@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
+import { getEnabledFeatureKeys } from "@/lib/data/feature-flags";
 import { createClient } from "@/lib/supabase/server";
 import { can } from "@/lib/foundation/permissions";
 import { PageHeader } from "@/components/shared/page-header";
@@ -72,6 +73,8 @@ export default async function ReportsPage({
   if (profile.role === "employee") {
     redirect("/dashboard");
   }
+
+  const enabledFeatures = await getEnabledFeatureKeys(profile.organization_id);
 
   const params = await searchParams;
   const period: ReportPeriod = parsePeriod(params.period);
@@ -316,7 +319,7 @@ export default async function ReportsPage({
         variant="navy"
         icon={<ChartIcon className="h-6 w-6" />}
       >
-        {can.buildReports(profile) && (
+        {can.buildReports(profile) && enabledFeatures.has("report_builder") && (
           <>
             <Link
               href="/dashboard/reports/builder"

@@ -52,6 +52,9 @@ type NavItem = {
   icon: IconKey;
   tone: Tone;
   badge?: { text: string; tone: "amber" | "red" };
+  /** When set, the item is hidden unless this key is in `enabledFeatures` -
+   *  see supabase/feature_flags.sql. */
+  featureKey?: string;
 };
 type NavSection = { label: string; items: NavItem[] };
 
@@ -224,6 +227,7 @@ const AUTOMATION_RULES: NavItem = {
   label: "الأتمتة",
   icon: "board",
   tone: "teal",
+  featureKey: "automation_rules",
 };
 const WORKFLOW_BUILDER: NavItem = {
   href: "/dashboard/workflow-builder",
@@ -330,6 +334,7 @@ export function Sidebar({
   role,
   logoUrl,
   isPlatformOwner = false,
+  enabledFeatures,
   mobileOpen = false,
   onMobileClose,
 }: {
@@ -342,18 +347,27 @@ export function Sidebar({
    * super_admin itself is scoped per organization (see requirePlatformOwner
    * in src/lib/actions/guards.ts). */
   isPlatformOwner?: boolean;
+  /** Keys from supabase/feature_flags.sql enabled for this organization -
+   *  undefined (e.g. no caller-provided value) is treated as "everything
+   *  enabled" so this prop stays optional everywhere else Sidebar is used. */
+  enabledFeatures?: string[];
   /** Controls the <md drawer only - the lg hover-expand rail below is
    * unaffected and keeps managing its own `open` state independently. */
   mobileOpen?: boolean;
   onMobileClose?: () => void;
 }) {
-  const sections = useMemo(
-    () =>
-      isPlatformOwner
-        ? [...NAV_BY_ROLE[role], { label: "المنصة", items: [PLATFORM_ORGS] }]
-        : NAV_BY_ROLE[role],
-    [role, isPlatformOwner]
-  );
+  const sections = useMemo(() => {
+    const base = isPlatformOwner
+      ? [...NAV_BY_ROLE[role], { label: "المنصة", items: [PLATFORM_ORGS] }]
+      : NAV_BY_ROLE[role];
+    if (!enabledFeatures) return base;
+    return base
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => !item.featureKey || enabledFeatures.includes(item.featureKey)),
+      }))
+      .filter((section) => section.items.length > 0);
+  }, [role, isPlatformOwner, enabledFeatures]);
   const pathname = usePathname();
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});

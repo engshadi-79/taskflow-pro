@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
+import { getEnabledFeatureKeys } from "@/lib/data/feature-flags";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
 import { KeyIcon } from "@/components/shared/icons";
@@ -10,6 +11,9 @@ export default async function DeveloperSettingsPage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
   if (profile.role !== "super_admin") redirect("/dashboard");
+
+  const enabledFeatures = await getEnabledFeatureKeys(profile.organization_id);
+  if (!enabledFeatures.has("developer_api")) redirect("/dashboard");
 
   const supabase = await createClient();
   const [{ data: apiKeys }, { data: endpoints }, { data: deliveries }] = await Promise.all([

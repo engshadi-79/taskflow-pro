@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { getAllOrganizationsForOwner } from "@/lib/data/organization";
+import { getFeatureCatalogue } from "@/lib/data/feature-flags";
 import { PageHeader } from "@/components/shared/page-header";
 import { BriefcaseIcon } from "@/components/shared/icons";
 import { PlatformOrganizationsManager } from "@/components/dashboard/platform-organizations-manager";
@@ -9,7 +10,7 @@ export default async function PlatformOrganizationsPage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
-  const result = await getAllOrganizationsForOwner();
+  const [result, featureCatalogue] = await Promise.all([getAllOrganizationsForOwner(), getFeatureCatalogue()]);
   if ("error" in result) redirect("/dashboard");
 
   const organizations = result;
@@ -24,7 +25,7 @@ export default async function PlatformOrganizationsPage() {
         count={`${organizations.length} مؤسسة`}
       />
 
-      <PlatformOrganizationsManager organizations={organizations} />
+      <PlatformOrganizationsManager organizations={organizations} featureCatalogue={featureCatalogue} />
     </div>
   );
 }

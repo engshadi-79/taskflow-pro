@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { getCurrentOrganization } from "@/lib/data/organization";
+import { getEnabledFeatureKeys } from "@/lib/data/feature-flags";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/page-header";
 import { GearIcon, KeyIcon, LockIcon } from "@/components/shared/icons";
@@ -16,6 +17,8 @@ export default async function OrganizationSettingsPage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
   if (profile.role !== "super_admin") redirect("/dashboard");
+
+  const enabledFeatures = await getEnabledFeatureKeys(profile.organization_id);
 
   const supabase = await createClient();
   const [organization, { data: holidaysRaw }, { count: seatCount }, { data: pendingRequest }] = await Promise.all([
@@ -52,13 +55,15 @@ export default async function OrganizationSettingsPage() {
           <LockIcon className="h-4 w-4" />
           مصفوفة الصلاحيات
         </Link>
-        <Link
-          href="/dashboard/settings/developer"
-          className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-extrabold text-accent-700 transition-transform hover:scale-[1.03]"
-        >
-          <KeyIcon className="h-4 w-4" />
-          API والـ Webhooks
-        </Link>
+        {enabledFeatures.has("developer_api") && (
+          <Link
+            href="/dashboard/settings/developer"
+            className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-extrabold text-accent-700 transition-transform hover:scale-[1.03]"
+          >
+            <KeyIcon className="h-4 w-4" />
+            API والـ Webhooks
+          </Link>
+        )}
       </PageHeader>
 
       <div className="rounded-[18px] border border-border bg-surface p-6">

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
+import { getEnabledFeatureKeys } from "@/lib/data/feature-flags";
 import { createClient } from "@/lib/supabase/server";
 import { can } from "@/lib/foundation/permissions";
 import { AutomationRulesManager } from "@/components/dashboard/automation-rules-manager";
@@ -13,6 +14,11 @@ export default async function AutomationRulesPage() {
   }
 
   if (!can.manageAutomationRules(profile)) {
+    redirect("/dashboard");
+  }
+
+  const enabledFeatures = await getEnabledFeatureKeys(profile.organization_id);
+  if (!enabledFeatures.has("automation_rules")) {
     redirect("/dashboard");
   }
 
