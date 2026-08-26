@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { getCurrentOrganization } from "@/lib/data/organization";
 import { createClient } from "@/lib/supabase/server";
-import { isTrialExpired } from "@/lib/plans";
+import { isTrialExpired, getConfiguredPaymentMethods } from "@/lib/plans";
 import { signOut } from "@/lib/actions/auth";
 import { AnimatedBackground } from "@/components/shared/animated-background";
 import { PlanBillingSection } from "@/components/dashboard/plan-billing-section";
@@ -77,7 +77,12 @@ export default async function TrialExpiredPage() {
 
         {profile.role === "super_admin" && (
           <div className="text-start">
-            <PlanBillingSection organization={organization} seatCount={seatCount} hasPendingRequest={hasPendingRequest} />
+            <PlanBillingSection
+              organization={organization}
+              seatCount={seatCount}
+              hasPendingRequest={hasPendingRequest}
+              paymentMethods={getConfiguredPaymentMethods()}
+            />
           </div>
         )}
       </div>

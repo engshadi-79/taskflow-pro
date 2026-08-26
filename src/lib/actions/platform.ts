@@ -86,3 +86,35 @@ export async function deleteOrganizationAsOwner(
   revalidatePath("/dashboard/platform");
   return {};
 }
+
+export type ApprovePlanUpgradeState = { error?: string; success?: boolean };
+
+/**
+ * Flips the org to paid AND resolves the request it came from, in one
+ * click - the owner reviews the submitted payment_method/payment_reference
+ * (rendered in platform-organizations-manager.tsx) out of band before
+ * clicking this, there is no automated verification of the transfer itself.
+ */
+export async function approvePlanUpgrade(
+  _prevState: ApprovePlanUpgradeState,
+  formData: FormData
+): Promise<ApprovePlanUpgradeState> {
+  try {
+    await requirePlatformOwner();
+  } catch {
+    return { error: "غير مصرح لك بهذا الإجراء" };
+  }
+
+  const orgId = formData.get("organization_id") as string;
+  const requestId = formData.get("request_id") as string;
+  if (!orgId || !requestId) return { error: "بيانات غير صالحة" };
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("organizations").update({ plan_type: "paid" }).eq("id", orgId);
+  if (error) return { error: "تعذّر تفعيل الخطة المدفوعة" };
+
+  await supabase.from("plan_upgrade_requests").update({ status: "resolved" }).eq("id", requestId);
+
+  revalidatePath("/dashboard/platform");
+  return { success: true };
+}

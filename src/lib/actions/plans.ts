@@ -21,11 +21,25 @@ export async function requestPlanUpgrade(
   const profile = await requireRole(["super_admin"]);
   const note = (formData.get("note") as string)?.trim() || null;
 
+  const paymentMethodRaw = (formData.get("payment_method") as string)?.trim() || null;
+  let paymentMethod: "bank_transfer" | "binance" | null = null;
+  let paymentReference: string | null = null;
+  if (paymentMethodRaw) {
+    if (paymentMethodRaw !== "bank_transfer" && paymentMethodRaw !== "binance") {
+      return { error: "طريقة دفع غير صالحة" };
+    }
+    paymentReference = (formData.get("payment_reference") as string)?.trim() || null;
+    if (!paymentReference) return { error: "الرجاء إدخال رقم/مرجع التحويل" };
+    paymentMethod = paymentMethodRaw;
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.from("plan_upgrade_requests").insert({
     organization_id: profile.organization_id,
     requested_by: profile.id,
     note,
+    payment_method: paymentMethod,
+    payment_reference: paymentReference,
   });
 
   if (error) return { error: "تعذر إرسال طلب الترقية" };

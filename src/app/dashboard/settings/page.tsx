@@ -9,6 +9,7 @@ import { OrganizationLogoUpload } from "@/components/dashboard/organization-logo
 import { OrganizationSettingsForm } from "@/components/dashboard/organization-settings-form";
 import { OrganizationHolidaysManager } from "@/components/dashboard/organization-holidays-manager";
 import { PlanBillingSection } from "@/components/dashboard/plan-billing-section";
+import { getConfiguredPaymentMethods } from "@/lib/plans";
 import type { OrganizationHoliday } from "@/lib/types/organization";
 
 export default async function OrganizationSettingsPage() {
@@ -69,6 +70,7 @@ export default async function OrganizationSettingsPage() {
         organization={organization}
         seatCount={seatCount ?? 0}
         hasPendingRequest={!!pendingRequest}
+        paymentMethods={getConfiguredPaymentMethods()}
       />
 
       <OrganizationSettingsForm organization={organization} />

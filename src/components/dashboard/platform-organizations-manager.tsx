@@ -4,17 +4,48 @@ import { useActionState, useEffect, useState } from "react";
 import {
   updateOrganizationAsOwner,
   deleteOrganizationAsOwner,
+  approvePlanUpgrade,
   type UpdateOrgState,
   type DeleteOrgState,
+  type ApprovePlanUpgradeState,
 } from "@/lib/actions/platform";
-import { PLAN_LABEL } from "@/lib/plans";
-import type { PlatformOrganizationRow } from "@/lib/data/organization";
+import { PLAN_LABEL, PAYMENT_METHOD_LABEL } from "@/lib/plans";
+import type { PlatformOrganizationRow, PendingUpgradeRequest } from "@/lib/data/organization";
 
 const inputClass =
   "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500";
 
 const initialUpdateState: UpdateOrgState = {};
 const initialDeleteState: DeleteOrgState = {};
+const initialApproveState: ApprovePlanUpgradeState = {};
+
+function PendingUpgradeCell({ organizationId, request }: { organizationId: string; request: PendingUpgradeRequest }) {
+  const [state, formAction, pending] = useActionState(approvePlanUpgrade, initialApproveState);
+
+  return (
+    <div className="space-y-1.5">
+      <span className="inline-block rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+        يريد الترقية
+      </span>
+      <p className="text-[11px] text-muted">
+        {request.payment_method ? PAYMENT_METHOD_LABEL[request.payment_method] : "بدون طريقة دفع"}
+        {request.payment_reference && ` — ${request.payment_reference}`}
+      </p>
+      <form action={formAction}>
+        <input type="hidden" name="organization_id" value={organizationId} />
+        <input type="hidden" name="request_id" value={request.id} />
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded-[8px] bg-green-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-green-700 disabled:opacity-60"
+        >
+          {pending ? "جارٍ التفعيل..." : "تفعيل الخطة المدفوعة"}
+        </button>
+      </form>
+      {state.error && <p className="text-[11px] font-bold text-red-600">{state.error}</p>}
+    </div>
+  );
+}
 
 function EditRow({ org, onCancel }: { org: PlatformOrganizationRow; onCancel: () => void }) {
   const [state, formAction, pending] = useActionState(updateOrganizationAsOwner, initialUpdateState);
@@ -148,9 +179,7 @@ export function PlatformOrganizationsManager({ organizations }: { organizations:
                   </td>
                   <td className="px-4 py-3">
                     {org.pending_upgrade_request ? (
-                      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
-                        يريد الترقية
-                      </span>
+                      <PendingUpgradeCell organizationId={org.id} request={org.pending_upgrade_request} />
                     ) : (
                       <span className="text-faint">—</span>
                     )}
