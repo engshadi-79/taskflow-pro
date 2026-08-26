@@ -138,9 +138,17 @@ function parseIsoDateLocal(iso: string): Date {
 export function computeSessionDates(startDate: string, endDate: string, weekdays: number[], maxCount = 7): string[] {
   const weekdaySet = new Set(weekdays);
   const end = parseIsoDateLocal(endDate);
+  const cursor = parseIsoDateLocal(startDate);
   const labels: string[] = [];
 
-  const cursor = parseIsoDateLocal(startDate);
+  // A reversed range (start after end) makes the loop below never run even
+  // once, which used to surface as the same "no matching day" message as a
+  // genuinely empty weekday match - misleading, since the actual mistake is
+  // the two date fields themselves, not the weekday selection.
+  if (cursor > end) {
+    throw new Error("تاريخ البداية بعد تاريخ النهاية - تأكد من ترتيب الحقلين \"من تاريخ\" و\"إلى تاريخ\"");
+  }
+
   while (cursor <= end && labels.length < maxCount) {
     if (weekdaySet.has(cursor.getDay())) {
       const dd = String(cursor.getDate()).padStart(2, "0");
