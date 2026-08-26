@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/profile";
 import { createClient } from "@/lib/supabase/server";
 import { MobileTabBar } from "@/components/mobile/mobile-tab-bar";
+import { MobileOfflineSync } from "@/components/mobile/mobile-offline-sync";
 
 // A dedicated manifest (start_url/scope "/m") lets this surface be packaged
 // on its own - e.g. via PWABuilder - as an app that opens straight into the
@@ -37,6 +38,7 @@ export default async function MobileLayout({ children }: { children: React.React
     <div className="mx-auto flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground sm:max-w-[480px]">
       <div className="flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">{children}</div>
       <MobileTabBar hasUnread={(unreadCount ?? 0) > 0} />
+      <MobileOfflineSync />
     </div>
   );
 }

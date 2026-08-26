@@ -3,11 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { submitForReview, reviewTask } from "@/lib/actions/tasks";
+import { enqueue } from "@/lib/offline/queue";
+import { OfflineBanner } from "@/components/mobile/offline-status";
 
-export function MobileSubmitForReview({ taskId }: { taskId: string }) {
+export function MobileSubmitForReview({ taskId, taskUpdatedAt }: { taskId: string; taskUpdatedAt: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [queued, setQueued] = useState(false);
 
   return (
     <div>
@@ -17,25 +20,40 @@ export function MobileSubmitForReview({ taskId }: { taskId: string }) {
         onClick={async () => {
           setPending(true);
           setError(null);
-          const result = await submitForReview(taskId);
-          setPending(false);
-          if (result?.error) setError(result.error);
-          else router.refresh();
+          if (!navigator.onLine) {
+            await enqueue({ kind: "submit_for_review", taskId, baseUpdatedAt: taskUpdatedAt });
+            setPending(false);
+            setQueued(true);
+            return;
+          }
+          try {
+            const result = await submitForReview(taskId);
+            setPending(false);
+            if (result?.error) setError(result.error);
+            else router.refresh();
+          } catch {
+            // real network failure despite navigator.onLine saying otherwise
+            await enqueue({ kind: "submit_for_review", taskId, baseUpdatedAt: taskUpdatedAt });
+            setPending(false);
+            setQueued(true);
+          }
         }}
         className="w-full rounded-[12px] bg-accent-600 py-3 text-[13px] font-extrabold text-white disabled:opacity-60"
       >
         {pending ? "جارٍ الإرسال..." : "إرسال للمراجعة"}
       </button>
       {error && <p className="mt-1.5 text-[11.5px] text-brand-red-600">{error}</p>}
+      {queued && <div className="mt-1.5"><OfflineBanner /></div>}
     </div>
   );
 }
 
-export function MobileReviewPanel({ taskId }: { taskId: string }) {
+export function MobileReviewPanel({ taskId, taskUpdatedAt }: { taskId: string; taskUpdatedAt: string }) {
   const router = useRouter();
   const [notes, setNotes] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [queued, setQueued] = useState(false);
 
   async function handle(decision: "approve" | "reject") {
     if (decision === "reject" && !notes.trim()) {
@@ -44,10 +62,22 @@ export function MobileReviewPanel({ taskId }: { taskId: string }) {
     }
     setPending(true);
     setError(null);
-    const result = await reviewTask(taskId, decision, notes);
-    setPending(false);
-    if (result?.error) setError(result.error);
-    else router.refresh();
+    if (!navigator.onLine) {
+      await enqueue({ kind: "review_decision", taskId, decision, notes, baseUpdatedAt: taskUpdatedAt });
+      setPending(false);
+      setQueued(true);
+      return;
+    }
+    try {
+      const result = await reviewTask(taskId, decision, notes);
+      setPending(false);
+      if (result?.error) setError(result.error);
+      else router.refresh();
+    } catch {
+      await enqueue({ kind: "review_decision", taskId, decision, notes, baseUpdatedAt: taskUpdatedAt });
+      setPending(false);
+      setQueued(true);
+    }
   }
 
   return (
@@ -79,6 +109,7 @@ export function MobileReviewPanel({ taskId }: { taskId: string }) {
         </button>
       </div>
       {error && <p className="mt-1.5 text-[11.5px] text-brand-red-600">{error}</p>}
+      {queued && <div className="mt-1.5"><OfflineBanner /></div>}
     </div>
   );
 }

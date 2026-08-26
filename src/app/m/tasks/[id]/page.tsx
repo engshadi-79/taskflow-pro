@@ -6,6 +6,7 @@ import { MobileTaskTimer } from "@/components/mobile/mobile-task-timer";
 import { MobileTaskChecklist } from "@/components/mobile/mobile-task-checklist";
 import { MobileTaskComments } from "@/components/mobile/mobile-task-comments";
 import { MobileSubmitForReview, MobileReviewPanel } from "@/components/mobile/mobile-review-actions";
+import { TaskConflictAlert } from "@/components/mobile/offline-status";
 import { MOBILE_GRADIENT_PRIMARY, MOBILE_STATUS_STYLE } from "@/lib/mobile-theme";
 import { PRIORITY_LABEL, STATUS_LABEL, type Task, type TaskCommentWithAuthor } from "@/lib/types/task";
 import type { TaskChecklistItem } from "@/lib/types/project";
@@ -70,11 +71,15 @@ export default async function MobileTaskDetailPage({ params }: { params: Promise
 
         {taskTyped.description && <p className="text-[13px] leading-8 text-muted">{taskTyped.description}</p>}
 
+        <TaskConflictAlert taskId={taskTyped.id} />
+
         {profile.id === taskTyped.assigned_to && ["new", "in_progress"].includes(taskTyped.status) && (
-          <MobileSubmitForReview taskId={taskTyped.id} />
+          <MobileSubmitForReview taskId={taskTyped.id} taskUpdatedAt={taskTyped.updated_at} />
         )}
 
-        {canManage && taskTyped.status === "pending_review" && <MobileReviewPanel taskId={taskTyped.id} />}
+        {canManage && taskTyped.status === "pending_review" && (
+          <MobileReviewPanel taskId={taskTyped.id} taskUpdatedAt={taskTyped.updated_at} />
+        )}
 
         <MobileTaskTimer
           taskId={taskTyped.id}
