@@ -1,7 +1,13 @@
 const RESEND_API_URL = "https://api.resend.com/emails";
 
-/** Vercel provides these automatically at runtime - no new env var to set. */
+/** Vercel provides VERCEL_PROJECT_PRODUCTION_URL/VERCEL_URL automatically -
+ *  no env var to set there. Any other deployment (e.g. the VPS trial
+ *  instance, which isn't Vercel and has its own BASE_PATH prefix) needs
+ *  NEXT_PUBLIC_APP_URL set explicitly, or every link this builds
+ *  (invite links, signup confirmation redirects) would fall through to
+ *  localhost and be useless to whoever clicks them. */
 export function getAppUrl(): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
   const host = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
   return host ? `https://${host}` : "http://localhost:3000";
 }
