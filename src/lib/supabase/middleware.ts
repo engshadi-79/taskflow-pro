@@ -25,21 +25,24 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Optimistic check only, per Next.js's own guidance (Proxy runs on every
-  // navigation, including prefetches, and "is not intended for slow data
-  // fetching" - only reading the session from the cookie, not calling out
-  // to the Supabase Auth server). getSession() decodes the JWT locally
-  // (no network round trip); getUser() re-validates it against Supabase's
-  // servers on every single request, which was doubling navigation latency
-  // for no security benefit - getCurrentProfile() (src/lib/data/profile.ts)
-  // already calls the real, network-verified getUser() itself on every
-  // page load, and RLS re-checks the JWT server-side on every query
-  // regardless of what this redirect decided. This is a UX nicety, not the
-  // security boundary.
+  // Must be getUser() here, not getSession() - getSession() only decodes
+  // the JWT locally and returns a "user" for any access token whose own exp
+  // claim hasn't passed yet, even if the underlying session was actually
+  // invalidated server-side (e.g. a refresh-token rotation from signing in
+  // again elsewhere). That mismatch caused a real production outage: this
+  // check would see the stale token as valid and let /dashboard through,
+  // dashboard/layout.tsx's getCurrentProfile() would then call the real,
+  // network-verified getUser() itself, correctly find no session, and
+  // redirect to /login - which this check would then bounce straight back
+  // to /dashboard, since it still read the same stale token as valid.
+  // ERR_TOO_MANY_REDIRECTS, forever, until the cookie was cleared by hand.
+  // getUser() costs one extra network round trip per navigation, but
+  // getCurrentProfile() already pays that same cost right after anyway, so
+  // this doesn't add a new network dependency - it just makes the two
+  // checks agree.
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const user = session?.user ?? null;
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const isAuthRoute = request.nextUrl.pathname.startsWith("/login");
   const isDashboardRoute = request.nextUrl.pathname.startsWith("/dashboard");
