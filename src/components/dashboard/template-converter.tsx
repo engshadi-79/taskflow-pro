@@ -36,6 +36,11 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
   const dataInputRef = useRef<HTMLInputElement>(null);
 
   const [mode, setMode] = useState<TemplateMode>(initialSavedTemplates.length > 0 ? "saved" : "upload");
+  // Tracks the uploaded template's extension for templateIsDocx below -
+  // reading templateInputRef.current directly during render is not allowed
+  // (react-hooks/refs), so the file input's own onChange keeps this in sync
+  // instead.
+  const [uploadedTemplateIsDocx, setUploadedTemplateIsDocx] = useState(false);
   const [savedTemplates, setSavedTemplates] = useState(initialSavedTemplates);
   const [selectedSavedId, setSelectedSavedId] = useState(initialSavedTemplates[0]?.id ?? "");
 
@@ -240,7 +245,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
   }
 
   const result = parsed && !("error" in parsed) ? parsed : null;
-  const templateIsDocx = mode === "upload" ? templateInputRef.current?.files?.[0]?.name.toLowerCase().endsWith(".docx") ?? false : selectedSavedTemplate?.file_format === "docx";
+  const templateIsDocx = mode === "upload" ? uploadedTemplateIsDocx : selectedSavedTemplate?.file_format === "docx";
   const sameFormat = (outputFormat === "docx") === templateIsDocx;
 
   // Distinct real combinations found in the uploaded data for whichever
@@ -337,7 +342,13 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
               <span className="mb-1.5 block text-[12.5px] font-bold text-foreground">
                 ملف القالب — Excel أو Word (يحدّد شكل الأعمدة النهائية)
               </span>
-              <input ref={templateInputRef} type="file" accept=".xlsx,.docx" className={inputClass} />
+              <input
+                ref={templateInputRef}
+                type="file"
+                accept=".xlsx,.docx"
+                className={inputClass}
+                onChange={(e) => setUploadedTemplateIsDocx(e.target.files?.[0]?.name.toLowerCase().endsWith(".docx") ?? false)}
+              />
             </label>
           )}
           <label className="block">

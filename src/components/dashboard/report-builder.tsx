@@ -433,7 +433,7 @@ export function ReportBuilder({ initialSavedReports }: { initialSavedReports: Sa
 
             {!result && !pending && (
               <p className="py-10 text-center text-[13px] text-muted">
-                اضبط الحقول والفلاتر ثم اضغط "تشغيل التقرير" لعرض النتائج.
+                اضبط الحقول والفلاتر ثم اضغط «تشغيل التقرير» لعرض النتائج.
               </p>
             )}
 
@@ -471,7 +471,7 @@ export function ReportBuilder({ initialSavedReports }: { initialSavedReports: Sa
               <>
                 {!grouped ? (
                   <p className="rounded-[10px] bg-orange-50 px-3 py-3 text-[12.5px] font-bold text-orange-700">
-                    اختر حقل "التجميع حسب" من الشريط الجانبي لعرض رسم الأعمدة.
+                    اختر حقل «التجميع حسب» من الشريط الجانبي لعرض رسم الأعمدة.
                   </p>
                 ) : grouped.length === 0 ? (
                   <p className="p-6 text-center text-[12.5px] text-muted">لا توجد نتائج مطابقة للشروط الحالية</p>
