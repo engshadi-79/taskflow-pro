@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useRouter, useSegments } from "expo-router";
-import { ActivityIndicator, View } from "react-native";
 import { useAuth } from "@/lib/auth-context";
+import { SplashScreen } from "@/components/splash-screen";
 
 /**
  * Standard Expo Router auth-gating pattern: redirect based on session
@@ -25,11 +25,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }, [session, loading, segments, router]);
 
   if (loading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator color="#4f46e5" />
-      </View>
-    );
+    return <SplashScreen />;
   }
 
   return <>{children}</>;

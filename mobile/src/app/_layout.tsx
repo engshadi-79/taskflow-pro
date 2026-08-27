@@ -1,11 +1,12 @@
 import "../global.css";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, I18nManager, View } from "react-native";
+import { I18nManager } from "react-native";
 import * as Updates from "expo-updates";
 import * as Notifications from "expo-notifications";
 import { Slot, useRouter, type Href } from "expo-router";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGate } from "@/components/auth-gate";
+import { SplashScreen } from "@/components/splash-screen";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -47,11 +48,7 @@ export default function RootLayout() {
   }, []);
 
   if (reloading) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#f8fafc" }}>
-        <ActivityIndicator color="#4f46e5" />
-      </View>
-    );
+    return <SplashScreen />;
   }
 
   return (
