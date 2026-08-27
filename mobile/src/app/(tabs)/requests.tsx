@@ -3,11 +3,18 @@ import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View 
 import { MobileHeader } from "@/components/mobile-header";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
-import { PRIORITY_LABEL, type Priority } from "@/lib/mobile-theme";
+import { PRIORITY_COLOR, PRIORITY_LABEL, type Priority } from "@/lib/mobile-theme";
 
 type RequestStatus = "draft" | "pending" | "approved" | "rejected" | "processing" | "completed" | "cancelled";
 type Template = { id: string; name: string };
-type MyRequest = { id: string; title: string; status: RequestStatus; created_at: string; template: { name: string } | null };
+type MyRequest = {
+  id: string;
+  title: string;
+  status: RequestStatus;
+  priority: Priority;
+  created_at: string;
+  template: { name: string } | null;
+};
 type ApprovalRow = { id: string; title: string; created_at: string; template: { name: string } | null; requester: { full_name: string } | null };
 
 const STATUS_LABEL: Record<RequestStatus, string> = {
@@ -53,7 +60,7 @@ export default function RequestsScreen() {
       supabase.from("workflow_templates").select("id, name").eq("is_active", true).returns<Template[]>(),
       supabase
         .from("workflow_requests")
-        .select("id, title, status, created_at, template:workflow_templates(name)")
+        .select("id, title, status, priority, created_at, template:workflow_templates(name)")
         .eq("requested_by", profile.id)
         .order("created_at", { ascending: false })
         .returns<MyRequest[]>(),
@@ -121,7 +128,7 @@ export default function RequestsScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      <MobileHeader back title="الطلبات والموافقات" />
+      <MobileHeader title="الطلبات" />
       <View className="px-4">
         <View className="mb-4 flex-row rounded-[12px] bg-background p-1">
           <TouchableOpacity onPress={() => setTab("mine")} className={`flex-1 items-center rounded-[9px] py-2 ${tab === "mine" ? "bg-accent-600" : ""}`}>
@@ -207,7 +214,14 @@ export default function RequestsScreen() {
                       </Text>
                     </View>
                   </View>
-                  <Text className="mt-1.5 text-[11px] font-semibold text-muted">{new Date(r.created_at).toLocaleDateString("ar")}</Text>
+                  <View className="mt-2 flex-row items-center gap-2">
+                    <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: `${PRIORITY_COLOR[r.priority]}1a` }}>
+                      <Text className="text-[10px] font-extrabold" style={{ color: PRIORITY_COLOR[r.priority] }}>
+                        {PRIORITY_LABEL[r.priority]}
+                      </Text>
+                    </View>
+                    <Text className="text-[11px] font-semibold text-muted">{new Date(r.created_at).toLocaleDateString("ar")}</Text>
+                  </View>
                 </View>
               ))}
               {myRequests.length === 0 && <Text className="py-8 text-center text-[13px] text-muted">لا توجد طلبات مقدَّمة</Text>}
@@ -221,6 +235,11 @@ export default function RequestsScreen() {
                       className="h-[18px] w-[18px] shrink-0 rounded-[5px] border-2"
                       style={{ borderColor: selected[r.id] ? "#4f46e5" : "#e2e8f0", backgroundColor: selected[r.id] ? "#4f46e5" : "transparent" }}
                     />
+                    <View className="h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-50">
+                      <Text className="text-[11px] font-extrabold text-accent-600">
+                        {(r.requester?.full_name ?? "؟").trim().charAt(0)}
+                      </Text>
+                    </View>
                     <View className="min-w-0 flex-1">
                       <Text className="text-[13px] font-bold text-foreground">{r.template?.name ? `${r.title} (${r.template.name})` : r.title}</Text>
                       <Text className="mt-0.5 text-[11px] font-semibold text-muted">{r.requester?.full_name ?? "—"}</Text>
