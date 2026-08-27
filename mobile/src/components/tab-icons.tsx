@@ -61,6 +61,15 @@ export function RequestsIcon({ color, size = 19 }: IconProps) {
   );
 }
 
+export function SparklesIcon({ color, size = 19 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+      <Path d="M12 8a4 4 0 0 0 4 4 4 4 0 0 0-4 4 4 4 0 0 0-4-4 4 4 0 0 0 4-4Z" />
+    </Svg>
+  );
+}
+
 export function PlusIcon({ color, size = 24 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">

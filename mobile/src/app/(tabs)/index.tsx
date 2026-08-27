@@ -2,13 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import Svg, { Circle } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BellIcon, SparklesIcon } from "@/components/tab-icons";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import { GRADIENT_PRIMARY, PRIORITY_COLOR, STATUS_COLOR, STATUS_LABEL, type Priority, type TaskStatus } from "@/lib/mobile-theme";
 
-type SummaryRow = { value: number; label: string };
+type StatTile = { value: number; suffix: string; label: string; color: "accent" | "orange" | "pink" | "green" };
 type UrgentTask = { id: string; title: string; due_date: string | null; status: TaskStatus; priority: Priority };
 type Meeting = { id: string; title: string; meeting_date: string; meeting_time: string | null };
 type ApprovalRow = { id: string; title: string; template: { name: string } | null };
@@ -22,34 +22,22 @@ type SummaryCounts = {
   total_count: number;
 };
 
-function Ring({ value, label }: { value: number; label: string }) {
-  const size = 82;
-  const stroke = 8;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const clamped = Math.min(Math.max(value, 0), 100);
-  const offset = circumference * (1 - clamped / 100);
+const TILE_COLOR: Record<StatTile["color"], { bg: string; text: string }> = {
+  accent: { bg: "bg-accent-50", text: "text-accent-600" },
+  orange: { bg: "bg-orange-50", text: "text-orange-600" },
+  pink: { bg: "bg-pink-50", text: "text-pink-600" },
+  green: { bg: "bg-green-50", text: "text-green-600" },
+};
 
+function StatTileCard({ tile }: { tile: StatTile }) {
+  const c = TILE_COLOR[tile.color];
   return (
-    <View style={{ width: size, height: size }} className="items-center justify-center">
-      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: "absolute" }}>
-        <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#eef2ff" strokeWidth={stroke} />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="#4f46e5"
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={`${circumference} ${circumference}`}
-          strokeDashoffset={offset}
-          rotation={-90}
-          origin={`${size / 2}, ${size / 2}`}
-        />
-      </Svg>
-      <Text className="text-[14px] font-extrabold text-foreground">{clamped}%</Text>
-      <Text className="text-[8.5px] font-bold text-faint">{label}</Text>
+    <View className={`flex-1 rounded-[16px] p-3.5 ${c.bg}`}>
+      <Text className={`text-[22px] font-black ${c.text}`}>
+        {tile.value}
+        {tile.suffix}
+      </Text>
+      <Text className="mt-0.5 text-[11px] font-bold text-muted">{tile.label}</Text>
     </View>
   );
 }
@@ -62,9 +50,7 @@ export default function DashboardScreen() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [summaryRows, setSummaryRows] = useState<SummaryRow[]>([]);
-  const [ringValue, setRingValue] = useState(0);
-  const [ringLabel, setRingLabel] = useState("");
+  const [tiles, setTiles] = useState<StatTile[]>([]);
   const [progressLabel, setProgressLabel] = useState("");
   const [progressValue, setProgressValue] = useState(0);
   const [urgentTasks, setUrgentTasks] = useState<UrgentTask[]>([]);
@@ -77,14 +63,22 @@ export default function DashboardScreen() {
     const nowDate = new Date();
     const todayIso = nowDate.toISOString().slice(0, 10);
 
-    const { data: myMeetingsRaw } = await supabase
-      .from("meeting_attendees")
-      .select("meeting:meetings!inner(id, title, meeting_date, meeting_time, status)")
-      .eq("user_id", profile.id)
-      .gte("meetings.meeting_date", todayIso)
-      .neq("meetings.status", "cancelled")
-      .order("meeting_date", { referencedTable: "meetings", ascending: true })
-      .limit(3);
+    const memberCountQuery = supabase.from("users").select("*", { count: "exact", head: true });
+    if (profile.role === "department_manager" && profile.department_id) {
+      memberCountQuery.eq("department_id", profile.department_id);
+    }
+
+    const [{ data: myMeetingsRaw }, { count: memberCount }] = await Promise.all([
+      supabase
+        .from("meeting_attendees")
+        .select("meeting:meetings!inner(id, title, meeting_date, meeting_time, status)")
+        .eq("user_id", profile.id)
+        .gte("meetings.meeting_date", todayIso)
+        .neq("meetings.status", "cancelled")
+        .order("meeting_date", { referencedTable: "meetings", ascending: true })
+        .limit(3),
+      memberCountQuery,
+    ]);
     setMyMeetings(
       ((myMeetingsRaw as unknown as { meeting: Meeting }[] | null) ?? []).map((r) => r.meeting)
     );
@@ -99,14 +93,15 @@ export default function DashboardScreen() {
       const dueToday = myTasks.filter((t) => t.status !== "completed" && t.due_date?.slice(0, 10) === todayIso).length;
       const completed = myTasks.filter((t) => t.status === "completed").length;
       const myWorkload = (workloadRows as { load_percent: number }[] | null)?.[0];
+      const newCount = myTasks.filter((t) => t.status === "new").length;
+      const completionRate = myTasks.length ? Math.round((completed / myTasks.length) * 100) : 0;
 
-      setSummaryRows([
-        { value: myTasks.length, label: "إجمالي مهامي" },
-        { value: dueToday, label: "مستحقة اليوم" },
-        { value: overdue, label: "متأخرة" },
+      setTiles([
+        { value: completed, suffix: "", label: "مهام منجزة", color: "accent" },
+        { value: newCount, suffix: "", label: "مهام جديدة", color: "orange" },
+        { value: memberCount ?? 0, suffix: "", label: "أعضاء الفريق", color: "pink" },
+        { value: completionRate, suffix: "٪", label: "معدل الإنجاز", color: "green" },
       ]);
-      setRingValue(myTasks.length ? Math.round((completed / myTasks.length) * 100) : 0);
-      setRingLabel("نسبة الإنجاز");
       setProgressLabel("حملي الوظيفي");
       setProgressValue(myWorkload?.load_percent ?? 0);
       setUrgentTasks(
@@ -161,13 +156,12 @@ export default function DashboardScreen() {
       const sla = (slaRows as { compliance_rate: number }[] | null)?.[0];
       const completionRate = summary?.total_count ? Math.round(((summary.completed_count ?? 0) / summary.total_count) * 100) : 0;
 
-      setSummaryRows([
-        { value: summary?.active_count ?? 0, label: "نشطة" },
-        { value: summary?.pending_review_count ?? 0, label: "بانتظار المراجعة" },
-        { value: summary?.team_overdue_count ?? 0, label: "متأخرة" },
+      setTiles([
+        { value: summary?.completed_count ?? 0, suffix: "", label: "مهام منجزة", color: "accent" },
+        { value: summary?.active_count ?? 0, suffix: "", label: "مهام نشطة", color: "orange" },
+        { value: memberCount ?? 0, suffix: "", label: "أعضاء الفريق", color: "pink" },
+        { value: completionRate, suffix: "٪", label: "معدل الإنجاز", color: "green" },
       ]);
-      setRingValue(completionRate);
-      setRingLabel("معدل الإنجاز");
       setProgressLabel("الالتزام بـ SLA");
       setProgressValue(sla?.compliance_rate ?? 100);
       setApprovalQueue((pendingApprovalsRaw as ApprovalRow[] | null) ?? []);
@@ -203,17 +197,24 @@ export default function DashboardScreen() {
         colors={GRADIENT_PRIMARY}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        className="px-4 pb-16"
-        style={{ paddingTop: insets.top + 12 }}
+        style={{ paddingTop: insets.top + 12, paddingBottom: 64, paddingHorizontal: 16 }}
       >
         <View className="mb-4 flex-row items-center justify-between">
           <TouchableOpacity onPress={signOut} className="h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-white/15">
             <Text className="text-white">⎋</Text>
           </TouchableOpacity>
-          <View className="rounded-full bg-white/15 px-3 py-1.5">
-            <Text className="text-[11px] font-bold text-white">
-              {profile.role === "super_admin" ? "مدير عام" : profile.role === "department_manager" ? "مدير قسم" : "موظف"}
-            </Text>
+          <View className="flex-row items-center gap-2">
+            <View className="rounded-full bg-white/15 px-3 py-1.5">
+              <Text className="text-[11px] font-bold text-white">
+                {profile.role === "super_admin" ? "مدير عام" : profile.role === "department_manager" ? "مدير قسم" : "موظف"}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => router.push("/notifications")}
+              className="h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-white/15"
+            >
+              <BellIcon color="#fff" size={16} />
+            </TouchableOpacity>
           </View>
         </View>
         <Text className="mb-1 text-[13px] font-bold text-white/85">
@@ -229,20 +230,20 @@ export default function DashboardScreen() {
         </Text>
       </LinearGradient>
 
-      <View className="mt-1 px-4">
-        <View className="rounded-[20px] bg-surface p-4 shadow-lg">
-          <View className="flex-row items-center gap-4">
-            <View className="flex-1 gap-3">
-              {summaryRows.map((row) => (
-                <View key={row.label} className="flex-row items-center gap-2.5">
-                  <Text className="text-[16px] font-black text-foreground">{row.value}</Text>
-                  <Text className="text-[11px] font-bold text-faint">{row.label}</Text>
-                </View>
-              ))}
-            </View>
-            <Ring value={ringValue} label={ringLabel} />
-          </View>
-          <View className="mb-1.5 mt-3.5 flex-row items-center justify-between">
+      <View className="-mt-12 px-4">
+        <View className="flex-row gap-3">
+          {tiles.slice(0, 2).map((tile) => (
+            <StatTileCard key={tile.label} tile={tile} />
+          ))}
+        </View>
+        <View className="mt-3 flex-row gap-3">
+          {tiles.slice(2, 4).map((tile) => (
+            <StatTileCard key={tile.label} tile={tile} />
+          ))}
+        </View>
+
+        <View className="mt-3 rounded-[20px] bg-surface p-4 shadow-lg">
+          <View className="mb-1.5 flex-row items-center justify-between">
             <Text className="text-[11.5px] font-bold text-foreground">{progressLabel}</Text>
             <Text className="text-[11.5px] font-bold text-teal-600">{progressValue}%</Text>
           </View>
@@ -250,6 +251,21 @@ export default function DashboardScreen() {
             <View className="h-full rounded-full bg-teal-500" style={{ width: `${Math.min(progressValue, 100)}%` }} />
           </View>
         </View>
+
+        <TouchableOpacity onPress={() => router.push("/ai")} className="mt-3 overflow-hidden rounded-[16px]">
+          <LinearGradient
+            colors={GRADIENT_PRIMARY}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ paddingVertical: 14, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 10 }}
+          >
+            <SparklesIcon color="#fff" />
+            <View className="flex-1">
+              <Text className="text-[13px] font-extrabold text-white">مساعد MONJEZ</Text>
+              <Text className="text-[11px] font-semibold text-white/80">كيف يمكنني مساعدتك اليوم؟</Text>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
 
       {urgentTasks.length > 0 && (

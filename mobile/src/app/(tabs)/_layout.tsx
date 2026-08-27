@@ -65,6 +65,7 @@ export default function TabsLayout() {
          *  dropped from the tab bar per the mockup's 5-item layout. */}
         <Tabs.Screen name="kanban" options={{ href: null }} />
         <Tabs.Screen name="notifications" options={{ href: null }} />
+        <Tabs.Screen name="ai" options={{ href: null }} />
       </Tabs>
 
       <Pressable

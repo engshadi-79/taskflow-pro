@@ -47,8 +47,10 @@ export function MobileHeader({
         colors={GRADIENT_PRIMARY}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        className="px-4 pb-4"
-        style={{ paddingTop: insets.top + 12 }}
+        // Layout-critical spacing goes through `style`, not `className` -
+        // see splash-screen.tsx's own note on why LinearGradient's
+        // className interop can't be relied on for this.
+        style={{ paddingTop: insets.top + 12, paddingBottom: 16, paddingHorizontal: 16 }}
       >
         <View className="mb-3 flex-row items-center gap-2.5">
           {back && <BackButton light />}

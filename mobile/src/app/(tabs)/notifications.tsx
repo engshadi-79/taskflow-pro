@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, Text, TouchableOpacity, View } from "react-native";
 import { MobileHeader } from "@/components/mobile-header";
+import { BellIcon } from "@/components/tab-icons";
 import { supabase } from "@/lib/supabase";
 import { timeAgo } from "@/lib/format-time-ago";
 
@@ -79,9 +80,14 @@ export default function NotificationsScreen() {
           renderItem={({ item: n }) => (
             <TouchableOpacity
               onPress={() => !n.is_read && markOneRead(n.id)}
-              className={`flex-row items-start gap-2.5 rounded-[14px] p-3.5 shadow ${n.is_read ? "bg-surface" : "bg-accent-50"}`}
+              className={`flex-row items-center gap-3 rounded-[14px] p-3.5 shadow ${n.is_read ? "bg-surface" : "bg-accent-50"}`}
             >
-              <View className="mt-1 h-[9px] w-[9px] shrink-0 rounded-full" style={{ backgroundColor: n.is_read ? "#94a3b8" : "#4f46e5" }} />
+              <View
+                className="h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                style={{ backgroundColor: n.is_read ? "#e2e8f0" : "#4f46e5" }}
+              >
+                <BellIcon color={n.is_read ? "#64748b" : "#fff"} size={16} />
+              </View>
               <View className="min-w-0 flex-1">
                 <Text className={`text-[12.5px] leading-relaxed ${n.is_read ? "font-semibold text-muted" : "font-extrabold text-foreground"}`}>
                   {n.title ? `${n.title} — ${n.message}` : n.message}
