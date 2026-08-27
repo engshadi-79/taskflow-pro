@@ -49,3 +49,42 @@ export const DownloadIcon = () =>
 
 export const MoonIcon = () =>
   base(<path strokeLinecap="round" strokeLinejoin="round" d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z" />);
+
+export const SparklesIcon = () =>
+  base(
+    <>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8a4 4 0 0 0 4 4 4 4 0 0 0-4 4 4 4 0 0 0-4-4 4 4 0 0 0 4-4Z" />
+    </>
+  );
+
+export const ZapIcon = () =>
+  base(<path strokeLinecap="round" strokeLinejoin="round" d="M13 3 4 14h6l-1 7 9-11h-6l1-7Z" />);
+
+export const PhoneIcon = () =>
+  base(
+    <>
+      <rect x="7" y="2.5" width="10" height="19" rx="2.5" />
+      <path strokeLinecap="round" d="M11 18.5h2" />
+    </>
+  );
+
+export const PlugIcon = () =>
+  base(
+    <>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0V8Z" />
+      <path strokeLinecap="round" d="M12 16v5" />
+    </>
+  );
+
+export const UserPlusIcon = () =>
+  base(
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <path strokeLinecap="round" d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6" />
+      <path strokeLinecap="round" d="M18 8v6M15 11h6" />
+    </>
+  );
+
+export const CheckIcon = () =>
+  base(<path strokeLinecap="round" strokeLinejoin="round" d="m4 12 5 5L20 6" />);
