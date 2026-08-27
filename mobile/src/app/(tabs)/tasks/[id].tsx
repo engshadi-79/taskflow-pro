@@ -195,6 +195,23 @@ export default function TaskDetailScreen() {
 
         {task.description && <Text className="text-[13px] leading-6 text-muted">{task.description}</Text>}
 
+        {checklist.length > 0 && (
+          <View>
+            <View className="mb-1.5 flex-row items-center justify-between">
+              <Text className="text-[12px] font-bold text-foreground">نسبة الإنجاز</Text>
+              <Text className="text-[12px] font-bold text-accent-600">
+                {Math.round((checklist.filter((c) => c.is_completed).length / checklist.length) * 100)}٪
+              </Text>
+            </View>
+            <View className="h-1.5 w-full overflow-hidden rounded-full bg-accent-50">
+              <View
+                className="h-full rounded-full bg-accent-500"
+                style={{ width: `${Math.round((checklist.filter((c) => c.is_completed).length / checklist.length) * 100)}%` }}
+              />
+            </View>
+          </View>
+        )}
+
         {profile.id === task.assigned_to && ["new", "in_progress"].includes(task.status) && (
           <TouchableOpacity onPress={submitForReview} disabled={pending} className="items-center rounded-[12px] bg-accent-600 py-3 disabled:opacity-60">
             <Text className="text-[13px] font-extrabold text-white">إرسال للمراجعة</Text>

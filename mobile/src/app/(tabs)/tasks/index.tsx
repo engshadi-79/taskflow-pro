@@ -95,12 +95,12 @@ export default function TasksScreen() {
                   </Text>
                 </View>
               </View>
-              <View className="mt-2 flex-row items-center gap-2">
-                <View className="h-[7px] w-[7px] rounded-full" style={{ backgroundColor: PRIORITY_COLOR[task.priority] }} />
-                <Text className="text-[11.5px] font-semibold" style={{ color: PRIORITY_COLOR[task.priority] }}>
-                  {PRIORITY_LABEL[task.priority]}
-                </Text>
-                <Text className="text-[11.5px] font-semibold text-border">|</Text>
+              <View className="mt-2.5 flex-row items-center gap-2">
+                <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: `${PRIORITY_COLOR[task.priority]}1a` }}>
+                  <Text className="text-[10.5px] font-extrabold" style={{ color: PRIORITY_COLOR[task.priority] }}>
+                    {PRIORITY_LABEL[task.priority]}
+                  </Text>
+                </View>
                 <Text numberOfLines={1} className="flex-1 text-[11.5px] font-semibold text-muted">
                   {task.assignee?.full_name ?? "—"}
                 </Text>
