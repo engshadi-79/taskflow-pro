@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { ActivityIndicator, FlatList, RefreshControl, Text, TouchableOpacity, View } from "react-native";
 import { MobileHeader } from "@/components/mobile-header";
+import { CalendarIcon } from "@/components/tab-icons";
 import { supabase } from "@/lib/supabase";
 
 type MeetingStatus = "scheduled" | "completed" | "cancelled";
@@ -55,23 +56,28 @@ export default function MeetingsScreen() {
           renderItem={({ item: m }) => (
             <TouchableOpacity
               onPress={() => router.push({ pathname: "/more/meetings/[id]", params: { id: m.id } })}
-              className="rounded-[14px] bg-surface p-3.5 shadow"
+              className="flex-row items-center gap-3 rounded-[14px] bg-surface p-3.5 shadow"
             >
-              <View className="flex-row items-start justify-between gap-2">
-                <Text numberOfLines={1} className="min-w-0 flex-1 text-[13.5px] font-bold text-foreground">
-                  {m.title}
-                </Text>
-                <View className="shrink-0 rounded-full px-2.5 py-1" style={{ backgroundColor: STATUS_BADGE[m.status].bg }}>
-                  <Text className="text-[10.5px] font-extrabold" style={{ color: STATUS_BADGE[m.status].text }}>
-                    {STATUS_LABEL[m.status]}
-                  </Text>
-                </View>
+              <View className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50">
+                <CalendarIcon color="#d97706" size={18} />
               </View>
-              <Text className="mt-2 text-[11.5px] font-semibold text-muted">
-                {m.meeting_date}
-                {m.meeting_time ? ` · ${m.meeting_time.slice(0, 5)}` : ""}
-                {m.location ? ` · ${m.location}` : ""}
-              </Text>
+              <View className="min-w-0 flex-1">
+                <View className="flex-row items-start justify-between gap-2">
+                  <Text numberOfLines={1} className="min-w-0 flex-1 text-[13.5px] font-bold text-foreground">
+                    {m.title}
+                  </Text>
+                  <View className="shrink-0 rounded-full px-2.5 py-1" style={{ backgroundColor: STATUS_BADGE[m.status].bg }}>
+                    <Text className="text-[10.5px] font-extrabold" style={{ color: STATUS_BADGE[m.status].text }}>
+                      {STATUS_LABEL[m.status]}
+                    </Text>
+                  </View>
+                </View>
+                <Text className="mt-1 text-[11.5px] font-semibold text-muted">
+                  {m.meeting_date}
+                  {m.meeting_time ? ` · ${m.meeting_time.slice(0, 5)}` : ""}
+                  {m.location ? ` · ${m.location}` : ""}
+                </Text>
+              </View>
             </TouchableOpacity>
           )}
         />

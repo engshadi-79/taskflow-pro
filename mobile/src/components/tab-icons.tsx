@@ -70,6 +70,23 @@ export function SparklesIcon({ color, size = 19 }: IconProps) {
   );
 }
 
+export function CalendarIcon({ color, size = 19 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <Rect x="3" y="4.5" width="18" height="16" rx="2.5" />
+      <Path d="M3 9.5h18M8 2.5v4M16 2.5v4" />
+    </Svg>
+  );
+}
+
+export function FolderIcon({ color, size = 19 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M3 6.5a1.5 1.5 0 0 1 1.5-1.5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18Z" />
+    </Svg>
+  );
+}
+
 export function PlusIcon({ color, size = 24 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">

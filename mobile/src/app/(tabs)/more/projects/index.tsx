@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { ActivityIndicator, FlatList, RefreshControl, Text, TouchableOpacity, View } from "react-native";
 import { MobileHeader } from "@/components/mobile-header";
+import { FolderIcon } from "@/components/tab-icons";
 import { supabase } from "@/lib/supabase";
 
 type ProjectStatus = "planning" | "active" | "on_hold" | "completed" | "cancelled" | "archived";
@@ -89,24 +90,29 @@ export default function ProjectsScreen() {
             return (
               <TouchableOpacity
                 onPress={() => router.push({ pathname: "/more/projects/[id]", params: { id: project.id } })}
-                className="rounded-[14px] bg-surface p-3.5 shadow"
+                className="flex-row items-center gap-3 rounded-[14px] bg-surface p-3.5 shadow"
               >
-                <View className="flex-row items-start justify-between gap-2">
-                  <Text numberOfLines={1} className="min-w-0 flex-1 text-[13.5px] font-bold text-foreground">
-                    {project.name}
-                  </Text>
-                  <View className="shrink-0 rounded-full px-2.5 py-1" style={{ backgroundColor: STATUS_BADGE[project.status].bg }}>
-                    <Text className="text-[10.5px] font-extrabold" style={{ color: STATUS_BADGE[project.status].text }}>
-                      {STATUS_LABEL[project.status]}
+                <View className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-pink-50">
+                  <FolderIcon color="#db2777" size={18} />
+                </View>
+                <View className="min-w-0 flex-1">
+                  <View className="flex-row items-start justify-between gap-2">
+                    <Text numberOfLines={1} className="min-w-0 flex-1 text-[13.5px] font-bold text-foreground">
+                      {project.name}
                     </Text>
+                    <View className="shrink-0 rounded-full px-2.5 py-1" style={{ backgroundColor: STATUS_BADGE[project.status].bg }}>
+                      <Text className="text-[10.5px] font-extrabold" style={{ color: STATUS_BADGE[project.status].text }}>
+                        {STATUS_LABEL[project.status]}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-                <View className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-background">
-                  <View className="h-full rounded-full bg-accent-500" style={{ width: `${rate}%` }} />
-                </View>
-                <View className="mt-2 flex-row items-center justify-between">
-                  <Text className="text-[11.5px] font-semibold text-muted">{project.manager?.full_name ?? "بدون مدير"}</Text>
-                  <Text className="text-[11.5px] font-semibold text-muted">{project.due_date ?? "—"}</Text>
+                  <View className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-background">
+                    <View className="h-full rounded-full bg-accent-500" style={{ width: `${rate}%` }} />
+                  </View>
+                  <View className="mt-2 flex-row items-center justify-between">
+                    <Text className="text-[11.5px] font-semibold text-muted">{project.manager?.full_name ?? "بدون مدير"}</Text>
+                    <Text className="text-[11.5px] font-semibold text-muted">{project.due_date ?? "—"}</Text>
+                  </View>
                 </View>
               </TouchableOpacity>
             );
