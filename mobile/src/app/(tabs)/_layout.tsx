@@ -1,13 +1,25 @@
 import { useEffect } from "react";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
+import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BellIcon, GridIcon, KanbanIcon, MoreIcon, TasksIcon } from "@/components/tab-icons";
+import { GridIcon, MoreIcon, PlusIcon, RequestsIcon, TasksIcon } from "@/components/tab-icons";
 import { useAuth } from "@/lib/auth-context";
 import { enablePush } from "@/lib/push-registration";
 
 const ACTIVE = "#4f46e5";
 const INACTIVE = "#94a3b8";
+
+/** An empty slot in the tab bar row - reserves the layout space the real
+ *  floating button sits over. The real button is rendered as a sibling of
+ *  <Tabs> below, NOT nested inside the tab bar - the bar's own container
+ *  clips its children to its own height, so a button raised above that
+ *  height with a negative `top` paints outside the bar (visible, thanks to
+ *  elevation) but never receives touches out there. Rendering it as an
+ *  independent overlay avoids that clipping entirely. */
+function EmptyTabSlot() {
+  return <View style={{ flex: 1 }} />;
+}
 
 export default function TabsLayout() {
   // Android's on-screen nav bar (3-button mode especially) sits below the
@@ -16,6 +28,8 @@ export default function TabsLayout() {
   // insets.bottom is the actual reserved system-UI height for this device.
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
+  const router = useRouter();
+  const barHeight = 54 + insets.bottom;
 
   useEffect(() => {
     if (!profile) return;
@@ -28,20 +42,53 @@ export default function TabsLayout() {
   }, [profile]);
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: ACTIVE,
-        tabBarInactiveTintColor: INACTIVE,
-        tabBarStyle: { height: 54 + insets.bottom, paddingTop: 6, paddingBottom: insets.bottom + 6 },
-        tabBarLabelStyle: { fontSize: 9.5, fontWeight: "700" },
-      }}
-    >
-      <Tabs.Screen name="index" options={{ title: "الرئيسية", tabBarIcon: ({ color }) => <GridIcon color={String(color)} /> }} />
-      <Tabs.Screen name="tasks" options={{ title: "المهام", tabBarIcon: ({ color }) => <TasksIcon color={String(color)} /> }} />
-      <Tabs.Screen name="kanban" options={{ title: "كانبان", tabBarIcon: ({ color }) => <KanbanIcon color={String(color)} /> }} />
-      <Tabs.Screen name="notifications" options={{ title: "الإشعارات", tabBarIcon: ({ color }) => <BellIcon color={String(color)} /> }} />
-      <Tabs.Screen name="more" options={{ title: "المزيد", tabBarIcon: ({ color }) => <MoreIcon color={String(color)} /> }} />
-    </Tabs>
+    <View style={{ flex: 1 }}>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: ACTIVE,
+          tabBarInactiveTintColor: INACTIVE,
+          tabBarStyle: { height: barHeight, paddingTop: 6, paddingBottom: insets.bottom + 6 },
+          tabBarLabelStyle: { fontSize: 9.5, fontWeight: "700" },
+        }}
+      >
+        <Tabs.Screen name="index" options={{ title: "الرئيسية", tabBarIcon: ({ color }) => <GridIcon color={String(color)} /> }} />
+        <Tabs.Screen name="tasks" options={{ title: "المهام", tabBarIcon: ({ color }) => <TasksIcon color={String(color)} /> }} />
+        <Tabs.Screen
+          name="create"
+          options={{ title: "", tabBarButton: () => <EmptyTabSlot /> }}
+          listeners={{ tabPress: (e) => e.preventDefault() }}
+        />
+        <Tabs.Screen name="requests" options={{ title: "الطلبات", tabBarIcon: ({ color }) => <RequestsIcon color={String(color)} /> }} />
+        <Tabs.Screen name="more" options={{ title: "المزيد", tabBarIcon: ({ color }) => <MoreIcon color={String(color)} /> }} />
+        {/* Kept routable (linked from within Tasks/Home in a later phase) but
+         *  dropped from the tab bar per the mockup's 5-item layout. */}
+        <Tabs.Screen name="kanban" options={{ href: null }} />
+        <Tabs.Screen name="notifications" options={{ href: null }} />
+      </Tabs>
+
+      <Pressable
+        onPress={() => router.push("/tasks/new")}
+        style={{
+          position: "absolute",
+          bottom: barHeight - 26,
+          left: "50%",
+          marginLeft: -26,
+          width: 52,
+          height: 52,
+          borderRadius: 26,
+          backgroundColor: ACTIVE,
+          alignItems: "center",
+          justifyContent: "center",
+          shadowColor: "#4f46e5",
+          shadowOpacity: 0.4,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 6,
+        }}
+      >
+        <PlusIcon color="#fff" size={24} />
+      </Pressable>
+    </View>
   );
 }

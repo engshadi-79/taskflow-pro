@@ -52,6 +52,23 @@ export function MoreIcon({ color, size = 19 }: IconProps) {
   );
 }
 
+export function RequestsIcon({ color, size = 19 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <Rect x="4" y="2.5" width="16" height="19" rx="2.5" />
+      <Path d="M8 8h8M8 12h8M8 16h4.5" />
+    </Svg>
+  );
+}
+
+export function PlusIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M12 5v14M5 12h14" />
+    </Svg>
+  );
+}
+
 export function BackIcon({ color = "#1a202c", size = 14 }: { color?: string; size?: number }) {
   return (
     <Svg width={size * 0.6} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">

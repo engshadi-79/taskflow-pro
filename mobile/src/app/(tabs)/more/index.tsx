@@ -9,7 +9,6 @@ const ITEMS: { key: string; href: Href; label: string; tint: string; icon: strin
   { key: "workload", href: "/more/workload", label: "الحمل الوظيفي", tint: "bg-accent-50", icon: "📊", managerOnly: true },
   { key: "meetings", href: "/more/meetings/index", label: "الاجتماعات", tint: "bg-orange-50", icon: "🗓" },
   { key: "chat", href: "/more/chat/index", label: "المحادثات", tint: "bg-teal-50", icon: "💬" },
-  { key: "requests", href: "/more/requests", label: "الطلبات والموافقات", tint: "bg-green-50", icon: "✅" },
   { key: "reports", href: "/more/reports", label: "التقارير والأداء", tint: "bg-brand-blue-50", icon: "📈" },
   { key: "profile", href: "/more/profile", label: "الملف الشخصي", tint: "bg-accent-50", icon: "👤" },
   { key: "settings", href: "/more/settings", label: "الإعدادات", tint: "bg-background", icon: "⚙️" },
