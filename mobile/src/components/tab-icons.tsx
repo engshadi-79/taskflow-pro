@@ -1,6 +1,6 @@
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 
-type IconProps = { color: string; size?: number };
+export type IconProps = { color: string; size?: number };
 
 /** Same paths as the web app's mobile-tab-bar.tsx, ported to react-native-svg. */
 export function GridIcon({ color, size = 19 }: IconProps) {
@@ -83,6 +83,50 @@ export function FolderIcon({ color, size = 19 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
       <Path d="M3 6.5a1.5 1.5 0 0 1 1.5-1.5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18Z" />
+    </Svg>
+  );
+}
+
+export function SearchIcon({ color, size = 19 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <Circle cx="10.5" cy="10.5" r="6.5" />
+      <Path d="m20 20-4.5-4.5" />
+    </Svg>
+  );
+}
+
+export function GearIcon({ color, size = 19 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <Circle cx="12" cy="12" r="3.2" />
+      <Path d="M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5M17.7 6.3l-1.6 1.6M7.9 16.1l-1.6 1.6M17.7 17.7l-1.6-1.6M7.9 7.9 6.3 6.3" />
+    </Svg>
+  );
+}
+
+export function ChatBubbleIcon({ color, size = 19 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M4 5.5h16v10.5H9l-4 3.5v-3.5H4Z" />
+    </Svg>
+  );
+}
+
+export function TrendIcon({ color, size = 19 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M3 17.5 9.5 11l4 4L21 6.5" />
+      <Path d="M15.5 6.5H21v5.5" />
+    </Svg>
+  );
+}
+
+export function PersonIcon({ color, size = 19 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <Circle cx="12" cy="8" r="3.5" />
+      <Path d="M5 20c0-3.5 3-6.3 7-6.3s7 2.8 7 6.3" />
     </Svg>
   );
 }

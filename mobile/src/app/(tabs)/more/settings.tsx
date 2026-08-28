@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { MobileHeader } from "@/components/mobile-header";
+import { BellIcon } from "@/components/tab-icons";
 import { useAuth } from "@/lib/auth-context";
 import { checkPushStatus, disablePush, enablePush, type PushStatus } from "@/lib/push-registration";
 
@@ -35,7 +36,7 @@ export default function SettingsScreen() {
       <View className="gap-3 px-4 pb-6">
         <View className="flex-row items-center gap-3 rounded-[14px] bg-surface p-3.5 shadow">
           <View className="h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-accent-50">
-            <Text className="text-accent-600">🔔</Text>
+            <BellIcon color="#4f46e5" size={16} />
           </View>
           <View className="flex-1">
             <Text className="text-[13px] font-bold text-foreground">تنبيهات فورية على الجوال</Text>

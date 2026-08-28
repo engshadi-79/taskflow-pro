@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BellIcon, SparklesIcon } from "@/components/tab-icons";
+import { BellIcon, SearchIcon, SparklesIcon } from "@/components/tab-icons";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import { GRADIENT_PRIMARY, PRIORITY_COLOR, STATUS_COLOR, STATUS_LABEL, type Priority, type TaskStatus } from "@/lib/mobile-theme";
@@ -209,6 +209,12 @@ export default function DashboardScreen() {
                 {profile.role === "super_admin" ? "مدير عام" : profile.role === "department_manager" ? "مدير قسم" : "موظف"}
               </Text>
             </View>
+            <TouchableOpacity
+              onPress={() => router.push("/search")}
+              className="h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-white/15"
+            >
+              <SearchIcon color="#fff" size={16} />
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={() => router.push("/notifications")}
               className="h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-white/15"

@@ -66,6 +66,7 @@ export default function TabsLayout() {
         <Tabs.Screen name="kanban" options={{ href: null }} />
         <Tabs.Screen name="notifications" options={{ href: null }} />
         <Tabs.Screen name="ai" options={{ href: null }} />
+        <Tabs.Screen name="search" options={{ href: null }} />
       </Tabs>
 
       <Pressable
