@@ -139,6 +139,32 @@ export function PlusIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+export function CheckIcon({ color, size = 19 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="m4 12.5 5 5L20 7" />
+    </Svg>
+  );
+}
+
+export function XCircleIcon({ color, size = 19 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <Circle cx="12" cy="12" r="9" />
+      <Path d="m9 9 6 6M15 9l-6 6" />
+    </Svg>
+  );
+}
+
+export function SendIcon({ color, size = 19 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M21 3 3 10.5l7.5 3L13.5 21 21 3Z" />
+      <Path d="M10.5 13.5 21 3" />
+    </Svg>
+  );
+}
+
 export function BackIcon({ color = "#1a202c", size = 14 }: { color?: string; size?: number }) {
   return (
     <Svg width={size * 0.6} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
