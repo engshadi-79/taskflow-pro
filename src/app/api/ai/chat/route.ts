@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/data/profile";
+import { getProfileFromBearerToken, parseBearerToken } from "@/lib/supabase/mobile-auth";
 import { runAssistant, AiProviderRateLimitError } from "@/lib/ai/assistant";
 
 const MAX_MESSAGE_LENGTH = 2000;
@@ -11,10 +12,22 @@ const RATE_LIMIT_PER_DAY = 80;
 type HistoryTurn = { role: "user" | "assistant"; content: string };
 
 export async function POST(request: Request) {
-  const profile = await getCurrentProfile();
-  if (!profile) {
+  // Web dashboard: cookie session (getCurrentProfile). Mobile app: no
+  // cookie jar, so it sends its own Supabase access token as a bearer
+  // header instead - same user, same RLS scoping, just a different way of
+  // proving it. Cookie path stays untouched for the existing web caller.
+  const cookieProfile = await getCurrentProfile();
+  const bearerToken = parseBearerToken(request.headers.get("authorization"));
+  const authResult = cookieProfile
+    ? { supabase: await createClient(), profile: cookieProfile }
+    : bearerToken
+      ? await getProfileFromBearerToken(bearerToken)
+      : null;
+
+  if (!authResult) {
     return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 });
   }
+  const { supabase, profile } = authResult;
 
   let body: { message?: unknown; history?: unknown };
   try {
@@ -42,8 +55,6 @@ export async function POST(request: Request) {
     )
     .slice(-MAX_HISTORY_TURNS)
     .map((h) => ({ role: h.role, content: h.content.slice(0, MAX_MESSAGE_LENGTH) }));
-
-  const supabase = await createClient();
 
   const since1min = new Date(Date.now() - 60_000).toISOString();
   const since1day = new Date(Date.now() - 86_400_000).toISOString();
