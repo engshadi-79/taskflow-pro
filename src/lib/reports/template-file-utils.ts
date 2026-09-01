@@ -508,6 +508,20 @@ export async function fillXlsxTemplate(
   // shared; the whole block repeats per group instead.
   const perGroupDates = dateRowNumber != null && !!options?.sessionDates?.weekdaysByGroup;
 
+  // A template's own "repeat these rows on every printed page" setting
+  // (Excel's Print Titles) makes sense for the shared-letterhead case - it's
+  // the only way page 2+ of a long single-schedule roster still shows the
+  // column headers when printed, since the real header row only exists
+  // once, physically, at the top. In perGroupDates mode that reasoning
+  // flips: every group already carries its own full letterhead inline, so
+  // Print Titles would instead paste whichever group happens to sit at the
+  // very top of the sheet onto every other group's printed pages too -
+  // disabled here rather than left to silently duplicate/misattribute it.
+  if (perGroupDates) {
+    sheet.pageSetup.printTitlesRow = undefined;
+    sheet.pageSetup.printTitlesColumn = undefined;
+  }
+
   // Rows above the one-time "written once" section - normally the title/
   // subtitle/date row above the column-header row. None of it is ever
   // duplicated in the common case: a multi-group attendance sheet is one
