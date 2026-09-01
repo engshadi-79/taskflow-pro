@@ -480,6 +480,13 @@ export async function fillXlsxTemplate(
 
   const columnCount = Math.max(sheet.columnCount, sheet.getRow(1).cellCount, templateHeaders.length);
   const headerRowNumber = findHeaderRowNumber(sheet, columnCount);
+  // Rows above the column-header row (title, subtitle, a shared date row) -
+  // the letterhead. It's written once, at the very top of the sheet, and
+  // never duplicated: a multi-group attendance sheet is one continuous
+  // workbook someone scrolls through, not a stack of separately-printed
+  // pages each needing its own copy of the logo/title (unlike
+  // fillDocxTemplate's Word pages, which are exactly that).
+  const letterheadEndRow = headerRowNumber - 1;
 
   let dateRowNumber: number | null = null;
   let dateColumnCount = 0;
@@ -488,6 +495,12 @@ export async function fillXlsxTemplate(
     if (dateRowNumber == null) throw new Error("لم يتم العثور على صف تواريخ في هذا القالب");
     dateColumnCount = dateRowTargetColumns(sheet, dateRowNumber, columnCount).length;
   }
+  // A date row living in the letterhead (above the header) is shared by
+  // every group and only ever written once - see the loop below. Only a
+  // date row placed *inside* the repeating block itself (a template where
+  // each group's own section carries its own date row) still gets a fresh
+  // set of labels per group, via weekdaysByGroup.
+  const dateRowInLetterhead = dateRowNumber != null && dateRowNumber <= letterheadEndRow;
 
   let blockEndRow = headerRowNumber;
   while (blockEndRow < sheet.rowCount) {
@@ -507,18 +520,20 @@ export async function fillXlsxTemplate(
     dataCellStyles.push({ ...sheet.getRow(styleSourceRow).getCell(col).style });
   }
 
+  // The repeating unit is just the column-header row plus any placeholder
+  // row(s) immediately below it (e.g. a group-title row) - NOT the
+  // letterhead above it, which is captured and written separately, once.
   const blockSnapshot: CellSnapshot[][] = [];
-  for (let r = 1; r <= blockEndRow; r++) blockSnapshot.push(snapshotRow(sheet, r, columnCount));
+  for (let r = headerRowNumber; r <= blockEndRow; r++) blockSnapshot.push(snapshotRow(sheet, r, columnCount));
   const blockMerges = (sheet.model.merges ?? []).filter((range) => {
     const match = range.match(/^[A-Z]+(\d+):[A-Z]+(\d+)$/);
-    return match != null && Number(match[2]) <= blockEndRow;
+    return match != null && Number(match[1]) >= headerRowNumber && Number(match[2]) <= blockEndRow;
   });
-  // A logo/letterhead image anchored within the header block (e.g. an
-  // organization logo placed over the title cells) is tracked separately
-  // from cell values/styles - snapshotRow never sees it, so it has to be
-  // captured and re-anchored explicitly for every duplicated group copy,
-  // or only the very first group would keep it.
-  const blockImages = snapshotBlockImages(sheet, blockEndRow);
+  // A logo/letterhead image sits in the letterhead itself in every template
+  // seen so far, so it's excluded the same way the letterhead's cells are -
+  // this only captures an image anchored *inside* the repeating block
+  // (uncommon, but kept for symmetry with blockMerges/blockSnapshot above).
+  const blockImages = snapshotBlockImages(sheet, blockEndRow).filter((img) => img.tl.nativeRow >= headerRowNumber - 1);
 
   // Drop whatever example rows the template shipped below its header - the
   // real uploaded roster replaces them entirely, it doesn't append after.
@@ -545,10 +560,29 @@ export async function fillXlsxTemplate(
 
   const groups = options?.groupByColumns?.length ? groupRowsByColumns(dataRows, options.groupByColumns) : [dataRows];
 
+  // Letterhead: written exactly once, using the first group's row for any
+  // placeholder that happens to reference a data column (uncommon - the
+  // letterhead is normally workbook-level text like the month/year) plus
+  // the shared date labels when this template's date row lives up here.
+  if (letterheadEndRow >= 1) {
+    let letterheadExtra: Record<string, string> = {};
+    if (dateRowInLetterhead && options?.sessionDates) {
+      const weekdays = resolveGroupWeekdays(options.sessionDates, options.groupByColumns, dataRows[0]);
+      const dateLabels = computeSessionDates(options.sessionDates.startDate, options.sessionDates.endDate, weekdays, dateColumnCount);
+      letterheadExtra = sessionDatePlaceholders(options.sessionDates.startDate, weekdays);
+      applyDatesToRow(sheet, dateRowNumber!, columnCount, dateLabels);
+    }
+    for (let r = 1; r <= letterheadEndRow; r++) {
+      substituteCellPlaceholdersInRow(sheet, r, columnCount, placeholderValuesFor(dataRows[0], letterheadExtra));
+    }
+  }
+
   groups.forEach((groupRows, index) => {
     let extraPlaceholders: Record<string, string> = {};
     let dateLabels: string[] | null = null;
-    if (options?.sessionDates) {
+    // A date row inside the repeating block (rather than the letterhead)
+    // is the one case that still varies per group - see weekdaysByGroup.
+    if (options?.sessionDates && !dateRowInLetterhead) {
       const weekdays = resolveGroupWeekdays(options.sessionDates, options.groupByColumns, groupRows[0]);
       dateLabels = computeSessionDates(options.sessionDates.startDate, options.sessionDates.endDate, weekdays, dateColumnCount);
       extraPlaceholders = sessionDatePlaceholders(options.sessionDates.startDate, weekdays);
@@ -558,11 +592,15 @@ export async function fillXlsxTemplate(
       // The original block is still sitting untouched at the top of the
       // sheet - substitute its placeholders in place rather than
       // duplicating a fresh copy of it.
-      for (let r = 1; r <= blockEndRow; r++) substituteCellPlaceholdersInRow(sheet, r, columnCount, placeholderValuesFor(groupRows[0], extraPlaceholders));
+      for (let r = headerRowNumber; r <= blockEndRow; r++) {
+        substituteCellPlaceholdersInRow(sheet, r, columnCount, placeholderValuesFor(groupRows[0], extraPlaceholders));
+      }
       if (dateLabels) applyDatesToRow(sheet, dateRowNumber!, columnCount, dateLabels);
     } else {
       // Every group after the first starts on its own fresh printed page -
-      // only the very first section is already at the top of page 1.
+      // only the very first section is already at the top of page 1. Only
+      // the repeating block (header + group-title row) is duplicated here,
+      // never the letterhead above it.
       sheet.getRow(sheet.rowCount).addPageBreak();
 
       const insertStartRow = sheet.rowCount + 1;
@@ -570,13 +608,14 @@ export async function fillXlsxTemplate(
         const newRow = sheet.addRow(cells.map((c) => c.value));
         cells.forEach((c, i) => (newRow.getCell(i + 1).style = c.style));
       }
-      const rowOffset = insertStartRow - 1;
+      const rowOffset = insertStartRow - headerRowNumber;
       for (const range of blockMerges) sheet.mergeCells(shiftMergeRange(range, rowOffset));
       addShiftedImages(sheet, blockImages, rowOffset);
-      for (let r = insertStartRow; r <= insertStartRow + blockEndRow - 1; r++) {
+      const blockRowCount = blockEndRow - headerRowNumber + 1;
+      for (let r = insertStartRow; r <= insertStartRow + blockRowCount - 1; r++) {
         substituteCellPlaceholdersInRow(sheet, r, columnCount, placeholderValuesFor(groupRows[0], extraPlaceholders));
       }
-      if (dateLabels) applyDatesToRow(sheet, insertStartRow + dateRowNumber! - 1, columnCount, dateLabels);
+      if (dateLabels) applyDatesToRow(sheet, insertStartRow + (dateRowNumber! - headerRowNumber), columnCount, dateLabels);
     }
 
     let counter = 1;
