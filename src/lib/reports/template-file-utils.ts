@@ -195,16 +195,26 @@ function sessionDatePlaceholders(startDate: string, weekdays: number[]): Record<
   };
 }
 
-/** Finds a session-date row's own existing non-empty cells (its physical
- *  column positions), independent of however many labels will end up being
- *  written into them - shared by the upfront column-count check and the
- *  actual write. */
+/** Finds a session-date row's own existing non-empty cells - one target per
+ *  logical date cell, not per physical column. A real attendance template
+ *  typically merges each date across several columns (one per
+ *  حضور/خروج/توقيع sub-column beneath it), so every column inside that merge
+ *  reports the same non-empty value; counting each of those separately would
+ *  both wildly overcount how many dates to generate and, since a merged
+ *  range only ever has one real cell (the others are ExcelJS-managed slaves
+ *  that redirect writes to it), end up overwriting that one cell 2-3 times
+ *  in a row with only the last write surviving. Only a merge's own master
+ *  column counts as a target; a plain unmerged non-empty cell (a template
+ *  with one column per date, no merge) still counts as before. */
 function dateRowTargetColumns(sheet: ExcelJS.Worksheet, rowNumber: number, columnCount: number): number[] {
   const row = sheet.getRow(rowNumber);
   const cols: number[] = [];
   for (let col = 1; col <= columnCount; col++) {
-    const value = cellToPlainValue(row.getCell(col));
-    if (value != null && String(value).trim() !== "") cols.push(col);
+    const cell = row.getCell(col);
+    const value = cellToPlainValue(cell);
+    if (value == null || String(value).trim() === "") continue;
+    if (cell.isMerged && cell.master.fullAddress.col !== col) continue;
+    cols.push(col);
   }
   return cols;
 }
