@@ -299,10 +299,17 @@ export function isDocxFile(file: File): boolean {
   return file.name.toLowerCase().endsWith(".docx");
 }
 
+/** Real-world spreadsheets routinely carry stray leading/trailing spaces
+ *  from manual data entry (copy-pasted names, a trailing space after
+ *  someone's last edit) - invisible in the source file's own cells but very
+ *  visible once inserted into a generated row of its own, so trimmed here
+ *  rather than passed through as-is. Numbers are returned untouched (no
+ *  string coercion needed, nothing to trim). */
 function mappedValue(header: string, mapping: Record<string, string>, row: ParsedExcelRow): string | number {
   const sourceKey = mapping[header];
   if (!sourceKey) return "";
-  return row[sourceKey] ?? "";
+  const value = row[sourceKey] ?? "";
+  return typeof value === "string" ? value.trim() : value;
 }
 
 /** `autoNumberHeader`, when it matches one of the template's own columns
