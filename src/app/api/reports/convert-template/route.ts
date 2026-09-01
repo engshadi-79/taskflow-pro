@@ -8,10 +8,22 @@ import {
   fillXlsxTemplate,
   fillDocxTemplate,
   isDocxFile,
+  formatMonthYearArabic,
   type ParsedExcelRow,
 } from "@/lib/reports/template-file-utils";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
+
+/** Arabic filenames need the RFC 5987 filename* form - a plain ASCII
+ *  `filename="..."` either mangles non-ASCII characters or gets rejected
+ *  outright depending on the browser, so both forms are sent together: a
+ *  safe ASCII fallback for anything that only reads the legacy param, and
+ *  the real UTF-8 name (percent-encoded per the RFC) for everything else. */
+function contentDisposition(name: string, extension: string): string {
+  const fallback = `converted.${extension}`;
+  const encoded = encodeURIComponent(`${name}.${extension}`);
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encoded}`;
+}
 
 function mappedRow(header: string, mapping: Record<string, string>, row: ParsedExcelRow): string {
   const sourceKey = mapping?.[header];
@@ -122,15 +134,25 @@ export async function POST(request: NextRequest) {
     // whether the fill-in-place path applies.
     let templateBuffer: ArrayBuffer | null = null;
     let templateIsDocx = false;
+    // A saved template's own name (e.g. "كشف حضور وغياب الامن") names the
+    // download too, instead of the generic "converted.xlsx" - falls back to
+    // the uploaded file's own name (minus its extension) when there's no
+    // saved template to name it after.
+    let outputName = "converted";
 
     if (savedTemplateId) {
       const saved = await fetchSavedTemplateFile(savedTemplateId);
       if ("error" in saved) return NextResponse.json({ error: saved.error }, { status: 400 });
       templateBuffer = saved.buffer;
       templateIsDocx = saved.format === "docx";
+      outputName = saved.name;
     } else if (templateFile) {
       templateBuffer = await templateFile.arrayBuffer();
       templateIsDocx = isDocxFile(templateFile);
+      outputName = templateFile.name.replace(/\.[^.]+$/, "") || outputName;
+    }
+    if (sessionDates) {
+      outputName = `${outputName} - ${formatMonthYearArabic(sessionDates.startDate)}`;
     }
 
     const sameFormat = templateBuffer != null && (outputFormat === "docx") === templateIsDocx;
@@ -142,7 +164,7 @@ export async function POST(request: NextRequest) {
       return new NextResponse(new Uint8Array(buffer), {
         headers: {
           "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          "Content-Disposition": 'attachment; filename="converted.docx"',
+          "Content-Disposition": contentDisposition(outputName, "docx"),
         },
       });
     }
@@ -153,7 +175,7 @@ export async function POST(request: NextRequest) {
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": 'attachment; filename="converted.xlsx"',
+        "Content-Disposition": contentDisposition(outputName, "xlsx"),
       },
     });
   } catch (err) {

@@ -178,6 +178,15 @@ function weekPositionFromSaturday(weekday: number): number {
   return (weekday + 1) % 7;
 }
 
+/** "شهر سنة" (e.g. "سبتمبر 2026") from a "YYYY-MM-DD" date - used to name
+ *  the downloaded file after the period it covers, same month/year this
+ *  generation's own {{الشهر}}/{{السنة}} placeholders resolve to. */
+export function formatMonthYearArabic(startDate: string): string {
+  const start = parseIsoDateLocal(startDate);
+  const month = ARABIC_MONTH_NAMES[start.getMonth()] ?? String(start.getMonth() + 1);
+  return `${month} ${start.getFullYear()}`;
+}
+
 /** {{الشهر}}/{{السنة}}/{{الأيام}} describe the whole generation run, not any
  *  one data row, so they can't come from rowToPlaceholderValues - computed
  *  once and merged into every group's placeholder values instead. Derived
