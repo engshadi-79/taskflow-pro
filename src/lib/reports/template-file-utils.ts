@@ -489,13 +489,6 @@ export async function fillXlsxTemplate(
 
   const columnCount = Math.max(sheet.columnCount, sheet.getRow(1).cellCount, templateHeaders.length);
   const headerRowNumber = findHeaderRowNumber(sheet, columnCount);
-  // Rows above the column-header row (title, subtitle, a shared date row) -
-  // the letterhead. It's written once, at the very top of the sheet, and
-  // never duplicated: a multi-group attendance sheet is one continuous
-  // workbook someone scrolls through, not a stack of separately-printed
-  // pages each needing its own copy of the logo/title (unlike
-  // fillDocxTemplate's Word pages, which are exactly that).
-  const letterheadEndRow = headerRowNumber - 1;
 
   let dateRowNumber: number | null = null;
   let dateColumnCount = 0;
@@ -504,12 +497,24 @@ export async function fillXlsxTemplate(
     if (dateRowNumber == null) throw new Error("لم يتم العثور على صف تواريخ في هذا القالب");
     dateColumnCount = dateRowTargetColumns(sheet, dateRowNumber, columnCount).length;
   }
-  // A date row living in the letterhead (above the header) is shared by
-  // every group and only ever written once - see the loop below. Only a
-  // date row placed *inside* the repeating block itself (a template where
-  // each group's own section carries its own date row) still gets a fresh
-  // set of labels per group, via weekdaysByGroup.
-  const dateRowInLetterhead = dateRowNumber != null && dateRowNumber <= letterheadEndRow;
+  // Every group sharing the same dates (no weekdaysByGroup, or a template
+  // with no date row at all) is the common case: the date row (if any)
+  // behaves like the rest of the letterhead - written once, at the top,
+  // never duplicated. weekdaysByGroup means groups genuinely meet on
+  // different days, so each one needs its OWN date row - at that point the
+  // date row has to move from "shared, once" to "repeats per group",
+  // dragging the column-header row along with it (re-showing "ساعة
+  // الحضور/الخروج/التوقيع" right under each new date makes the sheet
+  // readable; a date with no labels floating below it wouldn't).
+  const perGroupDates = dateRowNumber != null && !!options?.sessionDates?.weekdaysByGroup;
+
+  // Rows above the one-time "written once" section - normally just the
+  // title/subtitle above the column-header row, or above the date row too
+  // when dates are shared. It's never duplicated: a multi-group attendance
+  // sheet is one continuous workbook someone scrolls through, not a stack
+  // of separately-printed pages each needing its own copy of the logo/title
+  // (unlike fillDocxTemplate's Word pages, which are exactly that).
+  const letterheadEndRow = (perGroupDates ? dateRowNumber! : headerRowNumber) - 1;
 
   let blockEndRow = headerRowNumber;
   while (blockEndRow < sheet.rowCount) {
@@ -529,13 +534,15 @@ export async function fillXlsxTemplate(
     dataCellStyles.push({ ...sheet.getRow(styleSourceRow).getCell(col).style });
   }
 
-  // The repeating unit is only the placeholder row(s) below the column
-  // headers (e.g. a group-title row) - NOT the column-header row itself and
-  // NOT the letterhead above it. Both of those are written once, at the
-  // top, same reasoning as the letterhead: "م / اسم الطالب / ساعة الحضور..."
-  // doesn't need to be reprinted mid-sheet for every group, only the
-  // group's own title row does.
-  const repeatStartRow = headerRowNumber + 1;
+  // The repeating unit is normally just the placeholder row(s) below the
+  // column headers (e.g. a group-title row) - NOT the column-header row
+  // itself and NOT the letterhead above it, both written once at the top
+  // ("م / اسم الطالب / ساعة الحضور..." doesn't need reprinting mid-sheet for
+  // every group, only the group's own title row does). When groups meet on
+  // different days (perGroupDates), the date row and the column-header row
+  // both join the repeating unit instead, since each group needs its own
+  // date shown together with what the columns under it mean.
+  const repeatStartRow = perGroupDates ? dateRowNumber! : headerRowNumber + 1;
   const blockSnapshot: CellSnapshot[][] = [];
   for (let r = repeatStartRow; r <= blockEndRow; r++) blockSnapshot.push(snapshotRow(sheet, r, columnCount));
   const blockMerges = (sheet.model.merges ?? []).filter((range) => {
@@ -590,11 +597,24 @@ export async function fillXlsxTemplate(
   // the shared date labels when this template's date row lives up here.
   if (letterheadEndRow >= 1) {
     let letterheadExtra: Record<string, string> = {};
-    if (dateRowInLetterhead && options?.sessionDates) {
-      const weekdays = resolveGroupWeekdays(options.sessionDates, options.groupByColumns, dataRows[0]);
-      const dateLabels = computeSessionDates(options.sessionDates.startDate, options.sessionDates.endDate, weekdays, dateColumnCount);
-      letterheadExtra = sessionDatePlaceholders(options.sessionDates.startDate, weekdays);
-      applyDatesToRow(sheet, dateRowNumber!, columnCount, dateLabels);
+    if (dateRowNumber != null && options?.sessionDates) {
+      if (!perGroupDates) {
+        const weekdays = resolveGroupWeekdays(options.sessionDates, options.groupByColumns, dataRows[0]);
+        const dateLabels = computeSessionDates(options.sessionDates.startDate, options.sessionDates.endDate, weekdays, dateColumnCount);
+        letterheadExtra = sessionDatePlaceholders(options.sessionDates.startDate, weekdays);
+        applyDatesToRow(sheet, dateRowNumber, columnCount, dateLabels);
+      } else {
+        // The date row itself moved into the repeating block (each group
+        // shows its own), but {{الأيام}} in the shared title up here still
+        // needs *something* - the union of every group's own weekdays reads
+        // as "this sheet as a whole covers these days" rather than any one
+        // group's specific schedule.
+        const unionWeekdays = new Set<number>();
+        for (const groupRows of groups) {
+          for (const d of resolveGroupWeekdays(options.sessionDates, options.groupByColumns, groupRows[0])) unionWeekdays.add(d);
+        }
+        letterheadExtra = sessionDatePlaceholders(options.sessionDates.startDate, [...unionWeekdays]);
+      }
     }
     for (let r = 1; r <= letterheadEndRow; r++) {
       substituteCellPlaceholdersInRow(sheet, r, columnCount, placeholderValuesFor(dataRows[0], letterheadExtra));
@@ -604,9 +624,9 @@ export async function fillXlsxTemplate(
   groups.forEach((groupRows, index) => {
     let extraPlaceholders: Record<string, string> = {};
     let dateLabels: string[] | null = null;
-    // A date row inside the repeating block (rather than the letterhead)
-    // is the one case that still varies per group - see weekdaysByGroup.
-    if (options?.sessionDates && !dateRowInLetterhead) {
+    // Shared dates were already written once, above, in the letterhead -
+    // only per-group dates (weekdaysByGroup) get computed again here.
+    if (options?.sessionDates && perGroupDates) {
       const weekdays = resolveGroupWeekdays(options.sessionDates, options.groupByColumns, groupRows[0]);
       dateLabels = computeSessionDates(options.sessionDates.startDate, options.sessionDates.endDate, weekdays, dateColumnCount);
       extraPlaceholders = sessionDatePlaceholders(options.sessionDates.startDate, weekdays);
@@ -616,7 +636,7 @@ export async function fillXlsxTemplate(
       // The original block is still sitting untouched at the top of the
       // sheet - substitute its placeholders in place rather than
       // duplicating a fresh copy of it.
-      for (let r = headerRowNumber; r <= blockEndRow; r++) {
+      for (let r = repeatStartRow; r <= blockEndRow; r++) {
         substituteCellPlaceholdersInRow(sheet, r, columnCount, placeholderValuesFor(groupRows[0], extraPlaceholders));
       }
       if (dateLabels) applyDatesToRow(sheet, dateRowNumber!, columnCount, dateLabels);
