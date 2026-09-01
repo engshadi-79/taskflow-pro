@@ -176,10 +176,10 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
     });
   }
 
-  // Word only ever groups by one column; Excel can group by a combination
-  // (track + group together) since one output file can span several tracks.
-  const activeGroupColumns =
-    outputFormat === "xlsx" ? [groupByHeader, groupByHeader2].filter(Boolean) : [groupByHeader].filter(Boolean);
+  // Both Word and Excel can group by a combination of columns (e.g. track +
+  // group together), so a section is one specific track/group pair rather
+  // than mixing rows that only share one of the two.
+  const activeGroupColumns = [groupByHeader, groupByHeader2].filter(Boolean);
 
   async function handleGenerate() {
     if (!parsed || "error" in parsed) return;
@@ -203,11 +203,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
       formData.append("dataRows", JSON.stringify(parsed.dataRows));
       formData.append("outputFormat", outputFormat);
       if (activeGroupColumns.length > 0) {
-        if (outputFormat === "xlsx") {
-          formData.append("groupByColumns", JSON.stringify(activeGroupColumns));
-        } else {
-          formData.append("groupByDataHeader", groupByHeader);
-        }
+        formData.append("groupByColumns", JSON.stringify(activeGroupColumns));
       }
       if (autoNumberHeader) {
         formData.append("autoNumberHeader", autoNumberHeader);
@@ -496,7 +492,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
                     </option>
                   ))}
                 </select>
-                {outputFormat === "xlsx" && groupByHeader && (
+                {groupByHeader && (
                   <select
                     value={groupByHeader2}
                     onChange={(e) => {
@@ -516,7 +512,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
                   </select>
                 )}
               </div>
-              {outputFormat === "xlsx" && groupByHeader && !groupByHeader2 && (
+              {groupByHeader && !groupByHeader2 && (
                 <p className="mt-1.5 rounded-[8px] bg-amber-50 px-2.5 py-2 text-[11.5px] font-bold text-amber-800">
                   ⚠ اخترت مستوى تجميع واحد فقط ({groupByHeader}). لو كانت الصفوف التي تشترك في نفس القيمة تنتمي لأعمدة
                   أخرى مختلفة (مثل مسارات مختلفة)، سيتم دمجها كلها في قسم واحد بغض النظر عن ذلك العمود الآخر، وسيظهر
@@ -525,12 +521,9 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
               )}
               <p className="mt-1 text-[11px] text-faint">
                 اختر عمود المجموعة من ملف البيانات نفسه (وليس من أعمدة القالب) - يفيد هذا حتى لو كانت المجموعة تظهر
-                بالقالب فقط داخل عنوان مثل {"{{المجموعة}}"} وليست عمودًا مستقلًا في الجدول.
-                {outputFormat === "xlsx"
-                  ? " أضف مستوى ثانٍ لو أردت تقسيمًا مركّبًا (مثلًا مسار + مجموعة معًا)، فيظهر كل مسار ومجموعة كقسم مستقل."
-                  : ""}{" "}
-                يرتّب الصفوف بحيث تكون كل مجموعة معًا، ويكرر ترويسة القالب عند بداية كل مجموعة جديدة
-                {outputFormat === "xlsx" ? " مع فاصل صفحة حقيقي بين كل مجموعة والتي تليها." : "."}
+                بالقالب فقط داخل عنوان مثل {"{{المجموعة}}"} وليست عمودًا مستقلًا في الجدول. أضف مستوى ثانٍ لو أردت
+                تقسيمًا مركّبًا (مثلًا مسار + مجموعة معًا)، فيظهر كل مسار ومجموعة كقسم مستقل. يرتّب الصفوف بحيث تكون
+                كل مجموعة معًا، ويكرر ترويسة القالب مع فاصل صفحة حقيقي عند بداية كل مجموعة جديدة.
               </p>
             </div>
           )}

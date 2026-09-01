@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
 
     if (outputFormat === "docx") {
       const buffer = sameFormat
-        ? await fillDocxTemplate(templateBuffer!, templateHeaders, mapping, dataRows, { groupByColumn, autoNumberHeader })
+        ? await fillDocxTemplate(templateBuffer!, templateHeaders, mapping, dataRows, { groupByColumn, groupByColumns, autoNumberHeader })
         : await buildBareDocx(templateHeaders, mapping, dataRows);
       return new NextResponse(new Uint8Array(buffer), {
         headers: {

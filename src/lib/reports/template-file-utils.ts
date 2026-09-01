@@ -868,7 +868,7 @@ export async function fillDocxTemplate(
   templateHeaders: string[],
   mapping: Record<string, string>,
   dataRows: ParsedExcelRow[],
-  options?: { groupByColumn?: string; autoNumberHeader?: string }
+  options?: { groupByColumn?: string; groupByColumns?: string[]; autoNumberHeader?: string }
 ): Promise<Buffer> {
   const zip = await JSZip.loadAsync(templateBuffer);
   const documentPath = "word/document.xml";
@@ -919,7 +919,17 @@ export async function fillDocxTemplate(
     return `${rowOpenTag}${cellsXml.join("")}</w:tr>`;
   }
 
-  const groups = options?.groupByColumn ? groupRowsByColumn(dataRows, options.groupByColumn) : [dataRows];
+  // groupByColumns (a combination of several columns, e.g. track + group
+  // together) takes priority when given - same reasoning as
+  // fillXlsxTemplate's own groupByColumns: a single groupByColumn would
+  // mix rows that only share one of the two, splitting "track A / group 1"
+  // and "track B / group 1" into the same section even though they're
+  // unrelated.
+  const groups = options?.groupByColumns?.length
+    ? groupRowsByColumns(dataRows, options.groupByColumns)
+    : options?.groupByColumn
+      ? groupRowsByColumn(dataRows, options.groupByColumn)
+      : [dataRows];
 
   const PAGE_BREAK = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
 
