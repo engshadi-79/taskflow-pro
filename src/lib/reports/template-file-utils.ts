@@ -520,20 +520,24 @@ export async function fillXlsxTemplate(
     dataCellStyles.push({ ...sheet.getRow(styleSourceRow).getCell(col).style });
   }
 
-  // The repeating unit is just the column-header row plus any placeholder
-  // row(s) immediately below it (e.g. a group-title row) - NOT the
-  // letterhead above it, which is captured and written separately, once.
+  // The repeating unit is only the placeholder row(s) below the column
+  // headers (e.g. a group-title row) - NOT the column-header row itself and
+  // NOT the letterhead above it. Both of those are written once, at the
+  // top, same reasoning as the letterhead: "م / اسم الطالب / ساعة الحضور..."
+  // doesn't need to be reprinted mid-sheet for every group, only the
+  // group's own title row does.
+  const repeatStartRow = headerRowNumber + 1;
   const blockSnapshot: CellSnapshot[][] = [];
-  for (let r = headerRowNumber; r <= blockEndRow; r++) blockSnapshot.push(snapshotRow(sheet, r, columnCount));
+  for (let r = repeatStartRow; r <= blockEndRow; r++) blockSnapshot.push(snapshotRow(sheet, r, columnCount));
   const blockMerges = (sheet.model.merges ?? []).filter((range) => {
     const match = range.match(/^[A-Z]+(\d+):[A-Z]+(\d+)$/);
-    return match != null && Number(match[1]) >= headerRowNumber && Number(match[2]) <= blockEndRow;
+    return match != null && Number(match[1]) >= repeatStartRow && Number(match[2]) <= blockEndRow;
   });
   // A logo/letterhead image sits in the letterhead itself in every template
   // seen so far, so it's excluded the same way the letterhead's cells are -
   // this only captures an image anchored *inside* the repeating block
   // (uncommon, but kept for symmetry with blockMerges/blockSnapshot above).
-  const blockImages = snapshotBlockImages(sheet, blockEndRow).filter((img) => img.tl.nativeRow >= headerRowNumber - 1);
+  const blockImages = snapshotBlockImages(sheet, blockEndRow).filter((img) => img.tl.nativeRow >= repeatStartRow - 1);
 
   // Drop whatever example rows the template shipped below its header - the
   // real uploaded roster replaces them entirely, it doesn't append after.
@@ -608,14 +612,14 @@ export async function fillXlsxTemplate(
         const newRow = sheet.addRow(cells.map((c) => c.value));
         cells.forEach((c, i) => (newRow.getCell(i + 1).style = c.style));
       }
-      const rowOffset = insertStartRow - headerRowNumber;
+      const rowOffset = insertStartRow - repeatStartRow;
       for (const range of blockMerges) sheet.mergeCells(shiftMergeRange(range, rowOffset));
       addShiftedImages(sheet, blockImages, rowOffset);
-      const blockRowCount = blockEndRow - headerRowNumber + 1;
+      const blockRowCount = blockEndRow - repeatStartRow + 1;
       for (let r = insertStartRow; r <= insertStartRow + blockRowCount - 1; r++) {
         substituteCellPlaceholdersInRow(sheet, r, columnCount, placeholderValuesFor(groupRows[0], extraPlaceholders));
       }
-      if (dateLabels) applyDatesToRow(sheet, insertStartRow + (dateRowNumber! - headerRowNumber), columnCount, dateLabels);
+      if (dateLabels) applyDatesToRow(sheet, insertStartRow + (dateRowNumber! - repeatStartRow), columnCount, dateLabels);
     }
 
     let counter = 1;
