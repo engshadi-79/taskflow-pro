@@ -857,11 +857,14 @@ function rowToPlaceholderValues(row: ParsedExcelRow | undefined): Record<string,
  *   column's value from the data file (e.g. a template reading "مسار
  *   {{المسار}}" picks up the real track name instead of whatever static
  *   text the template author typed).
- * - `groupByColumn`, when given, splits the data into groups (stable order
- *   of first appearance) and repeats the letterhead + header row once per
- *   group before that group's rows - so switching from one group to the
- *   next reprints the template's own title/heading section, without an
- *   actual page break.
+ * - `groupByColumns` (or the older single-column `groupByColumn`), when
+ *   given, splits the data into groups (stable order of first appearance)
+ *   and repeats both the letterhead (before the table) *and* whatever the
+ *   template author put after the table (a signature/approval block,
+ *   typically) once per group, with a real page break between one group's
+ *   section and the next. Only the document's own final closing structure
+ *   (the body-level `<w:sectPr>` plus `</w:body></w:document>`) is kept to
+ *   a single copy, at the true end.
  */
 export async function fillDocxTemplate(
   templateBuffer: ArrayBuffer,
@@ -887,7 +890,20 @@ export async function fillDocxTemplate(
   const bodyContentStart = bodyOpenMatch ? bodyOpenMatch.index! + bodyOpenMatch[0].length : 0;
   const documentOpenXml = xml.slice(0, bodyContentStart);
   const letterheadXml = xml.slice(bodyContentStart, tableStart);
-  const trailingXml = xml.slice(tableEnd);
+
+  // Whatever the template author put *after* the table - a signature/
+  // approval block is the common case - is exactly as "per group" as the
+  // letterhead before it: a real attendance/grades sheet needs its own
+  // sign-off under every group's own table, not just once at the very
+  // bottom of the whole document. The one thing that must still appear
+  // exactly once, at the true end, is the body's own closing <w:sectPr>
+  // (page size/margins/header-footer references - a direct child of
+  // <w:body>, not a paragraph's own section-break sectPr) plus
+  // </w:body></w:document> themselves, so the split happens right there.
+  const afterTable = xml.slice(tableEnd);
+  const sectPrIndex = afterTable.lastIndexOf("<w:sectPr");
+  const repeatableTrailingXml = sectPrIndex === -1 ? "" : afterTable.slice(0, sectPrIndex);
+  const documentCloseXml = sectPrIndex === -1 ? afterTable : afterTable.slice(sectPrIndex);
 
   const rowMatches = tableXml.match(/<w:tr[\s\S]*?<\/w:tr>/g) ?? [];
   if (rowMatches.length === 0) throw new Error("لم يتم العثور على صفوف في جدول القالب");
@@ -945,14 +961,15 @@ export async function fillDocxTemplate(
         .join("");
       const sectionLetterhead = substitutePlaceholders(letterheadXml, rowToPlaceholderValues(groupRows[0]));
       const sectionTable = `${tableOpenPart}${headerRowXml}${generatedRows}</w:tbl>`;
+      const sectionTrailing = substitutePlaceholders(repeatableTrailingXml, rowToPlaceholderValues(groupRows[0]));
       // Every group after the first starts on its own fresh page - only the
       // very first section is already at the top of page 1 by definition.
       const pageBreak = index > 0 ? PAGE_BREAK : "";
-      return `${pageBreak}${sectionLetterhead}${sectionTable}`;
+      return `${pageBreak}${sectionLetterhead}${sectionTable}${sectionTrailing}`;
     })
     .join("");
 
-  const newXml = `${documentOpenXml}${sections}${trailingXml}`;
+  const newXml = `${documentOpenXml}${sections}${documentCloseXml}`;
 
   zip.file(documentPath, newXml);
   return zip.generateAsync({ type: "nodebuffer" });

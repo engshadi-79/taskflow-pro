@@ -96,9 +96,10 @@ export async function POST(request: NextRequest) {
   // Grouped by a raw data-file column directly, not a template column - a
   // template's group title (e.g. "{{المسار}} - {{المجموعة}}") is often only
   // a placeholder in a banner row, not an actual mapped table column, so
-  // there may be no template header to route the grouping key through.
-  // Word only ever groups by one column; Excel can group by a combination
-  // (e.g. track + group together) since one output can hold several tracks.
+  // there may be no template header to route the grouping key through. Both
+  // formats accept a combination of columns (e.g. track + group together)
+  // via groupByColumns - groupByColumn (singular) is kept only as a fallback
+  // for any older caller still sending just one.
   const groupByColumn = (formData.get("groupByDataHeader") as string | null) || undefined;
   const groupByColumnsRaw = formData.get("groupByColumns") as string | null;
   const groupByColumns = groupByColumnsRaw ? (JSON.parse(groupByColumnsRaw) as string[]) : undefined;
