@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
   const groupByColumnsRaw = formData.get("groupByColumns") as string | null;
   const groupByColumns = groupByColumnsRaw ? (JSON.parse(groupByColumnsRaw) as string[]) : undefined;
   const autoNumberHeader = (formData.get("autoNumberHeader") as string | null) || undefined;
+  const sortRowsBy = (formData.get("sortRowsBy") as string | null) || undefined;
 
   const sessionDatesStartDate = formData.get("sessionDatesStartDate") as string | null;
   const sessionDatesEndDate = formData.get("sessionDatesEndDate") as string | null;
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = sameFormat
-      ? await fillXlsxTemplate(templateBuffer!, templateHeaders, mapping, dataRows, { groupByColumns, autoNumberHeader, sessionDates })
+      ? await fillXlsxTemplate(templateBuffer!, templateHeaders, mapping, dataRows, { groupByColumns, autoNumberHeader, sortRowsBy, sessionDates })
       : await buildBareXlsx(templateHeaders, mapping, dataRows);
     return new NextResponse(new Uint8Array(buffer), {
       headers: {

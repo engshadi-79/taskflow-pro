@@ -57,6 +57,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
   const [groupByHeader, setGroupByHeader] = useState("");
   const [groupByHeader2, setGroupByHeader2] = useState("");
   const [autoNumberHeader, setAutoNumberHeader] = useState("");
+  const [sortRowsBy, setSortRowsBy] = useState("");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -210,6 +211,9 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
       }
       if (autoNumberHeader) {
         formData.append("autoNumberHeader", autoNumberHeader);
+      }
+      if (sortRowsBy && outputFormat === "xlsx") {
+        formData.append("sortRowsBy", sortRowsBy);
       }
       if (datesEnabled && outputFormat === "xlsx" && datesStartDate && datesEndDate) {
         formData.append("sessionDatesStartDate", datesStartDate);
@@ -633,6 +637,30 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
               <p className="mt-1 text-[11px] text-faint">
                 يملأ هذا العمود بأرقام تسلسلية (1، 2، 3...) بدل قيمة من ملف البيانات
                 {groupByHeader ? "، وتبدأ الترقيم من 1 من جديد مع كل مجموعة." : "."}
+              </p>
+            </div>
+          )}
+
+          {sameFormat && outputFormat === "xlsx" && (
+            <div className="mt-3">
+              <span className="mb-1.5 block text-[12.5px] font-bold text-foreground">
+                ترتيب الصفوف أبجديًا حسب عمود (اختياري)
+              </span>
+              <select
+                value={sortRowsBy}
+                onChange={(e) => setSortRowsBy(e.target.value)}
+                className={`${inputClass} w-auto`}
+              >
+                <option value="">بدون ترتيب (نفس ترتيب ملف البيانات)</option>
+                {result.dataHeaders.map((header) => (
+                  <option key={header} value={header}>
+                    {header}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-faint">
+                يرتّب الصفوف أبجديًا حسب هذا العمود من ملف البيانات (مثل اسم الطالب)
+                {groupByHeader ? "، كل مجموعة تُرتَّب بمفردها." : "."}
               </p>
             </div>
           )}

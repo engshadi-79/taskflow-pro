@@ -437,17 +437,25 @@ function resolveGroupWeekdays(
  *
  * Mirrors fillDocxTemplate's grouping/placeholder design (see its own
  * comment) but with ExcelJS's row/cell/merge APIs instead of raw OOXML
- * string slicing: the template's own header block (its header row, plus any
- * immediately-following row that still contains a {{...}} placeholder - a
- * group-title row placed right after the headers, for example) repeats once
- * per group. The first group reuses that block in place; each later group
- * gets a freshly duplicated copy (values + styles + merges) followed by a
- * real print page break, so it's consistent with the Word version instead
- * of a plain-text separator.
+ * string slicing - with one deliberate difference: fillDocxTemplate repeats
+ * its whole letterhead per group because each group becomes its own printed
+ * Word page, but a multi-group Excel sheet is one continuous scroll, so only
+ * the placeholder row(s) right below the column-header row (a group-title
+ * row, typically) repeat per group. Both the letterhead (title/logo/
+ * subtitle, and a date row if it lives up there) *and* the column-header
+ * row itself are written exactly once, at the top. The first group's own
+ * placeholder row(s) are substituted in place; each later group gets a
+ * freshly duplicated copy (values + styles + merges) of just that row, plus
+ * a real print page break, so a printed copy still starts each group on its
+ * own page even though the letterhead above it doesn't reprint.
  *
  * `groupByColumns` groups by the *combination* of several data columns at
  * once (e.g. track + group together), so each section is one specific
  * track/group pair rather than mixing rows that only share one of the two.
+ *
+ * `sortRowsBy`, when given, sorts each group's rows independently (Arabic
+ * locale-aware) by that data column - never across groups, and the
+ * auto-number column (if any) still restarts at 1 per group afterward.
  *
  * `sessionDates`, when given, overwrites a pre-formatted date-header row
  * (found above the column-header row) with freshly computed dates - done
@@ -465,6 +473,7 @@ export async function fillXlsxTemplate(
   options?: {
     groupByColumns?: string[];
     autoNumberHeader?: string;
+    sortRowsBy?: string;
     sessionDates?: {
       startDate: string;
       endDate: string;
@@ -563,6 +572,17 @@ export async function fillXlsxTemplate(
   }
 
   const groups = options?.groupByColumns?.length ? groupRowsByColumns(dataRows, options.groupByColumns) : [dataRows];
+  // Sorted independently within each group (never across groups) - the
+  // auto-number column, when present, still starts at 1 per group after
+  // sorting, exactly as it would for the original unsorted order.
+  if (options?.sortRowsBy) {
+    const sortColumn = options.sortRowsBy;
+    for (const groupRows of groups) {
+      groupRows.sort((a, b) =>
+        String(a[sortColumn] ?? "").localeCompare(String(b[sortColumn] ?? ""), "ar")
+      );
+    }
+  }
 
   // Letterhead: written exactly once, using the first group's row for any
   // placeholder that happens to reference a data column (uncommon - the
