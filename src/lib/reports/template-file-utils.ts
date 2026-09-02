@@ -925,11 +925,25 @@ export async function fillDocxTemplate(
   const rowMatches = tableXml.match(/<w:tr[\s\S]*?<\/w:tr>/g) ?? [];
   if (rowMatches.length === 0) throw new Error("لم يتم العثور على صفوف في جدول القالب");
 
-  const headerRowXml: string = rowMatches[0]!;
+  // The header row is reused whole (its own <w:trPr> included, unlike a
+  // generated data row - see rowOpenTag below), and a real template's header
+  // often carries its own <w:trHeight w:val="..."/> - authored once, by eye,
+  // in Word's own UI, typically taller than a single line of text actually
+  // needs. Word treats an explicit trHeight as a real floor even without a
+  // w:hRule="atLeast" attribute, so left in place it reproduces exactly the
+  // "empty space around the text" the template's own default fought against
+  // - stripped out entirely, the row falls back to the true default
+  // (w:hRule="auto"), sized to the text and nothing more.
+  function stripRowHeight(rowXml: string): string {
+    return rowXml.replace(/<w:trHeight\b[^/]*\/>/, "");
+  }
+
+  const originalHeaderRowXml = rowMatches[0]!;
+  const headerRowXml: string = stripRowHeight(originalHeaderRowXml);
   const styleRowXml: string = rowMatches.length > 1 ? rowMatches[rowMatches.length - 1]! : headerRowXml;
   const styleCells = styleRowXml.match(/<w:tc>[\s\S]*?<\/w:tc>/g) ?? [];
   const rowOpenTag = styleRowXml.match(/^<w:tr[^>]*>/)?.[0] ?? "<w:tr>";
-  const tableOpenPart = tableXml.slice(0, tableXml.indexOf(headerRowXml));
+  const tableOpenPart = tableXml.slice(0, tableXml.indexOf(originalHeaderRowXml));
 
   // Some real templates leave one column (typically a serial-number "م"
   // column) with no explicit <w:sz>/<w:szCs> on its run at all, while every
