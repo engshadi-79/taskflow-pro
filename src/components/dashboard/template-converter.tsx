@@ -22,7 +22,11 @@ type TemplateMode = "upload" | "saved";
 // pull ExcelJS/JSZip into the browser bundle.
 const GROUP_KEY_SEPARATOR = " ||| ";
 function computeGroupKey(columns: string[], row: Record<string, string | number | null>): string {
-  return columns.map((c) => String(row[c] ?? "")).join(GROUP_KEY_SEPARATOR);
+  // Trimmed - must match the server's own computeGroupKey exactly (same
+  // fix, same reasoning: an untrimmed source value would split one real
+  // group into several), or a per-group weekday selection made here
+  // wouldn't line up with the group the server actually produces.
+  return columns.map((c) => String(row[c] ?? "").trim()).join(GROUP_KEY_SEPARATOR);
 }
 
 // Mirrors the route's own contentDisposition() helper - prefers the RFC 5987

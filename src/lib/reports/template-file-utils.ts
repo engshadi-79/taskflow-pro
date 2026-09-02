@@ -618,7 +618,7 @@ export async function fillXlsxTemplate(
     const sortColumn = options.sortRowsBy;
     for (const groupRows of groups) {
       groupRows.sort((a, b) =>
-        String(a[sortColumn] ?? "").localeCompare(String(b[sortColumn] ?? ""), "ar")
+        String(a[sortColumn] ?? "").trim().localeCompare(String(b[sortColumn] ?? "").trim(), "ar")
       );
     }
   }
@@ -707,7 +707,11 @@ export function groupRowsByColumn(dataRows: ParsedExcelRow[], column: string): P
   const order: string[] = [];
   const buckets = new Map<string, ParsedExcelRow[]>();
   for (const row of dataRows) {
-    const key = String(row[column] ?? "");
+    // Trimmed - an untrimmed source column (e.g. "المجموعة الثانية " with a
+    // trailing space on some rows but not others) would otherwise silently
+    // split one real group into several near-identical keys, each ending up
+    // as its own separate, undersized section instead of one combined one.
+    const key = String(row[column] ?? "").trim();
     if (!buckets.has(key)) {
       buckets.set(key, []);
       order.push(key);
@@ -724,7 +728,9 @@ const GROUP_KEY_SEPARATOR = " ||| ";
  *  track/group combination) - also used as the lookup key for a per-group
  *  weekday schedule, so the client and server must compute it identically. */
 export function computeGroupKey(columns: string[], row: ParsedExcelRow): string {
-  return columns.map((column) => String(row[column] ?? "")).join(GROUP_KEY_SEPARATOR);
+  // Trimmed for the same reason as groupRowsByColumn's own key - an
+  // untrimmed source value would split one real group into several.
+  return columns.map((column) => String(row[column] ?? "").trim()).join(GROUP_KEY_SEPARATOR);
 }
 
 /** Same stable-order grouping as groupRowsByColumn, but keyed on the
