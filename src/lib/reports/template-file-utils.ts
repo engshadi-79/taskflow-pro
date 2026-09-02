@@ -945,49 +945,68 @@ export async function fillDocxTemplate(
   const rowOpenTag = styleRowXml.match(/^<w:tr[^>]*>/)?.[0] ?? "<w:tr>";
   const tableOpenPart = tableXml.slice(0, tableXml.indexOf(originalHeaderRowXml));
 
-  // Some real templates leave one column (typically a serial-number "م"
-  // column) with no explicit <w:sz>/<w:szCs> on its run at all, while every
-  // other column in the same row sets one explicitly - that column then
-  // renders at Word's own document-default size instead of the size the
-  // template author actually chose for the table, which both looks
-  // mismatched against the rest of the row AND, since a table row's real
-  // height is set by its TALLEST cell, leaves that smaller-font cell
-  // visibly floating in empty space inside a row sized for the bigger text.
-  // Every generated cell (and the header row) gets normalized to match
-  // whatever size most of the table's own cells already agree on, rather
-  // than leaving whichever column the template happened to under-specify
-  // stuck at a mismatched default.
-  function computeDominantFontSize(cells: string[]): { sz: number; szCs: number } {
-    const count = (attr: "w:sz" | "w:szCs") => {
-      const tally = new Map<number, number>();
-      for (const cell of cells) {
-        const regex = new RegExp(`<${attr}\\b[^>]*w:val="(\\d+)"`, "g");
-        let match: RegExpExecArray | null;
-        while ((match = regex.exec(cell)) !== null) {
-          const val = Number(match[1]);
-          tally.set(val, (tally.get(val) ?? 0) + 1);
-        }
-      }
-      let best = 24; // 12pt fallback if the template sets no size anywhere
-      let bestCount = 0;
-      for (const [val, n] of tally) {
-        if (n > bestCount) {
-          best = val;
-          bestCount = n;
-        }
-      }
-      return best;
-    };
-    return { sz: count("w:sz"), szCs: count("w:szCs") };
+  // The table's text is normalized to one fixed, consistent size (11pt) for
+  // the whole table (header + data) rather than whatever mix of sizes the
+  // template's own cells happen to declare - a real template can leave a
+  // column under-specified (e.g. a serial-number "م" column with no
+  // <w:sz>/<w:szCs> at all, falling back to Word's own document default),
+  // which both looks mismatched against the rest of the row AND, since a
+  // table row's real height is set by its TALLEST cell, leaves that
+  // smaller-font cell visibly floating in empty space inside a row sized
+  // for the bigger text. 11pt read well as a per-request, deliberately
+  // compact size for dense roster/grade tables - forceFontSize overrides
+  // (not just backfills) every cell's own declared size to it, then the
+  // column-fit/group-size shrink logic below can still reduce it further
+  // from THIS new base, exactly as before, if a specific value still
+  // wouldn't fit.
+  const TABLE_FONT_HALF_POINTS = 22; // 11pt
+
+  function forceFontSize(cellXml: string): string {
+    let updated = cellXml
+      .replace(/(<w:sz\b[^>]*w:val=")\d+(")/g, `$1${TABLE_FONT_HALF_POINTS}$2`)
+      .replace(/(<w:szCs\b[^>]*w:val=")\d+(")/g, `$1${TABLE_FONT_HALF_POINTS}$2`);
+    // A cell with no <w:sz> anywhere yet (nothing to override) still needs
+    // one injected, same as the old ensureFontSize did.
+    if (!/<w:sz\b/.test(updated)) {
+      updated = updated.replace(
+        /<w:rPr>/g,
+        `<w:rPr><w:sz w:val="${TABLE_FONT_HALF_POINTS}"/><w:szCs w:val="${TABLE_FONT_HALF_POINTS}"/>`
+      );
+    }
+    return updated;
   }
 
-  const { sz: dominantSz, szCs: dominantSzCs } = computeDominantFontSize(styleCells);
+  // Per explicit request: numeric-looking columns (ID numbers, scores) and
+  // the "الدورة" column render centered, regardless of whatever alignment
+  // the template itself declared. "Numeric" is detected from the real data
+  // (every non-empty mapped value across every row is a plain number) -
+  // resilient to column order/naming and to which specific columns a given
+  // template happens to have, rather than hardcoding column positions.
+  function isNumericColumn(header: string): boolean {
+    let sawValue = false;
+    for (const row of dataRows) {
+      const value = String(mappedValue(header, mapping, row) ?? "").trim();
+      if (!value) continue;
+      sawValue = true;
+      if (!/^-?\d+(\.\d+)?$/.test(value)) return false;
+    }
+    return sawValue;
+  }
 
-  /** Only touches a cell that has no explicit size anywhere in it - a cell
-   *  that already declares one (the common case) is left completely alone. */
-  function ensureFontSize(cellXml: string): string {
-    if (/<w:sz\b/.test(cellXml)) return cellXml;
-    return cellXml.replace(/<w:rPr>/g, `<w:rPr><w:sz w:val="${dominantSz}"/><w:szCs w:val="${dominantSzCs}"/>`);
+  function shouldCenterColumn(index: number): boolean {
+    const header = templateHeaders[index];
+    if (!header) return false;
+    if (normalizeHeader(header) === normalizeHeader("الدورة")) return true;
+    return isNumericColumn(header);
+  }
+
+  /** Forces center alignment - replaces any existing <w:jc> the template
+   *  declared, or inserts one if there's none at all. */
+  function forceCenterAlign(cellXml: string): string {
+    if (/<w:jc\b/.test(cellXml)) {
+      return cellXml.replace(/<w:jc\b[^>]*\/>/g, '<w:jc w:val="center"/>');
+    }
+    return cellXml.replace(/<w:pPr>/g, '<w:pPr><w:jc w:val="center"/>');
   }
 
   // A short categorical value (a group/session label, an ID number) that's
@@ -1024,8 +1043,10 @@ export async function fillDocxTemplate(
   }
 
   function normalizeCell(cellXml: string, columnIndex: number): string {
-    const sized = ensureFontSize(cellXml);
-    return columnIndex === widestColumnIndex ? sized : ensureNoWrap(sized);
+    let normalized = forceFontSize(cellXml);
+    if (columnIndex !== widestColumnIndex) normalized = ensureNoWrap(normalized);
+    if (shouldCenterColumn(columnIndex)) normalized = forceCenterAlign(normalized);
+    return normalized;
   }
 
   /** Same normalization, applied cell-by-cell to a whole row - needed
@@ -1041,19 +1062,20 @@ export async function fillDocxTemplate(
   /** A cell with no <w:t> run at all (a genuinely empty placeholder, common
    *  for score/blank example columns in a real template) still has its own
    *  paragraph MARK properties (<w:pPr><w:rPr>...) even with no run inside
-   *  it - that's the cell's real intended font/size/rtl, and the only
-   *  faithful source for it. A bare `<w:r><w:t>` with no <w:rPr> of its own
-   *  would fall through to Word's absolute document default (a different,
-   *  usually smaller, non-RTL-flagged font) - invisible to ensureFontSize's
-   *  cell-wide check, since the pPr's own leftover <w:sz> makes the cell
-   *  LOOK like it already declares a size, while the run that actually
-   *  renders the value has none. Falls back to the row's dominant size (see
-   *  computeDominantFontSize) with an <w:rtl/> flag only if the cell has no
-   *  paragraph-mark rPr to copy from either. */
+   *  it - that's the cell's real intended font/rtl, and the only faithful
+   *  source for it. A bare `<w:r><w:t>` with no <w:rPr> of its own would
+   *  fall through to Word's absolute document default (a different,
+   *  non-RTL-flagged font) - invisible to forceFontSize's cell-wide "does
+   *  this have a <w:sz> anywhere" check, since the pPr's own leftover
+   *  <w:sz> makes the cell LOOK like it already declares one, while the run
+   *  that actually renders the value has none. Falls back to the table's
+   *  fixed size with an <w:rtl/> flag only if the cell has no
+   *  paragraph-mark rPr to copy from either (forceFontSize normalizes the
+   *  size either way, so the copied value here doesn't need to match). */
   function newRunRPr(cellXml: string): string {
     const pPrRun = cellXml.match(/<w:pPr>[\s\S]*?<w:rPr>([\s\S]*?)<\/w:rPr>[\s\S]*?<\/w:pPr>/);
     if (pPrRun) return pPrRun[1];
-    return `<w:sz w:val="${dominantSz}"/><w:szCs w:val="${dominantSzCs}"/><w:rtl/>`;
+    return `<w:sz w:val="${TABLE_FONT_HALF_POINTS}"/><w:szCs w:val="${TABLE_FONT_HALF_POINTS}"/><w:rtl/>`;
   }
 
   function buildRow(values: (string | number)[], scale: number): string {
@@ -1196,7 +1218,7 @@ export async function fillDocxTemplate(
       }
       if (maxChars === 0) return;
 
-      const charWidthTwipsAtFullSize = dominantSz * 10 * ARABIC_AVG_CHAR_WIDTH_RATIO;
+      const charWidthTwipsAtFullSize = TABLE_FONT_HALF_POINTS * 10 * ARABIC_AVG_CHAR_WIDTH_RATIO;
       const neededWidth = maxChars * charWidthTwipsAtFullSize;
       if (neededWidth > widthTwips) scale = Math.min(scale, widthTwips / neededWidth);
     });
