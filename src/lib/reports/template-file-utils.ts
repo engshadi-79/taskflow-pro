@@ -1038,6 +1038,24 @@ export async function fillDocxTemplate(
     return rowXml.replace(/<w:tc>[\s\S]*?<\/w:tc>/g, (cellXml) => normalizeCell(cellXml, columnIndex++));
   }
 
+  /** A cell with no <w:t> run at all (a genuinely empty placeholder, common
+   *  for score/blank example columns in a real template) still has its own
+   *  paragraph MARK properties (<w:pPr><w:rPr>...) even with no run inside
+   *  it - that's the cell's real intended font/size/rtl, and the only
+   *  faithful source for it. A bare `<w:r><w:t>` with no <w:rPr> of its own
+   *  would fall through to Word's absolute document default (a different,
+   *  usually smaller, non-RTL-flagged font) - invisible to ensureFontSize's
+   *  cell-wide check, since the pPr's own leftover <w:sz> makes the cell
+   *  LOOK like it already declares a size, while the run that actually
+   *  renders the value has none. Falls back to the row's dominant size (see
+   *  computeDominantFontSize) with an <w:rtl/> flag only if the cell has no
+   *  paragraph-mark rPr to copy from either. */
+  function newRunRPr(cellXml: string): string {
+    const pPrRun = cellXml.match(/<w:pPr>[\s\S]*?<w:rPr>([\s\S]*?)<\/w:rPr>[\s\S]*?<\/w:pPr>/);
+    if (pPrRun) return pPrRun[1];
+    return `<w:sz w:val="${dominantSz}"/><w:szCs w:val="${dominantSzCs}"/><w:rtl/>`;
+  }
+
   function buildRow(values: (string | number)[], scale: number): string {
     const cellsXml = styleCells.map((cellXml, i) => {
       const text = escapeXml(String(values[i] ?? ""));
@@ -1050,9 +1068,26 @@ export async function fillDocxTemplate(
         return `<w:t${attrs}></w:t>`;
       });
       // A style-source cell with no text run at all (an empty placeholder
-      // cell) still needs the value inserted somewhere visible.
+      // cell, e.g. an unfilled score column in the template's own example
+      // row) still needs the value inserted somewhere visible. The new run
+      // is injected into the cell's LAST existing paragraph - almost always
+      // an empty one, since a cell with zero runs still needs at least one
+      // <w:p> per the OOXML schema - rather than appended as a brand new
+      // paragraph: an appended paragraph would leave the original empty one
+      // in place, and a table row's height accounts for EVERY paragraph in
+      // its tallest cell, not just the ones with visible text - two
+      // paragraphs where one is invisible still costs the height of two
+      // lines. Carries over that paragraph's own rPr for the new run too,
+      // so it actually matches the rest of the table instead of falling
+      // back to Word's bare, unscaled, non-RTL default.
       if (!replaced) {
-        return normalizeCell(withValue.replace(/<\/w:tc>$/, `<w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:tc>`), i);
+        const run = `<w:r><w:rPr>${newRunRPr(cellXml)}</w:rPr><w:t>${text}</w:t></w:r>`;
+        const lastParaClose = withValue.lastIndexOf("</w:p>");
+        const injected =
+          lastParaClose === -1
+            ? withValue.replace(/<\/w:tc>$/, `<w:p>${run}</w:p></w:tc>`)
+            : withValue.slice(0, lastParaClose) + run + withValue.slice(lastParaClose);
+        return normalizeCell(injected, i);
       }
       return normalizeCell(withValue, i);
     });
