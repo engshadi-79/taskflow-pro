@@ -931,6 +931,60 @@ export async function fillDocxTemplate(
   const rowOpenTag = styleRowXml.match(/^<w:tr[^>]*>/)?.[0] ?? "<w:tr>";
   const tableOpenPart = tableXml.slice(0, tableXml.indexOf(headerRowXml));
 
+  // Some real templates leave one column (typically a serial-number "م"
+  // column) with no explicit <w:sz>/<w:szCs> on its run at all, while every
+  // other column in the same row sets one explicitly - that column then
+  // renders at Word's own document-default size instead of the size the
+  // template author actually chose for the table, which both looks
+  // mismatched against the rest of the row AND, since a table row's real
+  // height is set by its TALLEST cell, leaves that smaller-font cell
+  // visibly floating in empty space inside a row sized for the bigger text.
+  // Every generated cell (and the header row) gets normalized to match
+  // whatever size most of the table's own cells already agree on, rather
+  // than leaving whichever column the template happened to under-specify
+  // stuck at a mismatched default.
+  function computeDominantFontSize(cells: string[]): { sz: number; szCs: number } {
+    const count = (attr: "w:sz" | "w:szCs") => {
+      const tally = new Map<number, number>();
+      for (const cell of cells) {
+        const regex = new RegExp(`<${attr}\\b[^>]*w:val="(\\d+)"`, "g");
+        let match: RegExpExecArray | null;
+        while ((match = regex.exec(cell)) !== null) {
+          const val = Number(match[1]);
+          tally.set(val, (tally.get(val) ?? 0) + 1);
+        }
+      }
+      let best = 24; // 12pt fallback if the template sets no size anywhere
+      let bestCount = 0;
+      for (const [val, n] of tally) {
+        if (n > bestCount) {
+          best = val;
+          bestCount = n;
+        }
+      }
+      return best;
+    };
+    return { sz: count("w:sz"), szCs: count("w:szCs") };
+  }
+
+  const { sz: dominantSz, szCs: dominantSzCs } = computeDominantFontSize(styleCells);
+
+  /** Only touches a cell that has no explicit size anywhere in it - a cell
+   *  that already declares one (the common case) is left completely alone. */
+  function ensureFontSize(cellXml: string): string {
+    if (/<w:sz\b/.test(cellXml)) return cellXml;
+    return cellXml.replace(/<w:rPr>/g, `<w:rPr><w:sz w:val="${dominantSz}"/><w:szCs w:val="${dominantSzCs}"/>`);
+  }
+
+  /** Same normalization, applied cell-by-cell to a whole row - needed
+   *  because checking/replacing across the *entire* row at once would find
+   *  some OTHER cell's <w:sz> and wrongly skip the one cell that actually
+   *  needs it. Used for the header row, which can have the same
+   *  missing-size column as the data rows. */
+  function normalizeRowFontSize(rowXml: string): string {
+    return rowXml.replace(/<w:tc>[\s\S]*?<\/w:tc>/g, (cellXml) => ensureFontSize(cellXml));
+  }
+
   function buildRow(values: (string | number)[], scale: number): string {
     const cellsXml = styleCells.map((cellXml, i) => {
       const text = escapeXml(String(values[i] ?? ""));
@@ -945,9 +999,9 @@ export async function fillDocxTemplate(
       // A style-source cell with no text run at all (an empty placeholder
       // cell) still needs the value inserted somewhere visible.
       if (!replaced) {
-        return withValue.replace(/<\/w:tc>$/, `<w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:tc>`);
+        return ensureFontSize(withValue.replace(/<\/w:tc>$/, `<w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:tc>`));
       }
-      return withValue;
+      return ensureFontSize(withValue);
     });
     return scaleRowXml(`${rowOpenTag}${cellsXml.join("")}</w:tr>`, scale);
   }
@@ -1037,7 +1091,7 @@ export async function fillDocxTemplate(
         .map((values) => buildRow(values, scale))
         .join("");
       const sectionLetterhead = substitutePlaceholders(letterheadXml, rowToPlaceholderValues(groupRows[0]));
-      const sectionTable = `${tableOpenPart}${scaleRowXml(headerRowXml, scale)}${generatedRows}</w:tbl>`;
+      const sectionTable = `${tableOpenPart}${scaleRowXml(normalizeRowFontSize(headerRowXml), scale)}${generatedRows}</w:tbl>`;
       const sectionTrailing = substitutePlaceholders(repeatableTrailingXml, rowToPlaceholderValues(groupRows[0]));
       // Every group after the first starts on its own fresh page - only the
       // very first section is already at the top of page 1 by definition.
