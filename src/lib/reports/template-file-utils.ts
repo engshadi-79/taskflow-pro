@@ -872,13 +872,17 @@ function rowToPlaceholderValues(row: ParsedExcelRow | undefined): Record<string,
  *   section and the next. Only the document's own final closing structure
  *   (the body-level `<w:sectPr>` plus `</w:body></w:document>`) is kept to
  *   a single copy, at the true end.
+ * - `fitGroupToOnePage`, when true, shrinks a group's own header+data row
+ *   heights and font sizes (never below a legibility floor) when that
+ *   group's row count would otherwise overflow one printed page - a
+ *   heuristic estimate, not a guaranteed fit for every group size.
  */
 export async function fillDocxTemplate(
   templateBuffer: ArrayBuffer,
   templateHeaders: string[],
   mapping: Record<string, string>,
   dataRows: ParsedExcelRow[],
-  options?: { groupByColumn?: string; groupByColumns?: string[]; autoNumberHeader?: string }
+  options?: { groupByColumn?: string; groupByColumns?: string[]; autoNumberHeader?: string; fitGroupToOnePage?: boolean }
 ): Promise<Buffer> {
   const zip = await JSZip.loadAsync(templateBuffer);
   const documentPath = "word/document.xml";
@@ -921,7 +925,7 @@ export async function fillDocxTemplate(
   const rowOpenTag = styleRowXml.match(/^<w:tr[^>]*>/)?.[0] ?? "<w:tr>";
   const tableOpenPart = tableXml.slice(0, tableXml.indexOf(headerRowXml));
 
-  function buildRow(values: (string | number)[]): string {
+  function buildRow(values: (string | number)[], scale: number): string {
     const cellsXml = styleCells.map((cellXml, i) => {
       const text = escapeXml(String(values[i] ?? ""));
       let replaced = false;
@@ -939,7 +943,66 @@ export async function fillDocxTemplate(
       }
       return withValue;
     });
-    return `${rowOpenTag}${cellsXml.join("")}</w:tr>`;
+    return scaleRowXml(`${rowOpenTag}${cellsXml.join("")}</w:tr>`, scale);
+  }
+
+  // fitGroupToOnePage: a heuristic, not a guarantee. Word has no real
+  // "shrink to fit" for a table the way Excel's print scaling does, and
+  // nothing in the OOXML gives an exact rendered line height without an
+  // actual layout engine - this estimates the letterhead/trailing block's
+  // height as one fixed line per paragraph, which is close enough to decide
+  // *whether* a group needs shrinking and by roughly how much, not to
+  // guarantee pixel-perfect single-page output for every possible group
+  // size. Extremely large groups still get the floor scale rather than
+  // becoming illegible, and may still spill onto a second page - a
+  // deliberate tradeoff over unreadable text.
+  const FIT_MIN_SCALE = 0.55;
+  const FIT_MIN_FONT_HALF_POINTS = 16; // 8pt - never scale text smaller than this
+  const FIT_ASSUMED_LINE_HEIGHT_TWIPS = 320; // ~16pt line, a reasonable single-spaced default
+
+  function extractAttr(fromXml: string, tagName: string, attrName: string): number | null {
+    const tag = fromXml.match(new RegExp(`<${tagName}\\b[^>]*/?>`));
+    if (!tag) return null;
+    const attr = tag[0].match(new RegExp(`${attrName}="(-?\\d+)"`));
+    return attr ? Number(attr[1]) : null;
+  }
+
+  function scaleRowXml(rowXml: string, scale: number): string {
+    if (scale >= 1) return rowXml;
+    return rowXml
+      .replace(/(<w:trHeight\b[^>]*w:val=")(\d+)(")/g, (_m, pre: string, val: string, post: string) =>
+        `${pre}${Math.round(Number(val) * scale)}${post}`
+      )
+      .replace(/(<w:sz(Cs)?\b[^>]*w:val=")(\d+)(")/g, (_m, pre: string, _cs: string, val: string, post: string) =>
+        `${pre}${Math.max(FIT_MIN_FONT_HALF_POINTS, Math.round(Number(val) * scale))}${post}`
+      );
+  }
+
+  function countParagraphs(fromXml: string): number {
+    return (fromXml.match(/<w:p[ >]/g) ?? []).length;
+  }
+
+  /** How much to shrink one group's header+data rows so its own row count
+   *  is more likely to fit the page - each group gets its own scale since
+   *  group sizes can vary widely in one document. */
+  function computeGroupScale(rowCount: number): number {
+    if (!options?.fitGroupToOnePage || rowCount === 0) return 1;
+
+    const pageHeight = extractAttr(documentCloseXml, "w:pgSz", "w:h") ?? 15840; // US Letter default
+    const marginTop = extractAttr(documentCloseXml, "w:pgMar", "w:top") ?? 1440;
+    const marginBottom = extractAttr(documentCloseXml, "w:pgMar", "w:bottom") ?? 1440;
+    const usableHeight = pageHeight - marginTop - marginBottom;
+
+    const headerRowHeight = extractAttr(headerRowXml, "w:trHeight", "w:val") ?? 400;
+    const dataRowHeight = extractAttr(styleRowXml, "w:trHeight", "w:val") ?? 400;
+    const fixedOverhead =
+      (countParagraphs(letterheadXml) + countParagraphs(repeatableTrailingXml)) * FIT_ASSUMED_LINE_HEIGHT_TWIPS +
+      headerRowHeight;
+
+    const availableForData = usableHeight - fixedOverhead;
+    const maxFullSizeRows = Math.max(1, Math.floor(availableForData / dataRowHeight));
+    if (rowCount <= maxFullSizeRows) return 1;
+    return Math.max(FIT_MIN_SCALE, maxFullSizeRows / rowCount);
   }
 
   // groupByColumns (a combination of several columns, e.g. track + group
@@ -961,13 +1024,14 @@ export async function fillDocxTemplate(
       // Numbering restarts at 1 for each group (or once, if ungrouped) -
       // matches "كل مجموعة ترقيم جديد" rather than a single running count
       // across the whole document.
+      const scale = computeGroupScale(groupRows.length);
       let counter = 1;
       const generatedRows = groupRows
         .map((row) => buildRowValues(templateHeaders, mapping, row, options?.autoNumberHeader, counter++))
-        .map(buildRow)
+        .map((values) => buildRow(values, scale))
         .join("");
       const sectionLetterhead = substitutePlaceholders(letterheadXml, rowToPlaceholderValues(groupRows[0]));
-      const sectionTable = `${tableOpenPart}${headerRowXml}${generatedRows}</w:tbl>`;
+      const sectionTable = `${tableOpenPart}${scaleRowXml(headerRowXml, scale)}${generatedRows}</w:tbl>`;
       const sectionTrailing = substitutePlaceholders(repeatableTrailingXml, rowToPlaceholderValues(groupRows[0]));
       // Every group after the first starts on its own fresh page - only the
       // very first section is already at the top of page 1 by definition.

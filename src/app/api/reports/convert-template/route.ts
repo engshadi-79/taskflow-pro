@@ -105,6 +105,7 @@ export async function POST(request: NextRequest) {
   const groupByColumns = groupByColumnsRaw ? (JSON.parse(groupByColumnsRaw) as string[]) : undefined;
   const autoNumberHeader = (formData.get("autoNumberHeader") as string | null) || undefined;
   const sortRowsBy = (formData.get("sortRowsBy") as string | null) || undefined;
+  const fitGroupToOnePage = formData.get("fitGroupToOnePage") === "1";
 
   const sessionDatesStartDate = formData.get("sessionDatesStartDate") as string | null;
   const sessionDatesEndDate = formData.get("sessionDatesEndDate") as string | null;
@@ -160,7 +161,7 @@ export async function POST(request: NextRequest) {
 
     if (outputFormat === "docx") {
       const buffer = sameFormat
-        ? await fillDocxTemplate(templateBuffer!, templateHeaders, mapping, dataRows, { groupByColumn, groupByColumns, autoNumberHeader })
+        ? await fillDocxTemplate(templateBuffer!, templateHeaders, mapping, dataRows, { groupByColumn, groupByColumns, autoNumberHeader, fitGroupToOnePage })
         : await buildBareDocx(templateHeaders, mapping, dataRows);
       return new NextResponse(new Uint8Array(buffer), {
         headers: {

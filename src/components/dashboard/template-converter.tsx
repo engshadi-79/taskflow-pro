@@ -25,6 +25,23 @@ function computeGroupKey(columns: string[], row: Record<string, string | number 
   return columns.map((c) => String(row[c] ?? "")).join(GROUP_KEY_SEPARATOR);
 }
 
+// Mirrors the route's own contentDisposition() helper - prefers the RFC 5987
+// filename*=UTF-8''<percent-encoded> form (the real Arabic name) and only
+// falls back to the plain ASCII filename="..." if that's missing.
+function extractDownloadFilename(header: string | null): string | null {
+  if (!header) return null;
+  const utf8Match = header.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      // fall through to the ASCII form below
+    }
+  }
+  const asciiMatch = header.match(/filename="([^"]+)"/i);
+  return asciiMatch ? asciiMatch[1] : null;
+}
+
 const WEEKDAY_NAMES = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 // Display order only (Saturday first) - the values themselves stay the real
 // Date#getDay() numbers (0=Sunday..6=Saturday) that computeSessionDates
@@ -58,6 +75,7 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
   const [groupByHeader2, setGroupByHeader2] = useState("");
   const [autoNumberHeader, setAutoNumberHeader] = useState("");
   const [sortRowsBy, setSortRowsBy] = useState("");
+  const [fitGroupToOnePage, setFitGroupToOnePage] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -211,6 +229,9 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
       if (sortRowsBy && outputFormat === "xlsx") {
         formData.append("sortRowsBy", sortRowsBy);
       }
+      if (fitGroupToOnePage && outputFormat === "docx" && activeGroupColumns.length > 0) {
+        formData.append("fitGroupToOnePage", "1");
+      }
       if (datesEnabled && outputFormat === "xlsx" && datesStartDate && datesEndDate) {
         formData.append("sessionDatesStartDate", datesStartDate);
         formData.append("sessionDatesEndDate", datesEndDate);
@@ -236,7 +257,13 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `converted.${outputFormat}`;
+      // response.blob() drops every response header, so the server's own
+      // Content-Disposition (template name + month, see the route's
+      // outputName logic) never reaches the browser's save dialog unless
+      // it's read back out here explicitly - a bare a.download fallback
+      // would silently save every file as "converted.xlsx" regardless of
+      // what the server actually named it.
+      a.download = extractDownloadFilename(response.headers.get("Content-Disposition")) ?? `converted.${outputFormat}`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -527,6 +554,25 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
                 {outputFormat === "docx"
                   ? " أي محتوى بعد الجدول في القالب (مثل توقيع أو اعتماد) يتكرر أيضًا مع كل مجموعة."
                   : ""}
+              </p>
+            </div>
+          )}
+
+          {sameFormat && outputFormat === "docx" && activeGroupColumns.length > 0 && (
+            <div className="mt-3 rounded-[10px] border border-border p-3">
+              <label className="flex items-center gap-2 text-[12.5px] font-bold text-foreground">
+                <input
+                  type="checkbox"
+                  checked={fitGroupToOnePage}
+                  onChange={(e) => setFitGroupToOnePage(e.target.checked)}
+                  className="h-3.5 w-3.5"
+                />
+                تقليص ارتفاع الصفوف وحجم الخط تلقائيًا لتقريب كل مجموعة من صفحة واحدة
+              </label>
+              <p className="mt-1 text-[11px] text-faint">
+                يقلّص حجم الخط وارتفاع صف الترويسة حسب عدد صفوف كل مجموعة - كلما زاد عدد الطلاب، زاد التقليص (بحد أدنى
+                لا يقل عن حجم مقروء). هذا تقدير وليس ضمانًا مؤكدًا لصفحة واحدة في كل الحالات، خصوصًا للمجموعات الكبيرة
+                جدًا.
               </p>
             </div>
           )}
