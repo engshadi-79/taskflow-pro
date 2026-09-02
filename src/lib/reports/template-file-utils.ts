@@ -1176,56 +1176,20 @@ export async function fillDocxTemplate(
   }
 
   // A short categorical value (a group/session label, an ID number) that's
-  // even a little too wide for its column wraps onto a second line - and,
-  // unlike the page-height-driven fitGroupToOnePage scale above, this has
-  // nothing to do with group size: it happens even for a 2-row group,
-  // confirmed by direct measurement against the real grades template (a
-  // 39.7pt-tall row for a single line of text that only needs ~17pt,
-  // because "المجموعة الثانية" doesn't fit its column at full size and
-  // wraps - <w:noWrap/> alone does NOT stop this, verified directly: Word
-  // still wrapped it rather than growing the column, so shrinking the font
-  // enough to fit is the only reliable fix). Applies unconditionally
-  // (not gated behind fitGroupToOnePage) and uses the real data across
-  // every row - not just one group - so every section's font size stays
-  // consistent with every other section's.
-  //
-  // Character width has no exact answer without an actual layout engine
-  // (it depends on the specific font's own glyph metrics), so this uses a
-  // deliberately generous estimate for a proportional Arabic typeface
-  // (roughly 0.62 of the em-size per average character, including spaces)
-  // - close to the ~0.58-0.65 measured directly against the real template
-  // that motivated this fix, and generous enough that a plainer/narrower
-  // font is *more* likely to fit comfortably than to still wrap.
-  const ARABIC_AVG_CHAR_WIDTH_RATIO = 0.62;
-
-  function computeColumnFitScale(): number {
-    if (styleCells.length === 0) return 1;
-    let scale = 1;
-    styleCells.forEach((cell, i) => {
-      if (i === widestColumnIndex) return; // the one column allowed to wrap
-      const widthTwips = Number(cell.match(/<w:tcW\b[^>]*w:w="(\d+)"/)?.[1] ?? 0);
-      const header = templateHeaders[i];
-      if (!widthTwips || !header) return;
-
-      // Only the actual DATA values need to fit on one line - a header's
-      // own label (e.g. "العملي (50)") is expected to wrap normally, same
-      // as it already does in the unmodified template, and including it
-      // here would shrink the whole table just because a column label is
-      // longer than its column, even when every real value fits fine.
-      let maxChars = 0;
-      for (const row of dataRows) {
-        maxChars = Math.max(maxChars, String(mappedValue(header, mapping, row) ?? "").length);
-      }
-      if (maxChars === 0) return;
-
-      const charWidthTwipsAtFullSize = TABLE_FONT_HALF_POINTS * 10 * ARABIC_AVG_CHAR_WIDTH_RATIO;
-      const neededWidth = maxChars * charWidthTwipsAtFullSize;
-      if (neededWidth > widthTwips) scale = Math.min(scale, widthTwips / neededWidth);
-    });
-    return Math.max(FIT_MIN_SCALE, scale);
-  }
-
-  const columnFitScale = computeColumnFitScale();
+  // too wide for its column wraps onto a second line rather than growing
+  // the column (<w:noWrap/> alone does NOT stop this - verified directly:
+  // Word still wrapped it rather than growing the column) - a previous
+  // version of this function shrank the WHOLE table's font to avoid that
+  // wrap, but that fights directly against an explicit fixed table font
+  // size (see TABLE_FONT_HALF_POINTS above): when EVERY row shares the
+  // same wrap-prone value (a single fixed group/session for the whole
+  // sheet, a real and common case), that shrink applied to the entire
+  // table, not just the affected column, defeating the fixed size
+  // everywhere instead of just wrapping the one cell that needs it. A
+  // wrapped cell's row is still sized correctly for its real two-line
+  // content (no artificial padding - the earlier row-height fixes above
+  // are unaffected), so an occasional wrap here is an acceptable tradeoff
+  // over silently overriding the requested font size for the whole table.
 
   // groupByColumns (a combination of several columns, e.g. track + group
   // together) takes priority when given - same reasoning as
@@ -1245,10 +1209,8 @@ export async function fillDocxTemplate(
     .map((groupRows, index) => {
       // Numbering restarts at 1 for each group (or once, if ungrouped) -
       // matches "كل مجموعة ترقيم جديد" rather than a single running count
-      // across the whole document. Combined with columnFitScale - whichever
-      // constraint (page height or column width) needs the smaller text
-      // wins, since both are real limits the output has to respect.
-      const scale = Math.min(computeGroupScale(groupRows.length), columnFitScale);
+      // across the whole document.
+      const scale = computeGroupScale(groupRows.length);
       let counter = 1;
       const generatedRows = groupRows
         .map((row) => buildRowValues(templateHeaders, mapping, row, options?.autoNumberHeader, counter++))
