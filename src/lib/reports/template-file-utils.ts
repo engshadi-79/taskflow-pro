@@ -187,6 +187,20 @@ export function formatMonthYearArabic(startDate: string): string {
   return `${month} ${start.getFullYear()}`;
 }
 
+/** Arabic filenames need the RFC 5987 filename* form - a plain ASCII
+ *  `filename="..."` either mangles non-ASCII characters or gets rejected
+ *  outright depending on the browser, so both forms are sent together: a
+ *  safe ASCII fallback for anything that only reads the legacy param, and
+ *  the real UTF-8 name (percent-encoded per the RFC) for everything else.
+ *  Shared by every route that hands back a template/converted file
+ *  (convert-template's own generated output, and a saved template's own
+ *  original file for re-download) so both stay byte-for-byte consistent. */
+export function contentDispositionHeader(name: string, extension: string): string {
+  const fallback = `converted.${extension}`;
+  const encoded = encodeURIComponent(`${name}.${extension}`);
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encoded}`;
+}
+
 /** {{الشهر}}/{{السنة}}/{{الأيام}} describe the whole generation run, not any
  *  one data row, so they can't come from rowToPlaceholderValues - computed
  *  once and merged into every group's placeholder values instead. Derived

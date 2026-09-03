@@ -9,21 +9,11 @@ import {
   fillDocxTemplate,
   isDocxFile,
   formatMonthYearArabic,
+  contentDispositionHeader,
   type ParsedExcelRow,
 } from "@/lib/reports/template-file-utils";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
-
-/** Arabic filenames need the RFC 5987 filename* form - a plain ASCII
- *  `filename="..."` either mangles non-ASCII characters or gets rejected
- *  outright depending on the browser, so both forms are sent together: a
- *  safe ASCII fallback for anything that only reads the legacy param, and
- *  the real UTF-8 name (percent-encoded per the RFC) for everything else. */
-function contentDisposition(name: string, extension: string): string {
-  const fallback = `converted.${extension}`;
-  const encoded = encodeURIComponent(`${name}.${extension}`);
-  return `attachment; filename="${fallback}"; filename*=UTF-8''${encoded}`;
-}
 
 function mappedRow(header: string, mapping: Record<string, string>, row: ParsedExcelRow): string {
   const sourceKey = mapping?.[header];
@@ -166,7 +156,7 @@ export async function POST(request: NextRequest) {
       return new NextResponse(new Uint8Array(buffer), {
         headers: {
           "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          "Content-Disposition": contentDisposition(outputName, "docx"),
+          "Content-Disposition": contentDispositionHeader(outputName, "docx"),
         },
       });
     }
@@ -177,7 +167,7 @@ export async function POST(request: NextRequest) {
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": contentDisposition(outputName, "xlsx"),
+        "Content-Disposition": contentDispositionHeader(outputName, "xlsx"),
       },
     });
   } catch (err) {

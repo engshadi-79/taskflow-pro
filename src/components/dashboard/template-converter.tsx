@@ -357,13 +357,21 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
                     ))}
                   </select>
                   {effectiveSavedId && (
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteSaved(effectiveSavedId)}
-                      className="shrink-0 text-[11.5px] font-bold text-red-500 hover:underline"
-                    >
-                      حذف
-                    </button>
+                    <>
+                      <a
+                        href={`/api/reports/saved-templates/${effectiveSavedId}/download`}
+                        className="shrink-0 text-[11.5px] font-bold text-accent-600 hover:underline"
+                      >
+                        تحميل
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSaved(effectiveSavedId)}
+                        className="shrink-0 text-[11.5px] font-bold text-red-500 hover:underline"
+                      >
+                        حذف
+                      </button>
+                    </>
                   )}
                 </div>
               )}
