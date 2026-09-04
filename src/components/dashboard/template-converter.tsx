@@ -18,6 +18,37 @@ const inputClass =
 type OutputFormat = "xlsx" | "docx";
 type TemplateMode = "upload" | "saved";
 
+// Mirrors normalizeHeader() in template-file-utils.ts exactly - duplicated
+// here (rather than imported) so this client component doesn't pull
+// ExcelJS/JSZip into the browser bundle.
+function normalizeHeaderLite(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[ً-ٰٟـ]/g, "")
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/\s+/g, " ");
+}
+
+/** A saved template's own remembered default grouping column names (e.g.
+ *  "المسار") were typed once, in whatever exact form the FIRST data file
+ *  that set them happened to use - a later data file's real column might
+ *  differ in spacing/diacritics/ة-ه variants and still mean the same
+ *  column, so this resolves against the real headers the same
+ *  normalized-exact-then-substring way suggestColumnMapping() does server-
+ *  side, rather than requiring byte-for-byte equality. */
+function resolveDefaultColumn(saved: string, dataHeaders: string[]): string | undefined {
+  const normSaved = normalizeHeaderLite(saved);
+  const exact = dataHeaders.find((h) => normalizeHeaderLite(h) === normSaved);
+  if (exact) return exact;
+  return dataHeaders.find((h) => {
+    const normH = normalizeHeaderLite(h);
+    return normH.includes(normSaved) || normSaved.includes(normH);
+  });
+}
+
 // Must match computeGroupKey's separator in template-file-utils.ts exactly -
 // duplicated here (rather than imported) so this client component doesn't
 // pull ExcelJS/JSZip into the browser bundle.
@@ -144,10 +175,14 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
     setMapping(result.suggestedMapping);
     // A saved template's own remembered default grouping (e.g. المسار/
     // المجموعة for an attendance sheet) pre-fills these two dropdowns -
-    // only for columns that actually exist in THIS data file, since a
-    // different roster might not have the same column names.
+    // resolved fuzzily against THIS data file's real headers (see
+    // resolveDefaultColumn) rather than requiring an exact match, since a
+    // different roster's own column might differ slightly in spacing/
+    // diacritics and still mean the same thing.
     const defaults = (mode === "saved" ? selectedSavedTemplate?.default_group_by_columns : null) ?? [];
-    const usableDefaults = defaults.filter((h) => result.dataHeaders.includes(h));
+    const usableDefaults = defaults
+      .map((h) => resolveDefaultColumn(h, result.dataHeaders))
+      .filter((h): h is string => Boolean(h));
     setGroupByHeader(usableDefaults[0] ?? "");
     setGroupByHeader2(usableDefaults[1] ?? "");
     setAutoNumberHeader("");
