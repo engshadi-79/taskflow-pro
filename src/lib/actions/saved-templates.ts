@@ -16,6 +16,7 @@ export type SavedTemplateRow = {
   file_format: "xlsx" | "docx";
   template_headers: string[];
   created_at: string;
+  default_group_by_columns: string[] | null;
 };
 
 export type SaveTemplateResult = { error?: string; id?: string };
@@ -97,10 +98,30 @@ export async function listSavedTemplates(): Promise<SavedTemplateRow[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("saved_templates")
-    .select("id, name, file_format, template_headers, created_at")
+    .select("id, name, file_format, template_headers, created_at, default_group_by_columns")
     .order("created_at", { ascending: false });
 
   return (data ?? []) as SavedTemplateRow[];
+}
+
+/** Remembers which raw data-file column(s) this template is normally
+ *  grouped by (e.g. "المسار"/"المجموعة" for an attendance sheet), so
+ *  selecting it again pre-fills the converter's own grouping dropdowns
+ *  instead of the user re-picking the same columns on every conversion. An
+ *  empty array clears the default back to "no grouping". */
+export async function setDefaultGroupByColumns(id: string, columns: string[]): Promise<{ error?: string }> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { error: "يجب تسجيل الدخول" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("saved_templates")
+    .update({ default_group_by_columns: columns.length > 0 ? columns : null })
+    .eq("id", id);
+  if (error) return { error: "تعذر حفظ الإعداد الافتراضي" };
+
+  revalidatePath("/dashboard/reports/converter");
+  return {};
 }
 
 export type FetchSavedTemplateResult =

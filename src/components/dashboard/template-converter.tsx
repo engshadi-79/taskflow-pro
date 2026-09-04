@@ -6,6 +6,7 @@ import {
   saveTemplate,
   listSavedTemplates,
   deleteSavedTemplate,
+  setDefaultGroupByColumns,
   type SavedTemplateRow,
 } from "@/lib/actions/saved-templates";
 import { PageHeader } from "@/components/shared/page-header";
@@ -82,6 +83,8 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
   const [fitGroupToOnePage, setFitGroupToOnePage] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savingDefault, setSavingDefault] = useState(false);
+  const [defaultSaved, setDefaultSaved] = useState(false);
 
   const [datesEnabled, setDatesEnabled] = useState(false);
   const [datesStartDate, setDatesStartDate] = useState("");
@@ -139,8 +142,14 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
 
     setParsed(result);
     setMapping(result.suggestedMapping);
-    setGroupByHeader("");
-    setGroupByHeader2("");
+    // A saved template's own remembered default grouping (e.g. المسار/
+    // المجموعة for an attendance sheet) pre-fills these two dropdowns -
+    // only for columns that actually exist in THIS data file, since a
+    // different roster might not have the same column names.
+    const defaults = (mode === "saved" ? selectedSavedTemplate?.default_group_by_columns : null) ?? [];
+    const usableDefaults = defaults.filter((h) => result.dataHeaders.includes(h));
+    setGroupByHeader(usableDefaults[0] ?? "");
+    setGroupByHeader2(usableDefaults[1] ?? "");
     setAutoNumberHeader("");
     setGroupWeekdays({});
     setDatesWeekdays([]);
@@ -202,6 +211,24 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
   // group together), so a section is one specific track/group pair rather
   // than mixing rows that only share one of the two.
   const activeGroupColumns = [groupByHeader, groupByHeader2].filter(Boolean);
+
+  async function handleSaveDefaultGrouping() {
+    if (!effectiveSavedId) return;
+    setSavingDefault(true);
+    const result = await setDefaultGroupByColumns(effectiveSavedId, activeGroupColumns);
+    setSavingDefault(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    // Keeps the local list in sync without a full reload - so re-selecting
+    // this template later in the same session pre-fills correctly too.
+    setSavedTemplates((prev) =>
+      prev.map((t) => (t.id === effectiveSavedId ? { ...t, default_group_by_columns: activeGroupColumns } : t))
+    );
+    setDefaultSaved(true);
+    setTimeout(() => setDefaultSaved(false), 2500);
+  }
 
   async function handleGenerate() {
     if (!parsed || "error" in parsed) return;
@@ -551,6 +578,19 @@ export function TemplateConverter({ initialSavedTemplates }: { initialSavedTempl
                   </select>
                 )}
               </div>
+              {mode === "saved" && effectiveSavedId && (
+                <div className="mt-1.5 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveDefaultGrouping}
+                    disabled={savingDefault}
+                    className="text-[11.5px] font-bold text-accent-600 hover:underline disabled:opacity-60"
+                  >
+                    {savingDefault ? "جارٍ الحفظ..." : "احفظ هذا التجميع كافتراضي لهذا القالب"}
+                  </button>
+                  {defaultSaved && <span className="text-[11px] font-bold text-green-600">تم الحفظ</span>}
+                </div>
+              )}
               {groupByHeader && !groupByHeader2 && (
                 <p className="mt-1.5 rounded-[8px] bg-amber-50 px-2.5 py-2 text-[11.5px] font-bold text-amber-800">
                   ⚠ اخترت مستوى تجميع واحد فقط ({groupByHeader}). لو كانت الصفوف التي تشترك في نفس القيمة تنتمي لأعمدة
