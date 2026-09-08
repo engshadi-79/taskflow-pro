@@ -11,7 +11,46 @@ const RATE_LIMIT_PER_DAY = 80;
 
 type HistoryTurn = { role: "user" | "assistant"; content: string };
 
-export async function POST(request: Request) {
+// The mobile app's own web build (app.json's web.output: "single" - a real
+// deployable target, not just a dev convenience) calls this route from a
+// different origin than this Next.js app itself, which the browser blocks
+// outright without CORS headers - confirmed directly: a plain fetch() from
+// the mobile app running via `expo start --web` failed with a bare
+// "TypeError: Failed to fetch" (the generic error a browser gives for a
+// CORS rejection) even though the request never reached this handler at
+// all. A wildcard origin is safe here specifically because auth already
+// doesn't depend on cookie/same-origin trust for the cross-origin caller -
+// the mobile app already authenticates via its own bearer token (see
+// parseBearerToken below), added for exactly this reason. The existing
+// cookie-session path (web dashboard) is unaffected: that caller is always
+// same-origin already, and browsers refuse to send credentialed (cookie)
+// requests cross-origin against a wildcard ACAO regardless, so this can't
+// newly expose the cookie-auth path to a different origin either.
+function corsHeaders(): HeadersInit {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  };
+}
+
+export function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders() });
+}
+
+/** Every return path below builds its own NextResponse.json(...) - rather
+ *  than touching each one individually (easy to miss one, including any
+ *  added later), the real handler is wrapped once here and every response
+ *  it produces gets the CORS headers attached on the way out. */
+export async function POST(request: Request): Promise<NextResponse> {
+  const response = await handlePost(request);
+  for (const [key, value] of Object.entries(corsHeaders())) {
+    response.headers.set(key, value);
+  }
+  return response;
+}
+
+async function handlePost(request: Request): Promise<NextResponse> {
   // Web dashboard: cookie session (getCurrentProfile). Mobile app: no
   // cookie jar, so it sends its own Supabase access token as a bearer
   // header instead - same user, same RLS scoping, just a different way of
