@@ -2,6 +2,18 @@
 module.exports = {
   content: ["./src/**/*.{js,jsx,ts,tsx}"],
   presets: [require("nativewind/preset")],
+  // "class" (not the Tailwind/NativeWind default "media") - something in
+  // the Expo Router/React Navigation boot sequence calls NativeWind's own
+  // colorScheme.set() at startup (not app code - confirmed nothing in src/
+  // calls it), which NativeWind refuses outright under "media" mode
+  // (nativewind/dist/stylesheet.js: "Unable to manually set color scheme
+  // without using darkMode: class"). That crashed the app immediately on
+  // web (discovered running `expo start --web` for the first time - Android/
+  // iOS apparently don't hit the same guard). Dark mode itself is still
+  // deferred to its own phase (see the color tokens below, light-only for
+  // now) - this only lets that automatic call succeed silently instead of
+  // throwing; no dark: classes exist yet for it to actually apply.
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
