@@ -57,6 +57,7 @@ export default function NotificationsScreen() {
     <View className="flex-1 bg-background">
       <MobileHeader
         title="الإشعارات"
+        back
         action={
           hasUnread ? (
             <TouchableOpacity onPress={markAllRead} disabled={markingAll}>

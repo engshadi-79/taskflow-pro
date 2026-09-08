@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, RefreshControl, ScrollView, Text, Touchabl
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import { MobileHeader } from "@/components/mobile-header";
+import { KanbanIcon } from "@/components/tab-icons";
 import { PRIORITY_COLOR, PRIORITY_LABEL, STATUS_COLOR, STATUS_LABEL, type Priority, type TaskStatus } from "@/lib/mobile-theme";
 
 type Task = {
@@ -58,7 +59,22 @@ export default function TasksScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      <MobileHeader title="المهام" />
+      <MobileHeader
+        title="المهام"
+        action={
+          // The only entry point to /kanban - the tab bar deliberately
+          // dropped it (see (tabs)/_layout.tsx's own comment: "linked from
+          // within Tasks/Home in a later phase"), but that link was never
+          // actually added, leaving a fully working screen unreachable
+          // from anywhere in the app.
+          <TouchableOpacity
+            onPress={() => router.push("/kanban")}
+            className="h-9 w-9 items-center justify-center rounded-full bg-accent-50"
+          >
+            <KanbanIcon color="#4f46e5" size={17} />
+          </TouchableOpacity>
+        }
+      />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3 flex-none px-4" contentContainerStyle={{ gap: 8 }}>
         {FILTERS.map((f) => {
           const active = filter === f.key;

@@ -70,7 +70,7 @@ export default function KanbanScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      <MobileHeader title="لوحة كانبان" />
+      <MobileHeader title="لوحة كانبان" backHref="/tasks" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 12 }}>
         {COLUMN_STATUSES.map((status) => {
           const items = tasks.filter((t) => t.status === status);
