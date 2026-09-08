@@ -89,7 +89,22 @@ export default function ReportsScreen() {
                     <View key={r.status} className="flex-1 items-center justify-end gap-1.5">
                       <View
                         className="w-full rounded-t-[6px]"
-                        style={{ height: `${Math.max(15, (r.task_count / maxCount) * 100)}%`, backgroundColor: STATUS_COLOR[r.status].dot }}
+                        // An absolute pixel height (computed against the
+                        // row's own known 90px), not a percentage - the
+                        // row uses items-end (not stretch), so each bar's
+                        // direct parent (this column, flex-1 with no
+                        // explicit height of its own) never resolves an
+                        // actual height on web's real CSS engine, and a
+                        // percentage height with no resolved parent height
+                        // computes to 0 there (confirmed: every bar was
+                        // invisible on web, though this likely rendered
+                        // fine on native via Yoga's own percentage
+                        // resolution - this app had never been run on web
+                        // before this session).
+                        style={{
+                          height: Math.max(13, (r.task_count / maxCount) * 90),
+                          backgroundColor: STATUS_COLOR[r.status].dot,
+                        }}
                       />
                       <Text className="text-[9.5px] font-bold text-muted">{STATUS_LABEL[r.status].split(" ")[0]}</Text>
                     </View>
