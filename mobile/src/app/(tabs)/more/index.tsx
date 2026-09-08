@@ -22,10 +22,18 @@ const ITEMS: {
   managerOnly?: boolean;
 }[] = [
   { key: "calendar", href: "/more/calendar", label: "التقويم", tint: "bg-purple-50", color: "#9333ea", Icon: CalendarIcon },
-  { key: "projects", href: "/more/projects/index", label: "المشاريع", tint: "bg-pink-50", color: "#db2777", Icon: FolderIcon },
+  // NOT "/more/projects/index" etc - Expo Router treats a literal trailing
+  // "/index" segment as a dynamic-route param value (matches [id].tsx with
+  // id="index"), not as "the folder's own index screen" - confirmed via
+  // the real failing requests (?id=eq.index / ?project_id=eq.index, all
+  // 400 "invalid input syntax for type uuid"), which also explained an
+  // infinite loading spinner on all three (none of their load() functions
+  // clear `loading` on a query error). The bare folder path already
+  // resolves to its own index.tsx with no suffix needed.
+  { key: "projects", href: "/more/projects", label: "المشاريع", tint: "bg-pink-50", color: "#db2777", Icon: FolderIcon },
   { key: "workload", href: "/more/workload", label: "الحمل الوظيفي", tint: "bg-accent-50", color: "#4f46e5", Icon: TrendIcon, managerOnly: true },
-  { key: "meetings", href: "/more/meetings/index", label: "الاجتماعات", tint: "bg-orange-50", color: "#d97706", Icon: CalendarIcon },
-  { key: "chat", href: "/more/chat/index", label: "المحادثات", tint: "bg-teal-50", color: "#0e857b", Icon: ChatBubbleIcon },
+  { key: "meetings", href: "/more/meetings", label: "الاجتماعات", tint: "bg-orange-50", color: "#d97706", Icon: CalendarIcon },
+  { key: "chat", href: "/more/chat", label: "المحادثات", tint: "bg-teal-50", color: "#0e857b", Icon: ChatBubbleIcon },
   { key: "reports", href: "/more/reports", label: "التقارير والأداء", tint: "bg-brand-blue-50", color: "#2563eb", Icon: TrendIcon },
   { key: "profile", href: "/more/profile", label: "الملف الشخصي", tint: "bg-accent-50", color: "#4f46e5", Icon: PersonIcon },
   { key: "settings", href: "/more/settings", label: "الإعدادات", tint: "bg-background", color: "#64748b", Icon: GearIcon },
