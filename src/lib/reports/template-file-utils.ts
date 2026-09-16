@@ -1017,7 +1017,7 @@ export async function fillDocxTemplate(
   const rowOpenTag = styleRowXml.match(/^<w:tr[^>]*>/)?.[0] ?? "<w:tr>";
   const tableOpenPart = tableXml.slice(0, tableXml.indexOf(originalHeaderRowXml));
 
-  // The table's text is normalized to one fixed, consistent size (11pt) for
+  // The table's text is normalized to one fixed, consistent size (14pt) for
   // the whole table (header + data) rather than whatever mix of sizes the
   // template's own cells happen to declare - a real template can leave a
   // column under-specified (e.g. a serial-number "م" column with no
@@ -1025,27 +1025,60 @@ export async function fillDocxTemplate(
   // which both looks mismatched against the rest of the row AND, since a
   // table row's real height is set by its TALLEST cell, leaves that
   // smaller-font cell visibly floating in empty space inside a row sized
-  // for the bigger text. 11pt read well as a per-request, deliberately
-  // compact size for dense roster/grade tables - forceFontSize overrides
-  // (not just backfills) every cell's own declared size to it, then the
-  // column-fit/group-size shrink logic below can still reduce it further
-  // from THIS new base, exactly as before, if a specific value still
-  // wouldn't fit.
-  const TABLE_FONT_HALF_POINTS = 22; // 11pt
+  // for the bigger text. Also the target size for a per-group VALUE that
+  // varies within the trailing content (see forceFontSizeForValues below) -
+  // per explicit request, the same "14" for both the table and trainer
+  // names. forceFontSize overrides (not just backfills) every cell's own
+  // declared size, then the column-fit/group-size shrink logic below can
+  // still reduce it further from THIS new base, exactly as before, if a
+  // specific value still wouldn't fit.
+  const TEMPLATE_FONT_HALF_POINTS = 28; // 14pt
 
-  function forceFontSize(cellXml: string): string {
-    let updated = cellXml
-      .replace(/(<w:sz\b[^>]*w:val=")\d+(")/g, `$1${TABLE_FONT_HALF_POINTS}$2`)
-      .replace(/(<w:szCs\b[^>]*w:val=")\d+(")/g, `$1${TABLE_FONT_HALF_POINTS}$2`);
-    // A cell with no <w:sz> anywhere yet (nothing to override) still needs
-    // one injected, same as the old ensureFontSize did.
+  /** Overrides (or, if absent, injects) <w:sz>/<w:szCs> to `sz` wherever
+   *  they appear inside this XML fragment - the shared core both
+   *  forceFontSize (table cells) and forceFontSizeForValues (trainer-name
+   *  runs in the trailing content) build on. */
+  function forceRunFontSize(fragment: string, sz: number): string {
+    let updated = fragment
+      .replace(/(<w:sz\b[^>]*w:val=")\d+(")/g, `$1${sz}$2`)
+      .replace(/(<w:szCs\b[^>]*w:val=")\d+(")/g, `$1${sz}$2`);
     if (!/<w:sz\b/.test(updated)) {
-      updated = updated.replace(
-        /<w:rPr>/g,
-        `<w:rPr><w:sz w:val="${TABLE_FONT_HALF_POINTS}"/><w:szCs w:val="${TABLE_FONT_HALF_POINTS}"/>`
-      );
+      updated = updated.replace(/<w:rPr>/g, `<w:rPr><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/>`);
     }
     return updated;
+  }
+
+  function forceFontSize(cellXml: string): string {
+    return forceRunFontSize(cellXml, TEMPLATE_FONT_HALF_POINTS);
+  }
+
+  /** Per explicit request ("حجم الخط في الجدول واسماء المدربين 14"): sizes
+   *  just the run(s) that hold one of `values` - not the surrounding label
+   *  text ("مدرب المسار:", "التوقيع:") or anything else in the trailing
+   *  block (e.g. the director's own static signature), and not the
+   *  letterhead's own group-defining placeholders (those can't vary within
+   *  a group anyway, so they'd never match here regardless). `values`
+   *  comes from whichever placeholder keys actually varied within this
+   *  group (rowsToPlaceholderValueLists returning more than one distinct
+   *  value for a key - structurally, exactly what a "trainer name" column
+   *  looks like when a group has more than one instructor, and nothing
+   *  else in this template does), so this generalizes to any similarly
+   *  per-row-varying placeholder rather than hardcoding a "المدرب" column
+   *  name. A placeholder token can be split across several adjacent
+   *  <w:t> runs in the original XML (substitutePlaceholders already
+   *  handles that for the substitution itself), but the full replacement
+   *  value always lands in the ONE run that held the token's opening
+   *  "{{" - so matching a whole <w:r>...</w:r> whose own <w:t> now equals
+   *  one of these values, post-substitution, finds exactly that run. */
+  function forceFontSizeForValues(xml: string, values: string[], sz: number): string {
+    const distinct = [...new Set(values)].filter(Boolean);
+    if (distinct.length === 0) return xml;
+    const escaped = distinct.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    const runRegex = new RegExp(
+      `<w:r\\b[^>]*>(?:(?!<\\/w:r>)[\\s\\S])*?<w:t\\b[^>]*>(?:${escaped.join("|")})<\\/w:t>(?:(?!<\\/w:r>)[\\s\\S])*?<\\/w:r>`,
+      "g"
+    );
+    return xml.replace(runRegex, (run) => forceRunFontSize(run, sz));
   }
 
   // Per explicit request: numeric-looking columns (ID numbers, scores) and
@@ -1147,7 +1180,7 @@ export async function fillDocxTemplate(
   function newRunRPr(cellXml: string): string {
     const pPrRun = cellXml.match(/<w:pPr>[\s\S]*?<w:rPr>([\s\S]*?)<\/w:rPr>[\s\S]*?<\/w:pPr>/);
     if (pPrRun) return pPrRun[1];
-    return `<w:sz w:val="${TABLE_FONT_HALF_POINTS}"/><w:szCs w:val="${TABLE_FONT_HALF_POINTS}"/><w:rtl/>`;
+    return `<w:sz w:val="${TEMPLATE_FONT_HALF_POINTS}"/><w:szCs w:val="${TEMPLATE_FONT_HALF_POINTS}"/><w:rtl/>`;
   }
 
   function buildRow(values: (string | number)[], scale: number): string {
@@ -1253,7 +1286,7 @@ export async function fillDocxTemplate(
   // Word still wrapped it rather than growing the column) - a previous
   // version of this function shrank the WHOLE table's font to avoid that
   // wrap, but that fights directly against an explicit fixed table font
-  // size (see TABLE_FONT_HALF_POINTS above): when EVERY row shares the
+  // size (see TEMPLATE_FONT_HALF_POINTS above): when EVERY row shares the
   // same wrap-prone value (a single fixed group/session for the whole
   // sheet, a real and common case), that shrink applied to the entire
   // table, not just the affected column, defeating the fixed size
@@ -1291,7 +1324,18 @@ export async function fillDocxTemplate(
       const groupPlaceholderValues = rowsToPlaceholderValueLists(groupRows);
       const sectionLetterhead = substitutePlaceholders(letterheadXml, groupPlaceholderValues);
       const sectionTable = `${tableOpenPart}${scaleRowXml(normalizeRowFontSize(headerRowXml), scale)}${generatedRows}</w:tbl>`;
-      const sectionTrailing = substitutePlaceholders(repeatableTrailingXml, groupPlaceholderValues);
+      // A key that varied within this group (more than one distinct value -
+      // structurally what a per-group "trainer name" placeholder looks
+      // like) also gets its inserted value(s) sized to match the table,
+      // per explicit request - see forceFontSizeForValues's own note.
+      const multiValueTexts = Object.values(groupPlaceholderValues)
+        .filter((list) => list.length > 1)
+        .flat();
+      const sectionTrailing = forceFontSizeForValues(
+        substitutePlaceholders(repeatableTrailingXml, groupPlaceholderValues),
+        multiValueTexts,
+        TEMPLATE_FONT_HALF_POINTS
+      );
       // Every group after the first starts on its own fresh page - only the
       // very first section is already at the top of page 1 by definition.
       const pageBreak = index > 0 ? PAGE_BREAK : "";
