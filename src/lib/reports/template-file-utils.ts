@@ -780,11 +780,11 @@ function extractTextRuns(xml: string): TextRunSpan[] {
   return runs;
 }
 
-/** Exact match first; otherwise falls back to the same normalized/substring
- *  fuzzy match already used for column mapping (suggestColumnMapping) - a
- *  template written as "{{المسار}}" should still resolve against a data
- *  column literally named "مسار" or "المسار الحالي", not just an exact
- *  "المسار" column. */
+/** Single-value counterpart of resolvePlaceholderKey below, used by the
+ *  xlsx cell-level substitution (substituteCellPlaceholdersInRow) - a
+ *  worksheet cell holds at most one placeholder occurrence, so there's no
+ *  "which occurrence" question to solve there the way there is for a docx
+ *  XML fragment that can repeat the same token multiple times. */
 function resolvePlaceholderValue(key: string, values: Record<string, string>): string | undefined {
   if (key in values) return values[key];
 
@@ -796,18 +796,55 @@ function resolvePlaceholderValue(key: string, values: Record<string, string>): s
   return matchKey ? values[matchKey] : undefined;
 }
 
+function rowToPlaceholderValues(row: ParsedExcelRow | undefined): Record<string, string> {
+  const values: Record<string, string> = {};
+  if (!row) return values;
+  for (const [key, value] of Object.entries(row)) values[key] = value == null ? "" : String(value);
+  return values;
+}
+
+/** Exact match first; otherwise falls back to the same normalized/substring
+ *  fuzzy match already used for column mapping (suggestColumnMapping) - a
+ *  template written as "{{المسار}}" should still resolve against a data
+ *  column literally named "مسار" or "المسار الحالي", not just an exact
+ *  "المسار" column. Returns the matching KEY, not a value - a repeated
+ *  placeholder needs a different value per occurrence (see
+ *  substitutePlaceholders below), so the caller looks the value list up
+ *  itself once the key is resolved. */
+function resolvePlaceholderKey(key: string, valueLists: Record<string, string[]>): string | undefined {
+  if (key in valueLists) return key;
+
+  const normKey = normalizeHeader(key);
+  return Object.keys(valueLists).find((k) => {
+    const normK = normalizeHeader(k);
+    return normK === normKey || normK.includes(normKey) || normKey.includes(normK);
+  });
+}
+
 /**
  * Replaces every {{columnName}} token found anywhere in this XML fragment's
- * visible text with the matching value from `values`, even when Word split
- * the token across multiple adjacent <w:t> runs (a common real-world docx
- * quirk - editing software frequently breaks a manually-typed run at
+ * visible text with the matching value from `valueLists`, even when Word
+ * split the token across multiple adjacent <w:t> runs (a common real-world
+ * docx quirk - editing software frequently breaks a manually-typed run at
  * spellcheck/autocorrect boundaries). Locates each token in the
  * concatenated plain text first, then edits only the run(s) it actually
  * spans, leaving every other run, tag, and attribute untouched. An unknown
- * placeholder key (no exact or fuzzy match in `values`) is left as literal
- * text.
+ * placeholder key (no exact or fuzzy match in `valueLists`) is left as
+ * literal text.
+ *
+ * A key can carry more than one value: a real template repeated the same
+ * "{{المدرب}}" placeholder twice - one signature line per trainer - for a
+ * group whose rows genuinely have two different trainers. Substituting the
+ * same (first-row) value into both occurrences silently dropped the second
+ * trainer entirely. Each successive occurrence of the SAME key in this XML
+ * now consumes the next distinct value from that key's list (see
+ * rowsToPlaceholderValueLists - first-appearance order across the group's
+ * rows); once the list is exhausted, the last value repeats rather than
+ * the placeholder going blank. A key with only one distinct value (the
+ * common case - group-by columns like "{{المسار}}" are constant across a
+ * group by definition) behaves exactly as before.
  */
-function substitutePlaceholders(xml: string, values: Record<string, string>): string {
+function substitutePlaceholders(xml: string, valueLists: Record<string, string[]>): string {
   const runs = extractTextRuns(xml);
   if (runs.length === 0) return xml;
 
@@ -820,12 +857,18 @@ function substitutePlaceholders(xml: string, values: Record<string, string>): st
 
   const tokenRegex = /\{\{([^{}]+)\}\}/g;
   const newRunText = new Map<number, string>();
+  const occurrenceIndex: Record<string, number> = {};
   let match: RegExpExecArray | null;
 
   while ((match = tokenRegex.exec(flat)) !== null) {
     const key = match[1].trim();
-    const resolved = resolvePlaceholderValue(key, values);
-    if (resolved === undefined) continue;
+    const resolvedKey = resolvePlaceholderKey(key, valueLists);
+    if (resolvedKey === undefined) continue;
+    const list = valueLists[resolvedKey]!;
+    if (list.length === 0) continue;
+    const occurrence = occurrenceIndex[resolvedKey] ?? 0;
+    occurrenceIndex[resolvedKey] = occurrence + 1;
+    const value = list[Math.min(occurrence, list.length - 1)]!;
 
     const start = match.index;
     const end = match.index + match[0].length;
@@ -836,7 +879,6 @@ function substitutePlaceholders(xml: string, values: Record<string, string>): st
 
     const localStart = start - runStartInFlat[startRun]!;
     const localEnd = end - runStartInFlat[endRun]!;
-    const value = resolved;
 
     if (startRun === endRun) {
       const current = newRunText.get(startRun) ?? runs[startRun]!.text;
@@ -861,11 +903,27 @@ function substitutePlaceholders(xml: string, values: Record<string, string>): st
   return result;
 }
 
-function rowToPlaceholderValues(row: ParsedExcelRow | undefined): Record<string, string> {
-  const values: Record<string, string> = {};
-  if (!row) return values;
-  for (const [key, value] of Object.entries(row)) values[key] = value == null ? "" : String(value);
-  return values;
+/** Ordered, de-duplicated values per column across every row in a group -
+ *  first-appearance order, trimmed, blanks skipped. Feeds
+ *  substitutePlaceholders so a placeholder repeated N times in the
+ *  template (e.g. two trainer signature lines) gets N distinct real values
+ *  when the group actually has that many, instead of collapsing to
+ *  whichever row happened to come first. */
+function rowsToPlaceholderValueLists(rows: ParsedExcelRow[]): Record<string, string[]> {
+  const lists: Record<string, string[]> = {};
+  const seen: Record<string, Set<string>> = {};
+  for (const row of rows) {
+    for (const [key, value] of Object.entries(row)) {
+      const str = value == null ? "" : String(value).trim();
+      if (!str) continue;
+      const seenForKey = (seen[key] ??= new Set());
+      if (!seenForKey.has(str)) {
+        seenForKey.add(str);
+        (lists[key] ??= []).push(str);
+      }
+    }
+  }
+  return lists;
 }
 
 /**
@@ -1230,9 +1288,10 @@ export async function fillDocxTemplate(
         .map((row) => buildRowValues(templateHeaders, mapping, row, options?.autoNumberHeader, counter++))
         .map((values) => buildRow(values, scale))
         .join("");
-      const sectionLetterhead = substitutePlaceholders(letterheadXml, rowToPlaceholderValues(groupRows[0]));
+      const groupPlaceholderValues = rowsToPlaceholderValueLists(groupRows);
+      const sectionLetterhead = substitutePlaceholders(letterheadXml, groupPlaceholderValues);
       const sectionTable = `${tableOpenPart}${scaleRowXml(normalizeRowFontSize(headerRowXml), scale)}${generatedRows}</w:tbl>`;
-      const sectionTrailing = substitutePlaceholders(repeatableTrailingXml, rowToPlaceholderValues(groupRows[0]));
+      const sectionTrailing = substitutePlaceholders(repeatableTrailingXml, groupPlaceholderValues);
       // Every group after the first starts on its own fresh page - only the
       // very first section is already at the top of page 1 by definition.
       const pageBreak = index > 0 ? PAGE_BREAK : "";
